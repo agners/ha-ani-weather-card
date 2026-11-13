@@ -91,7 +91,8 @@ describe('train departures', () => {
         expect(html).toContain('&lt;b&gt;IC&lt;/b&gt;');
         expect(html).toContain('<span class="train-delay">+2′</span>');
         expect(html).toContain('<span class="train-platform">Pl. 7</span>');
-        expect(html).toContain(`<span class="train-later">${clock(34, hass)} · ${clock(64, hass)}</span>`);
+        expect(html).toContain(`<span class="train-platform">Pl. 7</span><span class="train-time">${clock(6, hass)}</span>`
+            + `<span class="train-later">${clock(34, hass)} · ${clock(64, hass)}</span>`);
     });
 
     it('reads a bus or tram line as a word and its number, and leaves trains alone', () => {
@@ -107,6 +108,13 @@ describe('train departures', () => {
         expect(html).toContain('<span class="train-line">S5</span><span class="train-transfers" aria-label="Transfers: 1">+1</span>');
         const direct = makeHass({ ...full, transfers: '0' });
         expect(trainRowsHtml(readTrainRoutes(direct, sensor('departure0'), NOW), NOW, direct, 'Pl.')).not.toContain('train-transfers');
+    });
+
+    it('shows a departure over an hour away by its time once, not twice', () => {
+        const hass = makeHass({ ...full, departure0: at(90), departure1: at(120), departure2: at(150) });
+        const html = trainRowsHtml(readTrainRoutes(hass, sensor('departure0'), NOW), NOW, hass, 'Pl.');
+        expect(html).toContain(`<span class="train-due">${clock(90, hass)}</span>`);
+        expect(html).not.toContain('train-time');
     });
 
     it('draws a connection with no departures as a dash', () => {

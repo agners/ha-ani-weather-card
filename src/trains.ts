@@ -143,7 +143,10 @@ export function trainRowsHtml(routes: TrainRoute[], now: number, hass: LocaleSou
     return routes.map(route => {
         const [next, ...later] = route.departures;
         const due = next === undefined ? '--' : formatDue(next, now, hass);
-        const laterTimes = later.map(time => formatTime(new Date(time).toISOString(), hass)).join(' · ');
+        const clock = (time: number) => formatTime(new Date(time).toISOString(), hass);
+        // The next departure's time, beside its countdown; one over an hour away already shows it
+        const nextTime = next !== undefined && clock(next) !== due ? clock(next) : '';
+        const laterTimes = later.map(clock).join(' · ');
         return `<div class="train-row" data-entity="${escapeHtml(route.entity)}" role="button" tabindex="0">`
             + `<span class="train-due">${escapeHtml(due)}</span>`
             + (route.line ? `<span class="train-line">${escapeHtml(route.line)}</span>` : '')
@@ -151,6 +154,7 @@ export function trainRowsHtml(routes: TrainRoute[], now: number, hass: LocaleSou
             + `<span class="train-name">${escapeHtml(route.name)}</span>`
             + (route.delayMin ? `<span class="train-delay">+${route.delayMin}′</span>` : '')
             + (route.platform ? `<span class="train-platform">${escapeHtml(platformLabel)} ${escapeHtml(route.platform)}</span>` : '')
+            + (nextTime ? `<span class="train-time">${escapeHtml(nextTime)}</span>` : '')
             + (laterTimes ? `<span class="train-later">${escapeHtml(laterTimes)}</span>` : '')
             + '</div>';
     }).join('');

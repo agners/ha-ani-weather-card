@@ -637,6 +637,7 @@ ${iconBoxCss('animated-weather-card')}
           font-weight: 500;
         }
         .train-delay { flex: 0 0 auto; font-weight: 600; }
+        .train-time { flex: 0 0 auto; font-weight: 500; }
         .train-platform,
         .train-later { flex: 0 0 auto; opacity: var(--awc-secondary); }
         /* A narrow card keeps the next train and gives up the two after it */
