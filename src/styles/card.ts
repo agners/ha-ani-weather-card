@@ -567,6 +567,83 @@ ${iconBoxCss('animated-weather-card')}
           opacity: var(--awc-secondary);
         }
 
+        /* ── Departure board (train_entities) ────────────────────────────── */
+        /* Below the weather, outside .weather-info: the weather fits itself
+           to the room the board leaves (see applySizeState). */
+        .train-board {
+          position: relative;
+          z-index: 30;
+          flex-shrink: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          margin: 0 var(--awc-pad);
+          padding: 12px 0 var(--awc-pad);
+          text-shadow: 0 1px 12px var(--weather-text-shadow);
+        }
+        .train-board::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 1px;
+          background: currentColor;
+          opacity: 0.2;
+        }
+        .animated-weather-card.theme-colors .train-board { text-shadow: none; }
+        .animated-weather-card.theme-colors .train-board::before {
+          background: var(--divider-color, rgba(0, 0, 0, 0.12));
+          opacity: 1;
+        }
+        .weather-info:has(+ .train-board) { padding-bottom: 14px; }
+        .train-row {
+          display: flex;
+          align-items: baseline;
+          gap: 10px;
+          min-width: 0;
+          font-size: 14px;
+          line-height: 22px;
+          font-variant-numeric: tabular-nums;
+          white-space: nowrap;
+          cursor: pointer;
+          border-radius: 4px;
+        }
+        .train-row:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+        .train-due {
+          flex: 0 0 auto;
+          min-width: 56px;
+          font-size: 16px;
+          font-weight: 500;
+          letter-spacing: -0.012em;
+        }
+        .train-line {
+          flex: 0 0 auto;
+          padding: 0 6px;
+          border: 1px solid currentColor;
+          border-radius: 4px;
+          font-size: 11px;
+          font-weight: 600;
+          line-height: 16px;
+          letter-spacing: 0.04em;
+        }
+        /* Further legs after the line shown: sits against its badge */
+        .train-transfers { flex: 0 0 auto; margin-left: -6px; font-size: 12px; opacity: var(--awc-secondary); }
+        .train-name {
+          flex: 1 1 0;
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          font-weight: 500;
+        }
+        .train-delay { flex: 0 0 auto; font-weight: 600; }
+        .train-platform,
+        .train-later { flex: 0 0 auto; opacity: var(--awc-secondary); }
+        /* A narrow card keeps the next train and gives up the two after it */
+        @container awc (max-width: 419px) {
+          .train-later { display: none; }
+        }
+
         /* One row when the (localized) labels fit, else a 2×2 grid. Measured
            in applySizeState, since label length depends on the language. */
         .animated-weather-card[data-metrics="grid"] .weather-attributes {
@@ -582,7 +659,7 @@ ${iconBoxCss('animated-weather-card')}
 
         /* ── Adaptive layout: width ──────────────────────────────────────── */
         @container awc (max-width: 319px) {
-          .weather-info, .weather-skeleton { --awc-pad: 16px; }
+          .weather-info, .weather-skeleton, .train-board { --awc-pad: 16px; }
           .temperature { font-size: 64px; font-weight: 250; }
           .weather-desc { font-size: 16px; line-height: 21px; margin-top: 6px; }
           .hero-meta, .weather-note { font-size: 14px; }
@@ -594,7 +671,7 @@ ${iconBoxCss('animated-weather-card')}
           .hero-meta, .weather-note { display: none; }
         }
         @container awc (min-width: 460px) {
-          .weather-info, .weather-skeleton { --awc-pad: 24px; }
+          .weather-info, .weather-skeleton, .train-board { --awc-pad: 24px; }
           .location { font-size: 16px; }
           .temperature { font-size: 96px; letter-spacing: -0.05em; }
           .weather-desc { font-size: 18px; line-height: 24px; }
@@ -602,7 +679,7 @@ ${iconBoxCss('animated-weather-card')}
         }
         /* Wide frames (wall tablets, full-width rows): hero left, metrics right */
         @container awc (min-width: 640px) {
-          .weather-info, .weather-skeleton { --awc-pad: 28px; }
+          .weather-info, .weather-skeleton, .train-board { --awc-pad: 28px; }
           .weather-info {
             flex-direction: row;
             align-items: flex-end;

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0-trains.1] - 2026-11-13
+
+### Added
+
+- Train departures under the weather: `train_entities` takes a Departure sensor from Home Assistant's Swiss public transport integration, or a list of them, and shows each connection's next train (minutes, line, platform, delay) and the two after it. A bus or tram line reads "Bus 14" or "Tram 9", and "+1" marks a journey with a change. Give it a connection's second or third departure sensor and the row starts there. The editor has pickers for four connections under Entities.
+
 ## [1.2.0] - 2026-11-06
 
 ### Added

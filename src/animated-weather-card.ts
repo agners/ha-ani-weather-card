@@ -31,6 +31,7 @@ import { clearFogLayers, clearSnowAccumulation, removeClouds } from './gsap-effe
 // bundle, loaded only by cards that fly them (see startPlanes).
 import type { PlanesAnimation } from './planes-animation';
 import { FlightInfo, FlightTracker, readFlights } from './flight-tracker';
+import { readTrainRoutes, trainEntityList, trainRowsHtml } from './trains';
 // Import time management
 import { TimeOfDayManager } from './time-manager';
 // Import styles
@@ -83,6 +84,8 @@ const HERO_FADE_OUT_MS = 120;
 const HERO_FADE_IN_MS = 220;
 /** Room the metrics row needs to spare before a 2×2 grid switches back to one row. */
 const METRICS_ROW_SLACK_PX = 24;
+/** How often the departure board counts its minutes down */
+const TRAIN_TICK_MS = 15_000;
 
 // The card's own GSAP, for every animation, here and in the planes bundle.
 // Never window.gsap: another card on the dashboard may bring a different
@@ -152,6 +155,8 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
     private planesWanted = false;
     private flightTracker = new FlightTracker();
     private lastFlightsState?: HassEntity; // Skip hass pushes that didn't touch the flights sensor
+    /** Counts the departure board's minutes down between sensor updates */
+    private trainTimer?: ReturnType<typeof setInterval>;
     /** Hides the note when it stops being true (see currentNote) */
     private noteExpiryTimer?: ReturnType<typeof setTimeout>;
     /** Writes the note with the AI Task (show_note), loaded on demand (see mountNoteWriter) */
@@ -262,6 +267,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
         this.style.position = 'relative';
         this.style.display = 'block';
         this.style.height = '100%';
+        this.startTrainTimer();
 
         if (!this.resizeObserver && typeof ResizeObserver !== 'undefined') {
             this.resizeObserver = new ResizeObserver(() => {
@@ -464,6 +470,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
               </div>
               ${compact ? '' : metrics}
             </div>
+            ${this.trainRows() ? `<div class="train-board" role="group" aria-label="${escapeHtml(localizeString(this._hass, 'departures'))}">${this.trainBoardHtml()}</div>` : ''}
           </div>
 
           <!-- Precipitation and wind containers (decorative) -->
@@ -501,6 +508,10 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
         this.applySkyPhase();
         this.applySizeState();
         this.applySpill();
+        const board = this.querySelector('.train-board');
+        board?.addEventListener('click', (e) => this.openTrain(e));
+        board?.addEventListener('keydown', (e) => this.openTrain(e));
+        this.startTrainTimer();
     }
 
     /**
@@ -978,6 +989,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
             // Flights are independent of the weather entity, so check them
             // before any of the weather-specific early returns below.
             this.handleFlightUpdates();
+            this.updateTrains();
             this.noteWriter?.hassChanged();
 
             if (!oldHass) {
@@ -1318,6 +1330,45 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
         planes.destroy().catch((err) => devLog(this.config?.dev_mode, 'Error stopping plane fly-overs:', err));
     }
 
+    /** Connections on the departure board. The compact strip has none. */
+    private trainRows(): number {
+        return this.config?.compact ? 0 : trainEntityList(this.config?.train_entities).length;
+    }
+
+    private trainBoardHtml(): string {
+        const now = Date.now();
+        return trainRowsHtml(readTrainRoutes(this._hass, this.config?.train_entities, now), now, this._hass,
+            localizeString(this._hass, 'platform'), localizeString(this._hass, 'transfers'));
+    }
+
+    /** Redraw the board when a departure, or the minute, has changed. */
+    private updateTrains(): void {
+        const board = this.querySelector('.train-board');
+        if (!board) return;
+        const html = this.trainBoardHtml();
+        if (board.innerHTML !== html) board.innerHTML = html;
+    }
+
+    private startTrainTimer(): void {
+        clearInterval(this.trainTimer);
+        this.trainTimer = this.trainRows() && this.isConnected
+            ? setInterval(() => this.updateTrains(), TRAIN_TICK_MS)
+            : undefined;
+    }
+
+    /** A tap, Enter or Space on a connection opens its departure sensor. */
+    private openTrain(event: Event): void {
+        const row = (event.target as Element | null)?.closest?.('.train-row') as HTMLElement | null;
+        if (!row?.dataset.entity || this.config?.dev_mode) return;
+        if (event instanceof KeyboardEvent) {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            event.preventDefault();
+        }
+        this.dispatchEvent(new CustomEvent('hass-more-info', {
+            detail: { entityId: row.dataset.entity }, bubbles: true, composed: true,
+        }));
+    }
+
     /** Diff the flights sensor and fly any newly arrived planes across the card. */
     private handleFlightUpdates(): void {
         if (!this.config?.flights_entity) return;
@@ -1431,6 +1482,8 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
         this.conditionChangeTimeout = undefined;
         clearTimeout(this.noteExpiryTimer);
         this.noteExpiryTimer = undefined;
+        clearInterval(this.trainTimer);
+        this.trainTimer = undefined;
         this.noteWriter?.stop();
         this.noteTyping?.finish();
         this.clearAnimations();
@@ -1597,9 +1650,12 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
      */
     getGridOptions() {
         if (this.config?.compact) return { columns: 12, rows: 2, min_columns: 6, min_rows: 1 };
-        return this.noteEnabled()
+        const grid = this.noteEnabled()
             ? { columns: 12, rows: 5, min_columns: 6, min_rows: 3 }
             : { columns: 12, rows: 4, min_columns: 6, min_rows: 3 };
+        // The departure board: a row for its first connection, then one for every two more
+        const trains = this.trainRows();
+        return trains ? { ...grid, rows: grid.rows + Math.ceil(trains / 2), min_rows: 4 } : grid;
     }
 
     getCardSize(): number {
@@ -1611,6 +1667,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
         if (this.config?.show_indoor !== false) size += 1;
         if (this.config?.show_attributes !== false) size += 1;
         if (this.noteEnabled()) size += 1;
+        size += Math.ceil(this.trainRows() / 2);
         return size;
     }
 

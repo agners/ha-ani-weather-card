@@ -13,7 +13,8 @@ export type CardString =
     | 'sunrise' | 'sunset' | 'solar_noon' | 'daylight'
     | 'first_light' | 'last_light' | 'moon'
     | 'in_duration'
-    | 'note_reading' | 'note_writing';
+    | 'note_reading' | 'note_writing'
+    | 'departures' | 'platform' | 'transfers';
 
 const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
     en: {
@@ -22,6 +23,7 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         first_light: 'First light', last_light: 'Last light', moon: 'Moon',
         in_duration: 'in {duration}',
         note_reading: 'Reading the forecast', note_writing: 'Writing the note',
+        departures: 'Departures', platform: 'Pl.', transfers: 'Transfers',
     },
     de: {
         feels_like: 'Gefühlt', indoors: 'Innen',
@@ -29,6 +31,7 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         first_light: 'Morgendämmerung', last_light: 'Abenddämmerung', moon: 'Mond',
         in_duration: 'in {duration}',
         note_reading: 'Vorhersage wird gelesen', note_writing: 'Notiz wird geschrieben',
+        departures: 'Abfahrten', platform: 'Gl.', transfers: 'Umstiege',
     },
     es: {
         feels_like: 'Sensación térmica', indoors: 'Interior',
@@ -36,6 +39,7 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         first_light: 'Alba', last_light: 'Anochecer', moon: 'Luna',
         in_duration: 'en {duration}',
         note_reading: 'Leyendo el pronóstico', note_writing: 'Escribiendo la nota',
+        departures: 'Salidas', platform: 'Vía', transfers: 'Transbordos',
     },
     fr: {
         feels_like: 'Ressenti', indoors: 'Intérieur',
@@ -43,6 +47,7 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         first_light: 'Aube', last_light: 'Crépuscule', moon: 'Lune',
         in_duration: 'dans {duration}',
         note_reading: 'Lecture des prévisions', note_writing: 'Rédaction de la note',
+        departures: 'Départs', platform: 'Voie', transfers: 'Correspondances',
     },
     it: {
         feels_like: 'Percepita', indoors: 'Interno',
@@ -50,6 +55,7 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         first_light: 'Prima luce', last_light: 'Ultima luce', moon: 'Luna',
         in_duration: 'tra {duration}',
         note_reading: 'Lettura delle previsioni', note_writing: 'Scrittura della nota',
+        departures: 'Partenze', platform: 'Bin.', transfers: 'Cambi',
     },
     nl: {
         feels_like: 'Voelt als', indoors: 'Binnen',
@@ -57,6 +63,7 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         first_light: 'Ochtendschemering', last_light: 'Avondschemering', moon: 'Maan',
         in_duration: 'over {duration}',
         note_reading: 'Verwachting lezen', note_writing: 'Notitie schrijven',
+        departures: 'Vertrek', platform: 'Spoor', transfers: 'Overstappen',
     },
     pl: {
         feels_like: 'Odczuwalna', indoors: 'Wewnątrz',
@@ -64,6 +71,7 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         first_light: 'Świt', last_light: 'Zmierzch', moon: 'Księżyc',
         in_duration: 'za {duration}',
         note_reading: 'Czytanie prognozy', note_writing: 'Pisanie notatki',
+        departures: 'Odjazdy', platform: 'Peron', transfers: 'Przesiadki',
     },
     pt: {
         feels_like: 'Sensação térmica', indoors: 'Interior',
@@ -71,6 +79,7 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         first_light: 'Aurora', last_light: 'Crepúsculo', moon: 'Lua',
         in_duration: 'em {duration}',
         note_reading: 'Leitura da previsão', note_writing: 'Escrita da nota',
+        departures: 'Partidas', platform: 'Linha', transfers: 'Transbordos',
     },
     ro: {
         feels_like: 'Resimțită', indoors: 'Interior',
@@ -78,6 +87,7 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         first_light: 'Zori', last_light: 'Amurg', moon: 'Lună',
         in_duration: 'în {duration}',
         note_reading: 'Citesc prognoza', note_writing: 'Scriu nota',
+        departures: 'Plecări', platform: 'Linia', transfers: 'Schimbări',
     },
 };
 

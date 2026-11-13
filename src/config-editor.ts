@@ -7,6 +7,7 @@ import { skyColors, oklchToSrgb, toHex, SKY_TEXT } from './sky';
 import { escapeHtml, textField } from './utils';
 import { readActions } from './actions';
 import { mountActionsEditor, updateActionsEditor } from './action-editor';
+import { TRAIN_EDITOR_SLOTS, trainEntityList } from './trains';
 
 /** note_calendar as a list: YAML takes one calendar or several, the editor's picker shows the first */
 function noteCalendarList(value: unknown): string[] {
@@ -212,6 +213,16 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
                 allow-custom-entity
               ></ha-entity-picker>
             </div>
+            ${Array.from({ length: TRAIN_EDITOR_SLOTS }, (_, i) => `
+            <div class="option">
+              <ha-entity-picker
+                id="train_entities_${i}"
+                label="Departure sensor${i ? ` ${i + 1}` : ''}"
+                value="${escapeHtml(trainEntityList(this._config?.train_entities)[i] || '')}"
+                ${i ? '' : `helper="A Swiss public transport 'Departure' sensor, one per connection. Each is a row of next departures under the weather"`}
+                allow-custom-entity
+              ></ha-entity-picker>
+            </div>`).join('')}
           </div>
         </div>
 
@@ -640,6 +651,17 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
             this.syncNoteOptions();
         });
 
+        for (let i = 0; i < TRAIN_EDITOR_SLOTS; i++) {
+            this.querySelector(`#train_entities_${i}`)?.addEventListener('value-changed', (e) => {
+                // The pickers are the first connections, in order; any more from YAML stay
+                const picked = Array.from({ length: TRAIN_EDITOR_SLOTS }, (_, slot) =>
+                    (this.querySelector(`#train_entities_${slot}`) as HTMLInputElement | null)?.value || '');
+                picked[i] = (e.target as HTMLInputElement).value || '';
+                const trains = [...picked, ...trainEntityList(this._config?.train_entities).slice(TRAIN_EDITOR_SLOTS)].filter(Boolean);
+                this._updateConfig('train_entities', trains.length > 1 ? trains : trains[0] || undefined);
+            });
+        }
+
         this.querySelector('#note_calendar')?.addEventListener('value-changed', (e) => {
             // The picker is the first calendar; any others from YAML stay
             const calendars = [(e.target as HTMLInputElement).value, ...noteCalendarList(this._config?.note_calendar).slice(1)].filter(Boolean);
@@ -1052,6 +1074,7 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
             { id: '#indoor_humidity_entity', domains: ['sensor'] },
             { id: '#sun_entity', domains: ['sun'] },
             { id: '#flights_entity', domains: ['sensor'] },
+            ...Array.from({ length: TRAIN_EDITOR_SLOTS }, (_, i) => ({ id: `#train_entities_${i}`, domains: ['sensor'] })),
             { id: '#note_entity', domains: ['sensor', 'input_text'] },
             { id: '#note_ai_task_entity', domains: ['ai_task'] },
             { id: '#note_calendar', domains: ['calendar'] }

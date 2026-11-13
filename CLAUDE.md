@@ -71,6 +71,7 @@ src/
 ├── particle-pool.ts                # Recycled particles for rain, snow and sleet
 ├── gsap-effects.ts                 # Clouds, leaves, swooshes and fog
 ├── flight-tracker.ts               # Flightradar24 arrivals for plane fly-overs
+├── trains.ts                       # Swiss public transport departures for the board under the weather
 ├── localize.ts                     # The cards' own strings, times and durations
 ├── color-utils.ts                  # custom_colors → CSS variables
 ├── constants.ts, types.ts
@@ -149,6 +150,11 @@ demo/
 - **Planes.** `FlightTracker` seeds itself on the first update, then reports only new airborne arrivals. `planes-animation.ts` turns each flight's heading, altitude, ground speed and vertical speed into a pass. At most three planes fly at once.
 - **Aircraft.** `aircraft.ts` picks a family from the flight's ICAO type code (`aircraftFamily`: narrow-body, wide-body, four-engine, rear-engine, turboprop, light, helicopter; unknown codes fly as a narrow-body) and draws it from a small 3D model in metres after one real aircraft (A320neo, 787, 747-8, CRJ900, ATR 72, Cessna 172, H135), projected from the side as seen from `VIEW_ELEVATION_DEG` below. Each family is drawn once and cached. A drawing reports its aspect, how much of it is the aircraft (a rotor or propeller reaches past), the fuselage's height for the label, and its near side's lights. Size follows length (`planeLengthPx`: business jets have their own in `BIZJET_LENGTHS`), softened by an exponent and capped so a low 747 never covers the temperature. A helicopter flies nose down (`FORWARD_PITCH_DEG`).
 - **Lights.** At night, with the sky palette, a plane is its lights (the `night` fly-over option): the outline at 22% once the sky is night (at dusk and dawn a plane up high is still sunlit, so it keeps its outline), steady green at the near wingtip flying right and red flying left (CSS on `eastbound`/`westbound`, since the drawing is mirrored), double-flash white strobes, the red belly beacon and the white tail light. On the theme palette there's no night sky, so planes stay silhouettes.
+
+### Train departures
+
+- **Data.** `train_entities` names one Swiss public transport departure sensor per connection. `readTrainRoutes` (`trains.ts`) finds the connection's other sensors through `hass.entities` (same device, platform `swiss_public_transport`, by translation key) and names the row after the device. A row starts at the departure sensor it was given (`departure1` leaves the first train out). Line, platform, delay and transfers describe the first departure only, and go when it has left or isn't in the row. The line is the first leg's (the integration joins the API's category and number, so `formatLine` turns "B14" into "Bus 14"); the later legs' lines aren't in any sensor, so transfers shows as "+1". The card never calls the API: the integration's own polling already uses most of transport.opendata.ch's daily allowance.
+- **Board.** `.train-board` is a sibling after `.weather-info`, so the weather fits itself to the room the board leaves. It's redrawn in place on every `hass` update and every 15 s (`TRAIN_TICK_MS`) while the card is connected, only when its markup changed. Each connection adds to `getGridOptions`: one row for the first, one for every two more. The compact strip has no board.
 
 ### Fitting the frame
 

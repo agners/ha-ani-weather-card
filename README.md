@@ -65,6 +65,10 @@ Connect the [Flightradar24 integration](https://github.com/AlexandrErohin/home-a
 
 ![A Boeing 787 crossing a clear afternoon sky, and a 747 crossing a clear night, shown by its lights](docs/images/planes.webp)
 
+## Your next train, under the sky.
+
+Give the card a departure sensor from Home Assistant's [Swiss public transport](https://www.home-assistant.io/integrations/swiss_public_transport/) integration and it lists that connection under the weather: the minutes until the next train, its line and platform, a delay if it has one, and the two departures after it. The minutes count down on their own.
+
 ## At home in any theme.
 
 Prefer your dashboard's own look? The theme palette drops the sky and draws the weather in your theme's colours, light or dark. Or keep the sky and recolour it: pick per-condition colours in the editor, or define whole gradients in your theme.
@@ -305,6 +309,21 @@ sun_entity: sun.sun
 flights_entity: sensor.flightradar24_current_in_area
 ```
 
+### Train departures
+
+This needs the [Swiss public transport](https://www.home-assistant.io/integrations/swiss_public_transport/) integration, with one entry per connection (from a station, to a station). Give `train_entities` the connection's **Departure** sensor, or a list of them for several connections. The editor has pickers for four, under Entities. The card finds the connection's other sensors (the two later departures, line, platform and delay) on the same device, and names the row after the device, so rename the device to rename the row.
+
+```yaml
+type: custom:animated-weather-card
+entity: weather.forecast_home
+sun_entity: sun.sun
+train_entities:
+  - sensor.zurich_hb_bern_departure
+  - sensor.zurich_hb_luzern_departure
+```
+
+Each row shows the minutes until the next train, or its time when it's more than an hour away, with the delay already counted. Pick the connection's second or third departure sensor instead and the row starts there, without the trains before it. Line, platform and delay belong to the first departure only, so such a row shows times alone; the times after it are the scheduled ones. The line is the journey's first leg, the one you board: a bus or tram reads "Bus 14" or "Tram 9", and a "+1" after it means one change follows. Cards narrower than 420 px leave those later times out. A tap on a row opens its departure sensor. The card reads only the sensors and asks transport.opendata.ch for nothing itself. In the sections view the card asks for one more row for the first connection and one for every two after it. The compact strip has no departures.
+
 ### A note from your AI
 
 The card can write a sentence under the conditions: a remark on the weather, what's coming in the next hours and what to wear. It's snarky by default.
@@ -472,6 +491,7 @@ sunset_hour: 19
 | `indoor_temperature_entity` | — | An indoor temperature, shown under the condition |
 | `indoor_humidity_entity` | — | An indoor humidity, shown beside it |
 | `flights_entity` | — | A Flightradar24 area sensor, usually `sensor.flightradar24_current_in_area` |
+| `train_entities` | — | A Swiss public transport **Departure** sensor, or a list of them: each connection's next trains, under the weather |
 
 **Display**
 
