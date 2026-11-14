@@ -9,7 +9,7 @@ import { cardClock } from '../../src/fc-weather';
 import { shortDate } from '../../src/localize';
 import { glyph, glyphKey, GLYPH_KEYS, litTints } from '../../src/fc-glyphs';
 import { Timeline } from '../../src/fc-core';
-import { hours } from '../../src/fc-data';
+import { conditionNoun, hours, timeText } from '../../src/fc-data';
 import { FC_WORDS } from '../../src/fc-words';
 import type { ForecastExtras, ForecastHost } from '../../src/forecast-host';
 import type { ForecastEntry } from '../../src/forecast-data';
@@ -1369,5 +1369,195 @@ describe('one needle across the page', () => {
         expect(own.getAttribute('aria-valuenow')).toBe('0');
         expect(fc.querySelector('[data-fc-daily]')?.hasAttribute('data-fc-follow')).toBe(false);
         expect(heard.filter(l => l.at === null && l.source === card)).toHaveLength(1);
+    });
+});
+
+describe('a weather card without the forecast follows a card dragged on its weather', () => {
+    const heard: HourLink[] = [];
+    const listen = (e: Event) => heard.push((e as CustomEvent<HourLink>).detail);
+    const other = document.createElement('div');
+    const needle = (at: number | null, entity = 'weather.home') => sendHour({ source: other, entity, sun: 'sun.sun', at, temperature: null, sky: null });
+    // A needle another test left on this weather is not this test's
+    beforeEach(() => { needle(null); heard.length = 0; window.addEventListener(HOUR_EVENT, listen); });
+    afterEach(() => window.removeEventListener(HOUR_EVENT, listen));
+    const extrasOf = (card: Card) => (card as unknown as { extras?: ForecastExtras }).extras;
+    type Layers = { animations: Record<string, { isActive: boolean }> };
+    const layersOf = (card: Card) => (card as unknown as { animationController?: Layers }).animationController?.animations;
+    const rootOf = (card: Card) => card.querySelector('.animated-weather-card') as HTMLElement;
+    const text = (card: Card, sel: string) => rootOf(card).querySelector(sel)?.textContent ?? '';
+
+    it('loads and reads nothing until a card on its weather is dragged', async () => {
+        const hass = makeHass();
+        const subscribe = vi.spyOn(hass.connection, 'subscribeMessage');
+        const card = mount({}, hass);
+        await settle();
+        expect(extrasOf(card)).toBeUndefined();
+        // Another weather's needle, and a card coming home, are no drag on its weather
+        needle(Date.now() + 4 * HOUR, 'weather.away');
+        needle(null);
+        await settle();
+        expect(extrasOf(card)).toBeUndefined();
+        expect(subscribe).not.toHaveBeenCalled();
+        expect(rootOf(card).hasAttribute('data-awc-away')).toBe(false);
+        // A card on its weather is dragged: from here it reads the hours
+        needle(Date.now() + 4 * HOUR);
+        await settle();
+        expect(extrasOf(card)).toBeDefined();
+        expect(subscribe.mock.calls.some(([, m]) => m.forecast_type === 'hourly')).toBe(true);
+        needle(null);
+    });
+
+    it('follows the forecast card in the hand, never sends, and comes home with it', async () => {
+        const hass = makeHass();
+        const fc = mount({}, hass, 'animated-forecast-card');
+        const card = mount({}, hass);
+        await settle();
+        const root = rootOf(card);
+        const slider = fc.querySelector('[role="slider"]') as HTMLElement;
+        slider.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+        slider.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+        // Two hours on: 20.4°
+        await until(() => text(card, '.temperature-value') === '20');
+        expect(text(card, '.temperature-value')).toBe('20');
+        expect(root.hasAttribute('data-awc-away')).toBe(true);
+        expect(heard.filter(l => l.source === card)).toHaveLength(0);
+        slider.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true }));
+        await until(() => !root.hasAttribute('data-awc-away') && heard.some(l => l.source === fc && l.at === null));
+        expect(root.hasAttribute('data-awc-away')).toBe(false);
+        expect(text(card, '.temperature-value')).toBe('21');
+        expect(heard.filter(l => l.source === card)).toHaveLength(0);
+    });
+
+    it('takes its sky, weather, temperature, condition and readings to the hour and names it; Home Assistant\'s updates wait', async () => {
+        const hass = makeHass();
+        hass.states['weather.home'].state = 'rainy';
+        const card = mount({}, hass);
+        await until(() => !!layersOf(card)?.rain?.isActive);
+        const root = rootOf(card);
+        const sky = root.querySelector('.sky') as HTMLElement;
+        const rain = root.querySelector('.rain-container') as HTMLElement;
+        const humidity = () => text(card, '.attribute[data-kind="humidity"] .attribute-text');
+        const home = { temp: text(card, '.temperature-value'), desc: text(card, '.weather-desc') };
+        expect(humidity()).toMatch(/^55/);
+        // Seven hours on: a clear night, 18.9°, other readings, no rain
+        needle(Date.now() + 7 * HOUR);
+        await until(() => root.hasAttribute('data-awc-away') && parseFloat(rain.style.opacity) < 0.05);
+        expect(text(card, '.temperature-value')).toBe('19');
+        expect(text(card, '.weather-desc')).toBe(conditionNoun('clear-night', hass as never, s => s));
+        expect(humidity()).toMatch(/^60/);
+        expect(sky.style.getPropertyValue('--awc-sky-top')).not.toBe('');
+        expect(parseFloat(rain.style.opacity)).toBeLessThan(0.05);
+        expect(root.querySelector('.awc-away .awc-at')?.textContent).toBeTruthy();
+        // A follower only: no Now control, no slider, no ruler, none of the forecast, no drag of its own
+        expect(root.querySelector('.awc-now, [role="slider"], .awc-rail, .fc-section, .awc-companion')).toBeNull();
+        expect(root.hasAttribute('data-slide')).toBe(false);
+        expect(heard.filter(l => l.source === card)).toHaveLength(0);
+        // A new reading from Home Assistant waits while it's away
+        const weather = hass.states['weather.home'];
+        card.hass = { ...hass, states: { 'weather.home': { ...weather, attributes: { ...weather.attributes, humidity: 70 } } } };
+        await settle();
+        expect(humidity()).toMatch(/^60/);
+        // Home with the card it follows: its own words, the new reading, its own rain, and nothing left behind
+        needle(null);
+        await until(() => !root.hasAttribute('data-awc-away') && rain.style.opacity === '' && sky.style.getPropertyValue('--awc-sky-top') === '');
+        expect(text(card, '.temperature-value')).toBe(home.temp);
+        expect(text(card, '.weather-desc')).toBe(home.desc);
+        expect(humidity()).toMatch(/^70/);
+        expect(rain.style.opacity).toBe('');
+        expect(sky.style.getPropertyValue('--awc-sky-top')).toBe('');
+        expect(root.querySelector('.awc-away, .awc-desc-row')).toBeNull();
+        expect(layersOf(card)!.rain.isActive).toBe(true);
+        expect(heard.filter(l => l.source === card)).toHaveLength(0);
+    });
+
+    it('a new reading while it follows brings it home on its own, still without a word to the card it followed', async () => {
+        const hass = makeHass();
+        const card = mount({}, hass);
+        await settle();
+        needle(Date.now() + 4 * HOUR);
+        await until(() => rootOf(card).hasAttribute('data-awc-away'));
+        const weather = hass.states['weather.home'];
+        card.hass = { ...hass, states: { 'weather.home': { ...weather, attributes: { ...weather.attributes, temperature: 23 } } } };
+        await until(() => !rootOf(card).hasAttribute('data-awc-away') && text(card, '.temperature-value') === '23');
+        expect(text(card, '.temperature-value')).toBe('23');
+        expect(heard.filter(l => l.source === card)).toHaveLength(0);
+        needle(null);
+    });
+
+    it('on the compact strip, names the hour in the quiet line', async () => {
+        const card = mount({ compact: true });
+        await settle();
+        const root = rootOf(card);
+        const meta = root.querySelector('.compact-meta') as HTMLElement;
+        const quiet = meta.textContent;
+        needle(Date.now() + 3 * HOUR);
+        await until(() => root.hasAttribute('data-awc-away'));
+        expect(root.dataset.awcAway).toBe('location');
+        expect(root.querySelector('.awc-away')?.parentElement).toBe(meta);
+        expect(text(card, '.temperature-value')).toBe('20');
+        needle(null);
+        await until(() => !root.hasAttribute('data-awc-away'));
+        expect(meta.querySelector('.awc-away')).toBeNull();
+        expect(meta.textContent).toBe(quiet);
+    });
+
+    it('a card with the clock follows too, and with the time as the hero, the hero shows the hour', async () => {
+        const hass = makeHass();
+        const clock = mount({ show_clock: true }, hass);
+        const hero = mount({ hero: 'clock' }, hass);
+        await settle();
+        // The clock was drawn already; the hours are read from the first needle
+        expect(extrasOf(clock)).toBeDefined();
+        const label = () => hero.querySelector('.awc-hero-clock .awc-clock')?.getAttribute('aria-label');
+        const h = new Date().getHours() + 5;
+        needle(Date.now() + 5 * HOUR);
+        await until(() => [clock, hero].every(c => rootOf(c).hasAttribute('data-awc-away')));
+        expect(rootOf(clock).hasAttribute('data-awc-away')).toBe(true);
+        expect(label()).toBe(timeText(today(h), hass as never));
+        needle(null);
+        await until(() => [clock, hero].every(c => !rootOf(c).hasAttribute('data-awc-away')));
+        // Now's time again (on a busy runner the minute may have turned meanwhile)
+        expect([0, 1, 2].map(m => timeText(new Date(Date.now() - m * 60_000), hass as never))).toContain(label());
+    });
+
+    it('starts where the needle is when its hours come later, even once that needle has stopped', async () => {
+        const hass = makeHass();
+        hass.connection.subscribeMessage = async (listener, message) => {
+            setTimeout(() => listener({ type: message.forecast_type, forecast: message.forecast_type === 'hourly' ? forecast() : daily }), 60);
+            return () => {};
+        };
+        const card = mount({}, hass);
+        await settle();
+        needle(Date.now() + 2 * HOUR);
+        expect(rootOf(card).hasAttribute('data-awc-away')).toBe(false);
+        await until(() => rootOf(card).hasAttribute('data-awc-away'));
+        expect(text(card, '.temperature-value')).toBe('20');
+        needle(null);
+        await until(() => !rootOf(card).hasAttribute('data-awc-away'));
+        expect(rootOf(card).hasAttribute('data-awc-away')).toBe(false);
+    });
+
+    it('still (animate: false): it goes to the hour without bringing in weather', async () => {
+        const card = mount({ animate: false });
+        await settle();
+        needle(Date.now() + 3 * HOUR);
+        await until(() => text(card, '.temperature-value') === '20');
+        expect(rootOf(card).hasAttribute('data-awc-away')).toBe(true);
+        expect(rootOf(card).classList.contains('awc-warm')).toBe(false);
+        needle(null);
+        await until(() => !rootOf(card).hasAttribute('data-awc-away'));
+        expect(text(card, '.temperature-value')).toBe('21');
+    });
+
+    it('the nightstand and dev mode stay as they are', async () => {
+        const night = mount({ layout: 'nightstand' });
+        const dev = mount({ dev_mode: true });
+        await settle();
+        needle(Date.now() + 3 * HOUR);
+        await settle();
+        await settle();
+        for (const c of [night, dev]) expect(rootOf(c)?.hasAttribute('data-awc-away') ?? false).toBe(false);
+        expect(extrasOf(dev)).toBeUndefined();
+        needle(null);
     });
 });

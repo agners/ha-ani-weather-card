@@ -3,8 +3,9 @@
 // which time its needle is on, and the cards that share its sun or its
 // weather follow: the sun tracker's sun goes to that time, the forecast
 // card's days show the day it falls in, and a forecast card without hours
-// takes its sky and its weather. When the card comes home, it says so once,
-// and they come back to now.
+// takes its sky and its weather, and a weather card without the forecast goes
+// to that hour as a whole. When the card comes home, it says so once, and
+// they come back to now.
 //
 // A window event, because the bundles don't share a module scope, with plain
 // names on it. Only a slide sends, and a card that follows has no slide
@@ -32,8 +33,17 @@ export interface HourLink {
     weather?: Record<string, number> | null;
 }
 
+/** Where each weather's needle is, as last sent from this bundle; none once its card is home */
+const needles = new Map<string, HourLink>();
+
 export function sendHour(link: HourLink): void {
+    if (link.at === null) needles.delete(link.entity); else needles.set(link.entity, link);
     window.dispatchEvent(new CustomEvent(HOUR_EVENT, { detail: link }));
+}
+
+/** The needle on this weather now, if a card is away: a card that starts following starts there, even once it has stopped */
+export function needleOn(entity: string): HourLink | undefined {
+    return needles.get(entity);
 }
 
 /** Listen to every card's needle; returns the way to stop */

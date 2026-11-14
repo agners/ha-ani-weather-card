@@ -50,6 +50,8 @@ export interface ForecastHost {
     fit(): void;
     /** Read the entity again into the card's own text (after the slide comes home) */
     refresh(): void;
+    /** Without the forecast, another card's needle has moved on this weather: the card reads the hours and follows it (an older main bundle has none) */
+    following?(): boolean;
     /** The card is on screen and its tab is visible */
     seen(): boolean;
     /** Reduced motion or animate: false: a still card */

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Dragging a forecast card through the hours moved a sun tracker on its sun but not a weather card on its weather, unless that card had `show_forecast` on. A weather card without it now follows the card you drag: its sky and weather, the temperature, the condition and the readings go to the hour, the hour shows on its location line, and it comes back to now with that card. It only follows: no row, no drag of its own, and its tap is unchanged. A dashboard where nothing is dragged loads nothing new.
+- On the compact strip with the forecast on, the hour you dragged to was named on a line of its own under the temperature, squeezing the condition; it's now named in the quiet line under the condition.
+- A weather card dragged through the hours came back to the readings from before the drag when Home Assistant sent new ones in the meantime, until the next update; it now shows the new ones as it comes home.
+
 ## [1.3.1] - 2026-11-14
 
 ### Added
