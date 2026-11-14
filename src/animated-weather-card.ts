@@ -60,6 +60,7 @@ import { ForecastFeed } from './forecast-feed';
 import { forecastTypes } from './forecast-data';
 import type { ForecastExtras, ForecastHost, Surface } from './forecast-host';
 import { HOUR_EVENT, type HourLink } from './hour-link';
+import { drawNight, starCount } from './stars-animation';
 
 registerSkyProperties();
 
@@ -1047,7 +1048,12 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
             const reducedMotion = typeof window !== 'undefined'
                 && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
             if (config.animate === false || reducedMotion || !this.weatherShown()) {
-                applyCardClass(config.animate === false ? 'static' : '');
+                // A still clear night keeps its moon and stars, as a still day keeps its sun: the same night, with no
+                // twinkle and no fade. Not on the forecast card, which has none of its own
+                const night = weatherClass === 'clear-night' && this.surface !== 'forecast';
+                applyCardClass(config.animate === false ? 'static' : '', night ? 'individual-stars-active' : '');
+                const layer = card.querySelector('.animation-layer');
+                if (night && layer) drawNight(layer, starCount(getWeatherSettings(config).cloudCount, card.clientWidth), { moon: true, still: true });
                 this.currentWeatherClass = weatherClass;
                 return;
             }
@@ -1114,7 +1120,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
             removeClouds(this);
             
             // Clear stars and moon
-            const gsapStars = animationLayer.querySelectorAll('.star-gsap, .moon-gsap');
+            const gsapStars = animationLayer.querySelectorAll('.stars-field, .star-gsap, .moon-gsap');
             gsapStars.forEach(star => {
                 if (star.parentNode) {
                     star.parentNode.removeChild(star);

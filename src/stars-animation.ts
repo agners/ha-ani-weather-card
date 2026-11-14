@@ -4,9 +4,68 @@ import { BaseAnimation, BaseAnimationConfig, AnimationLifecycleState } from './b
 import { AnimatedWeatherCardConfig } from './types';
 import { getWeatherSettings, devLog } from './utils';
 
-/** Share of stars that twinkle, and how far they dim when they do. */
-const STAR_TWINKLE_SHARE = 1 / 3;
-const STAR_TWINKLE_DEPTH = 0.35;
+/** Stars on a phone-wide card for each cloud of engine_settings.cloudCount (15 by default); a wider card has more, to this width */
+const STARS_PER_CLOUD = 5;
+const STAR_WIDTH = 353;
+const STAR_WIDTH_MAX = 1440;
+/** Half the stars twinkle: down to a quarter to under half of their light and back, over 2 to 4 s each way */
+const STAR_TWINKLE_SHARE = 1 / 2;
+const STAR_TWINKLE_LOW = 0.25;
+const STAR_TWINKLE_SPREAD = 0.2;
+const STAR_TWINKLE_S = 2;
+const STAR_TWINKLE_SPREAD_S = 2;
+
+/**
+ * How many stars a card of this width shows: as many across a phone's width as the engine's clouds call for (at least
+ * 15), and as many again for every phone's width more, up to 1440 px, so a wide card's sky is as full as a phone's
+ */
+export function starCount(cloudCount: number, width: number): number {
+    const w = width > 0 ? Math.min(width, STAR_WIDTH_MAX) : STAR_WIDTH;
+    return Math.max(15, Math.round(cloudCount * STARS_PER_CLOUD * Math.max(1, w / STAR_WIDTH)));
+}
+
+/**
+ * A clear night in the card's sky layer: a field of stars and the moon. Stars twinkle with CSS keyframes
+ * (compositor-only, no per-star tween), each on its own period and phase. A still night (reduced motion, animate:
+ * false) has the same stars and moon, and none of them twinkle.
+ */
+export function drawNight(layer: Element, count: number, { moon, still = false }: { moon: boolean; still?: boolean }): HTMLElement[] {
+    const field = document.createElement('div');
+    field.className = 'stars-field';
+    for (let i = 0; i < count; i++) {
+        const star = document.createElement('div');
+        star.className = 'star-gsap';
+        const size = 1 + Math.random() * 3;
+        const opacity = 0.3 + Math.random() * 0.5;
+        star.style.cssText = `
+            width: ${size.toFixed(2)}px;
+            height: ${size.toFixed(2)}px;
+            left: ${(Math.random() * 100).toFixed(2)}%;
+            top: ${(Math.random() * 70).toFixed(2)}%;
+            opacity: ${opacity.toFixed(2)};
+        `;
+        if (!still && Math.random() < STAR_TWINKLE_SHARE) {
+            const period = STAR_TWINKLE_S + Math.random() * STAR_TWINKLE_SPREAD_S;
+            star.classList.add('twinkle');
+            star.style.setProperty('--star-o', opacity.toFixed(2));
+            star.style.setProperty('--star-dim', (opacity * (STAR_TWINKLE_LOW + Math.random() * STAR_TWINKLE_SPREAD)).toFixed(2));
+            star.style.animationDuration = `${period.toFixed(2)}s`;
+            star.style.animationDelay = `${(-Math.random() * period).toFixed(2)}s`;
+        }
+        field.appendChild(star);
+    }
+    layer.appendChild(field);
+    const drawn = [field];
+    // The moon takes the sun's place in the top-right, clear of the temperature. Its disc stays steady; only its halo
+    // breathes (CSS), and a still night's rests
+    if (moon) {
+        const disc = document.createElement('div');
+        disc.className = 'moon-gsap';
+        layer.appendChild(disc);
+        drawn.push(disc);
+    }
+    return drawn;
+}
 
 export interface StarsAnimationConfig extends BaseAnimationConfig {
     starCount: number;
@@ -55,53 +114,14 @@ export class StarsAnimation extends BaseAnimation {
             s.remove();
         });
 
-        // Calculate star count based on cloud density
-        const starCount = Math.max(15, Math.round(settings.cloudCount * 5));
-
-        // Stars twinkle with CSS keyframes (compositor-only, no per-star
-        // tween). Only about a third twinkle, gently, each on its own slow
-        // period and phase; the rest just shine.
-        const field = document.createElement('div');
-        field.className = 'stars-field';
-        for (let i = 0; i < starCount; i++) {
-            const star = document.createElement('div');
-            star.className = 'star-gsap';
-            const size = 1 + Math.random() * 3;
-            const opacity = 0.3 + Math.random() * 0.5;
-            star.style.cssText = `
-                width: ${size.toFixed(2)}px;
-                height: ${size.toFixed(2)}px;
-                left: ${(Math.random() * 100).toFixed(2)}%;
-                top: ${(Math.random() * 70).toFixed(2)}%;
-                opacity: ${opacity.toFixed(2)};
-            `;
-            if (Math.random() < STAR_TWINKLE_SHARE) {
-                const period = 3 + Math.random() * 4;
-                star.classList.add('twinkle');
-                star.style.setProperty('--star-o', opacity.toFixed(2));
-                star.style.setProperty('--star-dim', (opacity * (1 - Math.random() * STAR_TWINKLE_DEPTH)).toFixed(2));
-                star.style.animationDuration = `${period.toFixed(2)}s`;
-                star.style.animationDelay = `${(-Math.random() * period).toFixed(2)}s`;
-            }
-            field.appendChild(star);
-        }
-        animationLayer.appendChild(field);
-        this.addParticle(field);
-
-        // The field fades in as one, rather than star by star
-        window.AnimatedWeatherCardGsap.fromTo(field, { opacity: 0 }, { opacity: 1, duration: 1.2, ease: 'power1.out' });
-
-        // The moon takes the sun's place in the top-right, clear of the
-        // temperature. Its disc stays steady; only its halo breathes (CSS).
-        if (this.starsConfig.showMoon) {
-            const moon = document.createElement('div');
-            moon.className = 'moon-gsap';
-            animationLayer.appendChild(moon);
-            this.addParticle(moon);
-            window.AnimatedWeatherCardGsap.fromTo(moon, { opacity: 0 }, { opacity: 1, duration: 1.2, ease: 'power1.out' });
+        const count = starCount(settings.cloudCount, (animationLayer as HTMLElement).clientWidth || card?.clientWidth || 0);
+        // The field and the moon fade in as one, rather than star by star
+        for (const el of drawNight(animationLayer, count, { moon: this.starsConfig.showMoon })) {
+            this.addParticle(el);
+            window.AnimatedWeatherCardGsap.fromTo(el, { opacity: 0 }, { opacity: 1, duration: 1.2, ease: 'power1.out' });
         }
 
-        devLog(this.config.devMode, `Stars animation started with ${starCount} stars`);
+        devLog(this.config.devMode, `Stars animation started with ${count} stars`);
     }
 
     protected async onStop(): Promise<void> {

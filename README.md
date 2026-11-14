@@ -85,7 +85,7 @@ Prefer your dashboard's own look? The theme palette drops the sky and draws the 
 - **Your own sensors.** Point the card at your weather station and it shows what they measure: temperature, feels like, humidity, wind and pressure, indoors and out. The sky still follows the forecast.
 - **Updates in place.** New readings fade in without a re-render. When the condition changes, the old weather fades out as the new one arrives.
 - **Rests when unseen.** Motion pauses while the tab is hidden or the card is scrolled out of view. It can also pause while the window is in the background.
-- **Respects reduced motion.** If reduced motion is on in your system settings, the sky stays still: the same colour and light, with no moving weather.
+- **Respects reduced motion.** If reduced motion is on in your system settings, the sky stays still: the same colour and light, with no moving weather. The sun stays, and so do a clear night's moon and stars, which don't twinkle.
 - **Readable in every sky.** Text sits above the weather, and every built-in sky is tested to meet WCAG AA contrast for the card's text. Screen readers hear temperature and condition changes, and decorative layers are hidden from them.
 - **Light to load.** The card is about 84 KB gzipped, with GSAP, its animation library, inside, so it moves without internet access. The visual editor, the forecast, the note writer, the planes and the developer panel load only when they're needed.
 - **Set up visually.** Every weather card option is in the visual editor. YAML is there when you want it.
@@ -722,7 +722,7 @@ sunset_hour: 19
 
 | Option | Default | Description |
 | --- | --- | --- |
-| `animate` | `true` | Set to `false` for a still sky: the condition's colour and light, no motion |
+| `animate` | `true` | Set to `false` for a still sky: the condition's colour and light, no motion. The sun, and a clear night's moon and stars, stay, still |
 | `spill_particles` | `true` | Let rain, snow, sleet and leaves fall out of the card onto the dashboard, and clouds drift a little above its top edge. Turn it off to keep all weather inside the card |
 | `disable_lightning_shake` | `false` | Turn off the card's small jolt on lightning strikes |
 | `auto_pause` | `false` | Also pause while the browser window is in the background. Cards always pause while the tab is hidden or the card is off-screen |
@@ -746,7 +746,7 @@ Set these under `engine_settings:`. The editor's sliders cover the useful range,
 | `rainCount` | `1` | 0.5–3× | 0.1–10× | Amount of rain |
 | `snowCount` | `1` | 0.5–3× | 0.1–10× | Amount of snow |
 | `leafCount` | `1` | 0.5–3× | 0.1–10× | Amount of leaves on windy days |
-| `cloudCount` | `3` | 1–6 | 1–20 | Number of clouds, and of stars on a clear night: five per cloud, at least 15 |
+| `cloudCount` | `3` | 1–6 | 1–20 | Number of clouds, and of stars on a clear night: five per cloud across a phone's width (at least 15), and as many again for each phone's width more, up to 1440 px |
 | `cloudBaseSize` | `1` | 0.5–2× | 0.3–2.5× | Cloud size |
 | `splashBounce` | `80` | 40–120 | 40–120 | How high raindrops spring back after they splash |
 
@@ -798,7 +798,7 @@ The card reads the standard Home Assistant conditions. It also understands free-
 | Home Assistant condition | What you see | Theme variable |
 | --- | --- | --- |
 | `sunny` | Clear sky and the sun | `weather-sunny-background` |
-| `clear-night` | Stars and the moon | `weather-clear-night-background` |
+| `clear-night` | The moon, and stars, half of them twinkling | `weather-clear-night-background` |
 | `partlycloudy` | The sun between drifting clouds, behind each one that passes in front of it | `weather-partly-cloudy-background` |
 | `cloudy` | Overcast, with drifting clouds | `weather-cloudy-background` |
 | `fog` | Drifting fog | `weather-foggy-background` |

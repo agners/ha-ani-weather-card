@@ -980,7 +980,8 @@ ${iconBoxCss('animated-weather-card')}
         }
         /* animate: false is fully still: the light stays, the breathing stops */
         .animated-weather-card.static .sun,
-        .animated-weather-card.static .sun::before { animation: none; }
+        .animated-weather-card.static .sun::before,
+        .animated-weather-card.static .moon-gsap::before { animation: none; }
         .animated-weather-card.theme-colors .sun { box-shadow: none !important; }
         .animated-weather-card.theme-colors .moon-gsap::before { display: none; }
         .animated-weather-card.theme-colors .sun {

@@ -276,7 +276,9 @@ export function attachSlide(o: SlideOptions): Slide {
         const n: Record<string, number> = { sun: Number.isFinite(sun) ? sun : 0, drop };
         const layers = host.layers();
         for (const name of [...LAYER_NAMES, 'stars']) {
-            activeAtHome[name] = !!layers?.animations[name]?.isActive && !started.includes(name);
+            // A still night's moon and stars are drawn without the stars animation, and are as much the card's
+            const drawn = name === 'stars' && !!root.querySelector('.stars-field');
+            activeAtHome[name] = (!!layers?.animations[name]?.isActive || drawn) && !started.includes(name);
             n[name] = activeAtHome[name] ? 1 : 0;
         }
         return { sky: skyLab, cols, n };
