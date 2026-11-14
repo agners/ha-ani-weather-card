@@ -60,7 +60,7 @@ import { ForecastFeed } from './forecast-feed';
 import { forecastTypes } from './forecast-data';
 import type { ForecastExtras, ForecastHost, Surface } from './forecast-host';
 import { HOUR_EVENT, type HourLink } from './hour-link';
-import { drawNight, starCount } from './stars-animation';
+import { clearStarsFromWords, drawNight, starCount, wordBoxes } from './stars-animation';
 
 registerSkyProperties();
 
@@ -179,6 +179,8 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
     private extras?: ForecastExtras;
     /** Without the forecast, another card's needle has moved on this weather, and this card follows it (onNeedle) */
     private following = false;
+    /** The frame after a fit, when no star may stay behind a word (applySizeState) */
+    private starFrame = 0;
     /**
      * A card from the card picker starts on your own weather: the first
      * weather entity not on the dashboard yet, else one that is, else
@@ -1053,7 +1055,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
                 const night = weatherClass === 'clear-night' && this.surface !== 'forecast';
                 applyCardClass(config.animate === false ? 'static' : '', night ? 'individual-stars-active' : '');
                 const layer = card.querySelector('.animation-layer');
-                if (night && layer) drawNight(layer, starCount(getWeatherSettings(config).cloudCount, card.clientWidth), { moon: true, still: true });
+                if (night && layer) drawNight(layer, starCount(getWeatherSettings(config).cloudCount, card.clientWidth), { moon: true, still: true, words: wordBoxes(card) });
                 this.currentWeatherClass = weatherClass;
                 return;
             }
@@ -1626,6 +1628,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
     disconnectedCallback(): void {
         shareWeather(this);
         window.removeEventListener(HOUR_EVENT, this.onNeedle);
+        cancelAnimationFrame(this.starFrame);
         if (this.conditionChangeTimeout) clearTimeout(this.conditionChangeTimeout);
         this.conditionChangeTimeout = undefined;
         clearTimeout(this.noteExpiryTimer);
@@ -1757,6 +1760,9 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
         const card = this.querySelector('.animated-weather-card') as HTMLElement | null;
         const info = card?.querySelector('.weather-info') as HTMLElement | null;
         if (!card || !info) return;
+        // Once the words have settled where this fit puts them, no star stays behind one
+        cancelAnimationFrame(this.starFrame);
+        this.starFrame = requestAnimationFrame(() => clearStarsFromWords(card));
         const hero = card.querySelector('.main-weather-info') as HTMLElement | null;
         const metrics = card.querySelector('.weather-attributes') as HTMLElement | null;
 

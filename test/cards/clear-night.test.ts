@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import '../../src/animated-weather-card';
 import '../../src/sun-tracker-card';
 import { skyColors } from '../../src/sky';
-import { drawNight, starCount } from '../../src/stars-animation';
+import { clearStarsFromWords, drawNight, starCount, veilStars } from '../../src/stars-animation';
 
 // A winter evening: the sun went down at 17:20 and it's 19:55, before the
 // clock's default sunset hour (20). Home Assistant already says clear-night.
@@ -184,5 +184,71 @@ describe('the stars on a clear night', () => {
         const [still] = drawNight(document.createElement('div'), 400, { moon: false, still: true });
         expect(still.querySelectorAll('.twinkle')).toHaveLength(0);
         expect(still.querySelectorAll('.star-gsap')).toHaveLength(400);
+    });
+});
+
+describe('no star behind a word', () => {
+    const rect = (left: number, top: number, right: number, bottom: number) =>
+        ({ left, top, right, bottom, width: right - left, height: bottom - top, x: left, y: top, toJSON() {} }) as DOMRect;
+    const at = (el: HTMLElement, r: DOMRect) => { el.getBoundingClientRect = () => r; return el; };
+
+    it('places each star clear of the words where there is room, and veils one that finds none', () => {
+        // A 400 × 200 sky; stars keep its top 70% (140 px). A word over the left half of that band
+        const layer = at(document.createElement('div'), rect(0, 0, 400, 200));
+        const word = rect(0, 0, 200, 140);
+        const [field] = drawNight(layer, 300, { moon: false, words: [word] });
+        const stars = [...field.querySelectorAll<HTMLElement>('.star-gsap')];
+        expect(stars).toHaveLength(300);
+        const shown = stars.filter(s => !s.classList.contains('awc-veiled'));
+        // Twelve tries each at a sky not quite half free: hardly any star finds no room
+        expect(shown.length).toBeGreaterThan(290);
+        for (const star of shown) {
+            const x = parseFloat(star.style.left) * 4, y = parseFloat(star.style.top) * 2, size = parseFloat(star.style.width);
+            const onWord = x + size > word.left - 20 && x < word.right + 20 && y + size > word.top - 10 && y < word.bottom + 10;
+            expect(onWord).toBe(false);
+        }
+    });
+
+    it('veils a star a word moves over, and shows it again once the word moves away', () => {
+        const a = at(document.createElement('div'), rect(50, 20, 52, 22));
+        const b = at(document.createElement('div'), rect(300, 20, 302, 22));
+        veilStars([a, b], [rect(10, 10, 100, 30)]);
+        expect([a.classList.contains('awc-veiled'), b.classList.contains('awc-veiled')]).toEqual([true, false]);
+        veilStars([a, b], [rect(280, 10, 320, 30)]);
+        expect([a.classList.contains('awc-veiled'), b.classList.contains('awc-veiled')]).toEqual([false, true]);
+        // Twenty px of room beside a word, so a star on its line doesn't read as its punctuation; ten above and below
+        veilStars([a], [rect(71, 20, 80, 30)]);
+        expect(a.classList.contains('awc-veiled')).toBe(true);
+        veilStars([a], [rect(73, 20, 80, 30)]);
+        expect(a.classList.contains('awc-veiled')).toBe(false);
+        veilStars([a], [rect(40, 31, 80, 40)]);
+        expect(a.classList.contains('awc-veiled')).toBe(true);
+        veilStars([a], [rect(40, 33, 80, 40)]);
+        expect(a.classList.contains('awc-veiled')).toBe(false);
+    });
+
+    it('reads the card\'s words line by line, and never the sky\'s own text, like a plane\'s tag', () => {
+        const card = document.createElement('div');
+        card.innerHTML = '<div class="weather-info"><div class="weather-desc">Clear, night</div></div>'
+            + '<div class="animation-layer"><div class="stars-field"><div class="star-gsap"></div><div class="star-gsap"></div></div><span class="plane-tag">LH 400</span></div>';
+        document.body.append(card);
+        const [onWord, onTag] = [...card.querySelectorAll<HTMLElement>('.star-gsap')];
+        at(onWord, rect(50, 20, 52, 22));
+        at(onTag, rect(320, 20, 322, 22));
+        // The text's own line, not its block (which spans the card)
+        const proto = Range.prototype as unknown as { getClientRects?: () => DOMRect[] };
+        const before = proto.getClientRects;
+        proto.getClientRects = function (this: Range) {
+            const el = this.startContainer.parentElement;
+            return el?.classList.contains('weather-desc') ? [rect(10, 10, 100, 30)] : el?.classList.contains('plane-tag') ? [rect(300, 10, 360, 30)] : [];
+        };
+        try {
+            clearStarsFromWords(card);
+        } finally {
+            if (before) proto.getClientRects = before; else delete proto.getClientRects;
+            card.remove();
+        }
+        expect(onWord.classList.contains('awc-veiled')).toBe(true);
+        expect(onTag.classList.contains('awc-veiled')).toBe(false);
     });
 });

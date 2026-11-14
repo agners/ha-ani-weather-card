@@ -25,23 +25,84 @@ export function starCount(cloudCount: number, width: number): number {
 }
 
 /**
+ * Room around a word, px. A star nearer than this reads as part of it: on the line, as its punctuation ("Clear; night",
+ * "Feels like 18° ."), so the room beside a word is wider than above and below it
+ */
+const WORD_ROOM_X = 20;
+const WORD_ROOM_Y = 10;
+/** Tries at a place clear of the words before a star is drawn veiled */
+const STAR_TRIES = 12;
+
+type Box = { left: number; top: number; right: number; bottom: number };
+const near = (a: Box, b: Box) => a.right > b.left - WORD_ROOM_X && a.left < b.right + WORD_ROOM_X
+    && a.bottom > b.top - WORD_ROOM_Y && a.top < b.bottom + WORD_ROOM_Y;
+
+/**
+ * The card's words as tight boxes: each line of each text, and each icon, outside the sky's own layers (the sun, the
+ * moon, the stars, the planes' tags and the weather). A block's own box would cover the whole width of its line.
+ */
+export function wordBoxes(card: Element): Box[] {
+    const boxes: Box[] = [];
+    const range = document.createRange();
+    if (typeof range.getClientRects !== 'function') return boxes;
+    const sky = '.animation-layer, .animation-container, style, script';
+    const walker = document.createTreeWalker(card, NodeFilter.SHOW_TEXT);
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+        if (!n.nodeValue?.trim() || n.parentElement?.closest(sky)) continue;
+        range.selectNodeContents(n);
+        for (const r of Array.from(range.getClientRects())) if (r.width && r.height) boxes.push(r);
+    }
+    for (const icon of Array.from(card.querySelectorAll('svg, ha-icon'))) {
+        if (icon.closest(sky)) continue;
+        const r = icon.getBoundingClientRect();
+        if (r.width && r.height) boxes.push(r);
+    }
+    return boxes;
+}
+
+/** A star that sits on a word steps out of sight (visibility, so its twinkle carries on unseen); the rest show */
+export function veilStars(stars: Iterable<HTMLElement>, words: Box[]): void {
+    for (const star of stars) {
+        const r = star.getBoundingClientRect();
+        star.classList.toggle('awc-veiled', !!r.width && words.some(w => near(r, w)));
+    }
+}
+
+/** No star behind a word, after the card has been fitted and its words have moved */
+export function clearStarsFromWords(card: Element): void {
+    const stars = card.querySelectorAll<HTMLElement>('.stars-field .star-gsap');
+    if (stars.length) veilStars(stars, wordBoxes(card));
+}
+
+/**
  * A clear night in the card's sky layer: a field of stars and the moon. Stars twinkle with CSS keyframes
  * (compositor-only, no per-star tween), each on its own period and phase. A still night (reduced motion, animate:
- * false) has the same stars and moon, and none of them twinkle.
+ * false) has the same stars and moon, and none of them twinkle. Each star is placed clear of the card's words where
+ * it can be (words: wordBoxes), so the sky keeps its count; one that finds no room is drawn veiled.
  */
-export function drawNight(layer: Element, count: number, { moon, still = false }: { moon: boolean; still?: boolean }): HTMLElement[] {
+export function drawNight(layer: Element, count: number, { moon, still = false, words = [] }: { moon: boolean; still?: boolean; words?: Box[] }): HTMLElement[] {
     const field = document.createElement('div');
     field.className = 'stars-field';
+    const sky = (layer as HTMLElement).getBoundingClientRect();
+    const placeable = words.length > 0 && sky.width > 0 && sky.height > 0;
     for (let i = 0; i < count; i++) {
         const star = document.createElement('div');
         star.className = 'star-gsap';
         const size = 1 + Math.random() * 3;
         const opacity = 0.3 + Math.random() * 0.5;
+        let left = 0, top = 0, clear = false;
+        for (let t = 0; t < (placeable ? STAR_TRIES : 1) && !clear; t++) {
+            left = Math.random() * 100;
+            top = Math.random() * 70;
+            const x = sky.left + (left / 100) * sky.width, y = sky.top + (top / 100) * sky.height;
+            clear = !placeable || !words.some(w => near({ left: x, top: y, right: x + size, bottom: y + size }, w));
+        }
+        if (!clear) star.classList.add('awc-veiled');
         star.style.cssText = `
             width: ${size.toFixed(2)}px;
             height: ${size.toFixed(2)}px;
-            left: ${(Math.random() * 100).toFixed(2)}%;
-            top: ${(Math.random() * 70).toFixed(2)}%;
+            left: ${left.toFixed(2)}%;
+            top: ${top.toFixed(2)}%;
             opacity: ${opacity.toFixed(2)};
         `;
         if (!still && Math.random() < STAR_TWINKLE_SHARE) {
@@ -116,7 +177,7 @@ export class StarsAnimation extends BaseAnimation {
 
         const count = starCount(settings.cloudCount, (animationLayer as HTMLElement).clientWidth || card?.clientWidth || 0);
         // The field and the moon fade in as one, rather than star by star
-        for (const el of drawNight(animationLayer, count, { moon: this.starsConfig.showMoon })) {
+        for (const el of drawNight(animationLayer, count, { moon: this.starsConfig.showMoon, words: card ? wordBoxes(card) : [] })) {
             this.addParticle(el);
             window.AnimatedWeatherCardGsap.fromTo(el, { opacity: 0 }, { opacity: 1, duration: 1.2, ease: 'power1.out' });
         }

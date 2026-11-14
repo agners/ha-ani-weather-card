@@ -1027,6 +1027,8 @@ ${iconBoxCss('animated-weather-card')}
           pointer-events: none;
         }
         .star-gsap.twinkle { animation: awcTwinkle 5s ease-in-out infinite alternate; }
+        /* A star on a word would read as part of it; it steps out of sight until the word moves away */
+        .star-gsap.awc-veiled { visibility: hidden; }
         @keyframes awcTwinkle {
           from { opacity: var(--star-o); }
           to { opacity: var(--star-dim); }
