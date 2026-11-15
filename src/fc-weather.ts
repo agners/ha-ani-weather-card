@@ -5,6 +5,11 @@
 // hours, with the row (or, where it has given way, the divider's rail) as
 // its ruler.
 //
+// Without show_forecast, a card still follows another card's needle on its
+// weather once one moves (host.following): the hours are read, nothing of
+// the forecast is drawn, and a slide that only follows takes the card's sky,
+// weather and words to that hour, naming it on the location line.
+//
 // The fit gives way in this order, before the temperature ever shrinks:
 // the chips, then the icons, then the row (it folds back to the turning
 // line and the rail), then the turning line's own line. A level is kept
@@ -207,11 +212,14 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
     const hero = root.querySelector('.main-weather-info') as HTMLElement;
     const compact = root.dataset.variant === 'compact';
     const forecastOn = () => !!cfg().show_forecast;
+    /** The hours are read: the forecast is drawn, or the card follows another card's needle */
+    const hoursOn = () => forecastOn() || !!host.following?.();
     const theme = () => cfg().color_palette === 'theme';
     let W = fcWords(host.hass());
 
     // ── The clock: the location line leads with the time, or the time is the hero; the date follows it ──
-    const loc = hero.querySelector('.location') as HTMLElement | null;
+    // (on the compact strip, the quiet line under the condition is where the hour is named while the card is away)
+    const loc = (hero.querySelector('.location') ?? (compact ? hero.querySelector('.compact-meta') : null)) as HTMLElement | null;
     const clock = cardClock(host, root);
     let readAt = 0;
     function tickClock(animate: boolean) {
@@ -263,10 +271,22 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
     function build() {
         teardownForecast();
         W = fcWords(host.hass());
-        if (!forecastOn()) return;
+        if (!hoursOn()) return;
         model = buildModel(host, current());
         const m = model;
         if (!m.tl) return;
+        if (forecastOn()) drawForecast(m);
+        // The away line: the Now control and the hour, in the location line's place. A card that only follows has no
+        // Now control: the card it follows brings it home
+        away = document.createElement('span');
+        away.className = 'awc-away';
+        away.innerHTML = `${forecastOn() ? `<button type="button" class="awc-now awc-noclaim" aria-label="${esc(W.back)}"><i aria-hidden="true"></i>${esc(W.now)}</button>` : ''}<span class="awc-at"></span><span class="awc-rel"></span>`;
+        const now = away.querySelector('.awc-now') as HTMLElement | null;
+        if (now) ownControl(now, () => slide?.home());
+    }
+
+    /** The forecast's own parts: today's high and low, the turning line, the hourly row and its chips */
+    function drawForecast(m: Model) {
         // The condition's line: the condition, and today's high and low (or the turning line, or the hour's chance)
         if (!compact && desc) {
             // With the time as the hero, the temperature already leads the condition in its row
@@ -310,11 +330,6 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
             chips = createChips({ W, metrics: m.metrics, value: metric, noun: m.noun, onChange: (k, { keys }) => { metric = k; hourly?.setMetric(k, { animate: !keys }); writeCompanionAway(); } });
             sec.append(chips.el);
         }
-        // The away line: the Now control and the hour, in the location line's place
-        away = document.createElement('span');
-        away.className = 'awc-away';
-        away.innerHTML = `<button type="button" class="awc-now awc-noclaim" aria-label="${esc(W.back)}"><i aria-hidden="true"></i>${esc(W.now)}</button><span class="awc-at"></span><span class="awc-rel"></span>`;
-        ownControl(away.querySelector('.awc-now') as HTMLElement, () => slide?.home());
         restDesc();
         measureCondition();
     }
@@ -328,7 +343,7 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
         lineEl?.remove(); lineEl = null;
         if (descRow && desc && !descRow.classList.contains('awc-lead-row')) { descRow.before(desc); descRow.remove(); }
         companion?.remove();
-        descRow = null; companion = null;
+        descRow = null; companion = null; madeRow = false;
         tintsFor = null;
         model = null;
         delete root.dataset.fc;
@@ -399,12 +414,30 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
         saved = null; savedArrow = null;
     }
     const nf = (v: number) => num(Math.round(v), model?.lang ?? 'en');
+    /**
+     * The condition's line, where the away line goes when the location line isn't shown: today's row, the time's lead
+     * row (hero: clock), or on a card that only follows, a row made while it's away and taken down at home. A row
+     * measures as the condition's own line does, so nothing below it moves.
+     */
+    let madeRow = false;
+    function awayRow(): HTMLElement | null {
+        if (descRow || compact || !desc) return descRow;
+        const lead = desc.parentElement;
+        if (lead?.classList.contains('awc-lead-row')) return (descRow = lead);
+        descRow = document.createElement('div');
+        descRow.className = 'awc-desc-row';
+        desc.before(descRow);
+        descRow.append(desc);
+        madeRow = true;
+        return descRow;
+    }
     function readout(slot: Slot | null, k: number) {
         const m = model;
         if (!m) return;
         awaySlot = slot;
         if (!slot) {
             restore();
+            if (madeRow && descRow && desc) { descRow.before(desc); descRow.remove(); descRow = null; madeRow = false; }
             delete root.dataset.awcAway;
             if (clock.big) clock.show(new Date(), false);
             away?.remove();
@@ -429,12 +462,16 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
             // How far ahead is said only if it fits whole inside the line's tint limit
             rel.hidden = false;
             if (locShown && loc && away.getBoundingClientRect().right > loc.getBoundingClientRect().left + loc.clientWidth + 0.5) rel.hidden = true;
-            else if (!locShown && descRow && away.parentElement !== descRow) descRow.prepend(away);
-            else if (!locShown && !descRow) hero.prepend(away);
+            else if (!locShown) { const row = awayRow(); if (row && away.parentElement !== row) row.prepend(away); else if (!row) hero.prepend(away); }
         }
         const temp = root.querySelector('.temperature-value') as HTMLElement | null;
         if (temp && typeof slot.temperature === 'number') temp.textContent = host.temperature(slot.temperature);
         if (desc) desc.innerHTML = `<span class="awc-cond">${esc(conditionNoun(slot.condition ?? '', host.hass(), s => host.conditionName(s)))}</span>`;
+        // On the condition's line, the condition stays: how far ahead steps out if it would push the condition off the line
+        if (!locShown && away && desc && away.parentElement === descRow) {
+            const rel = away.querySelector('.awc-rel') as HTMLElement;
+            if (desc.offsetTop > away.offsetTop + 4) rel.hidden = true;
+        }
         writeCompanionAway();
         writeLine(k);
         // The readings read the hour too: the card stays whole when pulled
@@ -452,9 +489,11 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
     }
 
     function attach() {
-        if (!model?.tl || !forecastOn()) return;
+        if (!model?.tl || !hoursOn()) return;
+        // Without the forecast, a slide that only follows: no ruler or rail, since the card takes no drag of its own
+        const follower = !forecastOn();
         const useRow = !!hourly && !hourly.empty && ['full', 'glyphs', 'row'].includes(level);
-        const kind = useRow ? 'row' : compact ? 'strip' : wide() ? 'info' : 'divider';
+        const kind = follower ? 'follow' : useRow ? 'row' : compact ? 'strip' : wide() ? 'info' : 'divider';
         if (slide && kind === rulerKind) return;
         if (slide?.active()) return;
         slide?.destroy();
@@ -462,9 +501,9 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
         const m = model;
         const railHost = useRow ? null : kind === 'divider' ? root.querySelector('.weather-attributes') as HTMLElement | null : info;
         slide = attachSlide({
-            host, root, tl: m.tl!,
+            host, root, tl: m.tl!, followOnly: follower,
             ruler: useRow ? hourly : null,
-            railHost: railHost ?? info, railClass: `in-${railHost ? kind : 'info'}`,
+            railHost: follower ? null : railHost ?? info, railClass: `in-${railHost ? kind : 'info'}`,
             sliderHost: useRow ? hourly!.el : railHost ?? info,
             sliderLabel: W.hours,
             valueText: s => valueText(m, host, s),
@@ -590,7 +629,7 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
 
     function keyOf(): string {
         const f = host.forecast();
-        return `${forecastOn()}|${f.settled}|${f.hourly?.length}|${f.hourly?.[0]?.datetime}|${f.hourly?.map(e => `${e.temperature}${e.condition}${e.precipitation_probability}`).join()}|${f.daily?.map(e => `${e.temperature}${e.templow}${e.condition}`).join()}|${current()}`;
+        return `${forecastOn()}|${hoursOn()}|${f.settled}|${f.hourly?.length}|${f.hourly?.[0]?.datetime}|${f.hourly?.map(e => `${e.temperature}${e.condition}${e.precipitation_probability}`).join()}|${f.daily?.map(e => `${e.temperature}${e.templow}${e.condition}`).join()}|${current()}`;
     }
 
     return {
@@ -616,10 +655,12 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
             else if (slide?.active()) slide.home(true);
             if (visible && pendingRebuild && !slide?.active()) { pendingRebuild = false; rebuild(); }
         },
-        away: () => !!slide?.active(),
+        // Its words show another hour. Once they've crossed back to now on the way home, Home Assistant's own text is
+        // written again: the refresh that comes with them reads what arrived while the card was away
+        away: () => !!slide?.active() && root.hasAttribute('data-awc-away'),
         conditionText: (state: string) => (forecastOn() ? conditionNoun(state, host.hass(), s => host.conditionName(s)) : null),
         open() {
-            if (!model?.tl) { host.moreInfo(); return; }
+            if (!model?.tl || !forecastOn()) { host.moreInfo(); return; }
             openView(host, { model, metric, slots: slide?.slots() ?? 0, chipsLevel: chips?.level() ?? 0, small: root });
         },
         destroy() {

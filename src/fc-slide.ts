@@ -25,11 +25,13 @@
 // card's needle the way the finger moves it, ruler, sky and readout, and
 // says nothing while it does, so nothing echoes; a hand on it, or its Now
 // control, makes it the one that leads. The days on the same card follow its
-// own needle (onNeedle).
+// own needle (onNeedle). A weather card without the forecast has a slide that
+// only follows (followOnly): no ruler, no slider and no drag of its own, and
+// it never sends.
 
 import type { ForecastHost } from './forecast-host';
 import type { SkyCondition, SkyPhase } from './sky';
-import { onHour, sendHour } from './hour-link';
+import { needleOn, onHour, sendHour } from './hour-link';
 import {
     CONTAINER, LAYER_NAMES, LAYER_OF, Lab, Slot, Timeline, clamp, cssOf, haptic, isWet, labOf, phaseWeights, reducedMotion,
     rubber, smooth, spring, sunDrop, sunModel,
@@ -115,6 +117,11 @@ export interface SlideOptions {
     onNeedle?(at: number | null, temperature: number | null): void;
     /** A lift settles on every nth hour, the ruler's own marks (the wall's two-hour columns); 1 by default */
     settleEvery?: number;
+    /**
+     * It only follows another card's needle (a weather card without show_forecast): no slider, no drag or swipe of its
+     * own, and it never sends, so the card's gestures stay as they are and the card it follows always leads
+     */
+    followOnly?: boolean;
 }
 
 export interface Slide {
@@ -203,8 +210,8 @@ export function attachSlide(o: SlideOptions): Slide {
     slider.setAttribute('aria-valuemax', String(maxK()));
     slider.setAttribute('aria-valuenow', '0');
     slider.setAttribute('aria-valuetext', o.valueText(null, 0));
-    o.sliderHost.append(slider);
-    root.dataset.slide = '';
+    // A slide that only follows takes no keys, and the card keeps its own touch handling (data-slide sets pan-y)
+    if (!o.followOnly) { o.sliderHost.append(slider); root.dataset.slide = ''; }
 
     // ── The layers: pre-warm what the hours ahead need. Invisible: the write that hides a layer has no transition. ──
     const started: string[] = [];
@@ -269,7 +276,9 @@ export function attachSlide(o: SlideOptions): Slide {
         const n: Record<string, number> = { sun: Number.isFinite(sun) ? sun : 0, drop };
         const layers = host.layers();
         for (const name of [...LAYER_NAMES, 'stars']) {
-            activeAtHome[name] = !!layers?.animations[name]?.isActive && !started.includes(name);
+            // A still night's moon and stars are drawn without the stars animation, and are as much the card's
+            const drawn = name === 'stars' && !!root.querySelector('.stars-field');
+            activeAtHome[name] = (!!layers?.animations[name]?.isActive || drawn) && !started.includes(name);
             n[name] = activeAtHome[name] ? 1 : 0;
         }
         return { sky: skyLab, cols, n };
@@ -425,7 +434,7 @@ export function attachSlide(o: SlideOptions): Slide {
         return out;
     }
     function emit() {
-        if (!link || state.following) return;
+        if (!link || state.following || o.followOnly) return;
         const h = slotsAt(state.offset);
         linked = true;
         sendHour({
@@ -434,7 +443,7 @@ export function attachSlide(o: SlideOptions): Slide {
         });
     }
     function emitHome() {
-        if (!link || !linked) return;
+        if (!link || !linked || o.followOnly) return;
         linked = false;
         sendHour({ source: host.element, ...link, at: null, temperature: null, sky: null, weather: null });
     }
@@ -551,7 +560,7 @@ export function attachSlide(o: SlideOptions): Slide {
     let start: { x: number; y: number; id: number; claimed: boolean; base: number; slop: number; caught?: boolean } | null = null;
     let samples: Array<{ x: number; t: number }> = [];
     on(gesture, 'pointerdown', ((e: PointerEvent) => {
-        if (!e.isPrimary || e.button > 0 || start || o.disabled?.()) return;
+        if (!e.isPrimary || e.button > 0 || start || o.followOnly || o.disabled?.()) return;
         // A control of its own (the Now control, a link): never the slide's, even while it moves
         if (e.composedPath().some(n => n instanceof Element && n.matches('a, .awc-noclaim'))) return;
         const moving = state.active && !state.dragging && (rel || state.settling);
@@ -703,7 +712,7 @@ export function attachSlide(o: SlideOptions): Slide {
     // Trackpads: a two-finger sideways swipe scrubs 1:1 (each event at most 60 px); it stays where it's left
     let wheelTimer = 0;
     on(gesture, 'wheel', ((e: WheelEvent) => {
-        if (Math.abs(e.deltaX) <= Math.abs(e.deltaY) || o.disabled?.()) return;
+        if (Math.abs(e.deltaX) <= Math.abs(e.deltaY) || o.followOnly || o.disabled?.()) return;
         e.preventDefault();
         if (!state.dragging) claim(state.active ? state.offset : 0);
         setRaw(clamp((state.raw || 0) + clamp(e.deltaX, -SLIDE.wheelClamp, SLIDE.wheelClamp), -40, maxPx() + 40));
@@ -737,6 +746,9 @@ export function attachSlide(o: SlideOptions): Slide {
     const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => { cancelAnimationFrame(roRaf); roRaf = requestAnimationFrame(() => { if (!state.active) buildRail(); }); }) : null;
     ro?.observe(root);
     buildRail();
+    // A card that starts following mid-drag goes where the needle is now: the card that leads may already have stopped
+    const now = o.followOnly && link ? needleOn(link.entity) : undefined;
+    if (now && now.source !== host.element) follow(now.at);
 
     return {
         slider,

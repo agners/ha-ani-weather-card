@@ -59,6 +59,8 @@ import './sun-tracker-card';
 import { ForecastFeed } from './forecast-feed';
 import { forecastTypes } from './forecast-data';
 import type { ForecastExtras, ForecastHost, Surface } from './forecast-host';
+import { HOUR_EVENT, type HourLink } from './hour-link';
+import { clearStarsFromWords, drawNight, starCount, wordBoxes } from './stars-animation';
 
 registerSkyProperties();
 
@@ -175,6 +177,10 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
     private forecastFeed = new ForecastFeed(() => this.extras?.update());
     /** What the forecast bundle adds: the clock, the forecast, the slide (see mountExtras) */
     private extras?: ForecastExtras;
+    /** Without the forecast, another card's needle has moved on this weather, and this card follows it (onNeedle) */
+    private following = false;
+    /** The frame after a fit, when no star may stay behind a word (applySizeState) */
+    private starFrame = 0;
     /**
      * A card from the card picker starts on your own weather: the first
      * weather entity not on the dashboard yet, else one that is, else
@@ -205,8 +211,21 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
 
     /** The forecast bundle has something to draw here */
     private extrasWanted(): boolean {
-        return this.forecastOn() || ((!!this.config?.show_clock || !!this.config?.show_date || this.heroClock()) && !this.config?.dev_mode);
+        return this.forecastOn() || this.following || ((!!this.config?.show_clock || !!this.config?.show_date || this.heroClock()) && !this.config?.dev_mode);
     }
+
+    /**
+     * Another card dragged through the hours on this weather (hour-link.ts). A weather card without the forecast has no
+     * slide of its own to follow it with, so from the first needle it reads the hours and the forecast bundle, which
+     * the card that sent it has already loaded, gives it a slide that only follows. Until then, nothing is loaded.
+     */
+    private onNeedle = (e: Event): void => {
+        const l = (e as CustomEvent<HourLink>).detail;
+        if (this.following || this.forecastOn() || this.config?.dev_mode || l?.at == null || l.source === this || l.entity !== this.config?.entity) return;
+        this.following = true;
+        this.syncForecastFeed();
+        if (this.extras) this.extras.update(); else this.mountExtras();
+    };
 
     /**
      * Tell the page which weather this card shows, on which sun (weather-share.ts): a sun tracker with no weather of
@@ -232,7 +251,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
 
     /** Listen to this entity's forecast through the page's subscriptions, while the card shows one */
     private syncForecastFeed(): void {
-        if (!this.isConnected || !this.forecastOn()) { this.forecastFeed.stop(); return; }
+        if (!this.isConnected || !(this.forecastOn() || this.following)) { this.forecastFeed.stop(); return; }
         const hours = this.surface !== 'forecast' || this.config?.show_hours !== false || this.config?.compact;
         this.forecastFeed.sync(this._hass, this.config?.entity, { hourly: hours !== false, daily: true });
     }
@@ -282,6 +301,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
             conditionName: (state: string) => this._hass?.formatEntityState?.({ entity_id: this.config?.entity ?? '', state, attributes: {}, last_changed: '', last_updated: '' } as HassEntity) ?? state,
             fit: () => this.applySizeState(),
             refresh: () => this._updateDataInPlace(),
+            following: () => this.following,
             seen: () => this.noteVisible,
             still: () => this.config?.animate === false || !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches,
             moreInfo: () => this.dispatchEvent(new CustomEvent('hass-more-info', { detail: { entityId: this.config?.entity }, bubbles: true, composed: true })),
@@ -324,6 +344,8 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
             this.flightTracker.reset();
             this.lastFlightsState = undefined;
         }
+        // Another weather waits for its own needle
+        if (this.config?.entity !== config.entity) this.following = false;
         this.config = config;
         this.shareSky();
 
@@ -385,6 +407,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
         this.style.display = 'block';
         this.style.height = '100%';
         this.shareSky();
+        window.addEventListener(HOUR_EVENT, this.onNeedle);
 
         if (!this.resizeObserver && typeof ResizeObserver !== 'undefined') {
             this.resizeObserver = new ResizeObserver(() => {
@@ -1027,7 +1050,12 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
             const reducedMotion = typeof window !== 'undefined'
                 && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
             if (config.animate === false || reducedMotion || !this.weatherShown()) {
-                applyCardClass(config.animate === false ? 'static' : '');
+                // A still clear night keeps its moon and stars, as a still day keeps its sun: the same night, with no
+                // twinkle and no fade. Not on the forecast card, which has none of its own
+                const night = weatherClass === 'clear-night' && this.surface !== 'forecast';
+                applyCardClass(config.animate === false ? 'static' : '', night ? 'individual-stars-active' : '');
+                const layer = card.querySelector('.animation-layer');
+                if (night && layer) drawNight(layer, starCount(getWeatherSettings(config).cloudCount, card.clientWidth), { moon: true, still: true, words: wordBoxes(card) });
                 this.currentWeatherClass = weatherClass;
                 return;
             }
@@ -1094,7 +1122,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
             removeClouds(this);
             
             // Clear stars and moon
-            const gsapStars = animationLayer.querySelectorAll('.star-gsap, .moon-gsap');
+            const gsapStars = animationLayer.querySelectorAll('.stars-field, .star-gsap, .moon-gsap');
             gsapStars.forEach(star => {
                 if (star.parentNode) {
                     star.parentNode.removeChild(star);
@@ -1599,6 +1627,8 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
 
     disconnectedCallback(): void {
         shareWeather(this);
+        window.removeEventListener(HOUR_EVENT, this.onNeedle);
+        cancelAnimationFrame(this.starFrame);
         if (this.conditionChangeTimeout) clearTimeout(this.conditionChangeTimeout);
         this.conditionChangeTimeout = undefined;
         clearTimeout(this.noteExpiryTimer);
@@ -1730,6 +1760,9 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
         const card = this.querySelector('.animated-weather-card') as HTMLElement | null;
         const info = card?.querySelector('.weather-info') as HTMLElement | null;
         if (!card || !info) return;
+        // Once the words have settled where this fit puts them, no star stays behind one
+        cancelAnimationFrame(this.starFrame);
+        this.starFrame = requestAnimationFrame(() => clearStarsFromWords(card));
         const hero = card.querySelector('.main-weather-info') as HTMLElement | null;
         const metrics = card.querySelector('.weather-attributes') as HTMLElement | null;
 

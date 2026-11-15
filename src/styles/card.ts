@@ -980,7 +980,8 @@ ${iconBoxCss('animated-weather-card')}
         }
         /* animate: false is fully still: the light stays, the breathing stops */
         .animated-weather-card.static .sun,
-        .animated-weather-card.static .sun::before { animation: none; }
+        .animated-weather-card.static .sun::before,
+        .animated-weather-card.static .moon-gsap::before { animation: none; }
         .animated-weather-card.theme-colors .sun { box-shadow: none !important; }
         .animated-weather-card.theme-colors .moon-gsap::before { display: none; }
         .animated-weather-card.theme-colors .sun {
@@ -1026,6 +1027,8 @@ ${iconBoxCss('animated-weather-card')}
           pointer-events: none;
         }
         .star-gsap.twinkle { animation: awcTwinkle 5s ease-in-out infinite alternate; }
+        /* A star on a word would read as part of it; it steps out of sight until the word moves away */
+        .star-gsap.awc-veiled { visibility: hidden; }
         @keyframes awcTwinkle {
           from { opacity: var(--star-o); }
           to { opacity: var(--star-dim); }

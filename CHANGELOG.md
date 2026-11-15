@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Dragging a forecast card through the hours moved a sun tracker on its sun but not a weather card on its weather, unless that card had `show_forecast` on. A weather card without it now follows the card you drag: its sky and weather, the temperature, the condition and the readings go to the hour, the hour shows on its location line, and it comes back to now with that card. It only follows: no row, no drag of its own, and its tap is unchanged. A dashboard where nothing is dragged loads nothing new.
+- On the compact strip with the forecast on, the hour you dragged to was named on a line of its own under the temperature, squeezing the condition; it's now named in the quiet line under the condition.
+- A weather card dragged through the hours came back to the readings from before the drag when Home Assistant sent new ones in the meantime, until the next update; it now shows the new ones as it comes home.
+- With reduced motion on, or `animate: false`, a clear night was empty: the still sky kept the sun by day but drew no moon or stars at night. It now keeps them, still, with no twinkle.
+
+### Changed
+
+- A clear night has more going on. A wider card has more stars, so its sky is as full as a phone's: 15 on a phone, about 40 across a desktop's compact strip, up to about 60. Half of them twinkle, where a third did, and they dim further, to a quarter to under half of their light, so you can see it.
+- No star sits behind the card's words, or just beside them where it read as punctuation ("Clear; night"). Stars are placed clear of the text and icons, and one the words move over when the card is resized steps out of sight until they move away.
+
 ## [1.3.1] - 2026-11-14
 
 ### Added

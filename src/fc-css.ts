@@ -186,11 +186,16 @@ const CARD_CSS = `
 .theme-colors .location > :is(.awc-clock, .awc-date):not(:empty) + .awc-place { color: var(--secondary-text-color); opacity: 1; }
 
 /* ── The away line: the card shows another hour. "‹ Now  17:00  in 4 hr" in the location line's place, so the
-   hero can never pass for now: the Now control, the hour, how far ahead. ── */
+   hero can never pass for now: the Now control, the hour, how far ahead. A card that only follows another card's
+   needle has no Now control: the card it follows brings it home. ── */
 .awc-away { display: none; }
 .animated-weather-card[data-awc-away] .awc-away { display: inline-flex; align-items: baseline; column-gap: 10px; white-space: nowrap; }
 .animated-weather-card[data-awc-away="location"] .location > :not(.awc-away) { display: none; }
 .animated-weather-card[data-awc-away="location"] .location { opacity: 1; overflow: visible; max-width: calc(57cqi - var(--awc-pad)); }
+/* The compact strip names the hour in its quiet line, where it says where and what it feels like */
+.animated-weather-card[data-awc-away="location"] .compact-meta > :not(.awc-away) { display: none; }
+.animated-weather-card[data-awc-away="location"] .compact-meta { opacity: 1; }
+.compact-meta > .awc-away .awc-now { height: 18px; font-size: 12px; }
 .awc-away .awc-rel[hidden] { display: none; }
 .animated-weather-card[data-awc-away="desc"] .awc-away { margin-right: 12px; font-size: 15px; line-height: 20px; }
 .awc-at { font-weight: 600; font-variant-numeric: tabular-nums; }
