@@ -70,7 +70,7 @@ src/
 ├── animated-weather-card-forecast.ts # Entry point of the forecast bundle: attach() for each surface
 ├── fc-core.ts                      # OKLab, springs, the sun at any hour, the timeline's slots
 ├── fc-data.ts                      # Times, hours, days, the turning line
-├── fc-words.ts, fc-words-more.ts   # The forecast's words in ten languages
+├── fc-words.ts, fc-words-more.ts   # The forecast's translations
 ├── fc-glyphs.ts                    # The icons, lit by their hour
 ├── fc-row.ts                       # The hourly row, the chips, the days and their range bars
 ├── fc-slide.ts                     # The slide through the hours
@@ -318,8 +318,8 @@ demo/
 ## Languages
 
 - **From Home Assistant:** the condition names, the metric labels and the moon phase, via `formatEntityState` and `localize`.
-- **The cards' own words:** "Feels like", "Indoors", sunrise and sunset, and the tracker's labels live in `localize.ts`, in English, German, Spanish, French, Italian, Dutch, Polish, Portuguese, Romanian and Norwegian (Bokmål as `nb`, which `no` and Nynorsk's `nn` share). A test checks that every string exists in every language.
-- **The forecast's words:** in the same ten languages, in `fc-words.ts` (English and German) and `fc-words-more.ts` (the other eight), in the forecast bundle. A test checks every language fills the same blanks as English.
+- **The cards' own words:** "Feels like", "Indoors", sunrise and sunset, and the tracker's labels live in `localize.ts`, in English, German, Spanish, French, Italian, Dutch, Polish, Portuguese, Romanian, Norwegian (Bokmål as `nb`, which `no` and Nynorsk's `nn` share) and Ukrainian (`uk`). A test checks that every string exists in every language.
+- **The forecast's words:** in the same languages, in `fc-words.ts` (English and German) and `fc-words-more.ts` (the other languages), in the forecast bundle. A test checks every language fills the same blanks as English.
 - **Times:** they follow the profile's 12- or 24-hour setting the way Home Assistant does (`useAmPm`), and its time zone (`cardTimeZone`): Home Assistant's own when the profile says server, else the device's. That covers the weather card's sunset, the clock, the forecast and the tracker, whose sun sits on its path by the same zone (`hourOfDay`).
 
 ## Testing

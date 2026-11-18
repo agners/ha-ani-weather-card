@@ -38,6 +38,18 @@ describe('the turning line', () => {
         const tl = new Timeline(hourly(['cloudy', 'cloudy', 'cloudy', 'cloudy', 'rainy', 'rainy', 'cloudy']), 'hourly', now);
         expect(turningLine(tl, hass('de', '12'))!.text).toBe('Regen von 5 PM bis 7 PM');
     });
+    it('uses Ukrainian weather names and joins the time to its preposition', () => {
+        const tl = new Timeline(hourly(['cloudy', 'cloudy', 'cloudy', 'cloudy', 'rainy', 'rainy', 'cloudy']), 'hourly', now);
+        expect(turningLine(tl, hass('uk-UA'))!.text).toBe('Дощ з 17:00 до 19:00');
+        expect(conditionNoun('snowy-rainy', hass('uk'), () => 'HA')).toBe('Мокрий сніг');
+    });
+    it('uses the Ukrainian genitive for midnight after both prepositions', () => {
+        const late = today(23, 10).getTime();
+        const starts = new Timeline(hourly(['cloudy', 'rainy', 'cloudy'], 23), 'hourly', late);
+        const stops = new Timeline(hourly(['rainy', 'cloudy'], 23), 'hourly', late);
+        expect(turningLine(starts, hass('uk'))!.text).toBe('Дощ з півночі до 01:00');
+        expect(turningLine(stops, hass('uk'))!.text).toBe('Дощ до півночі');
+    });
     it('days only: today or tomorrow', () => {
         const days: ForecastEntry[] = [{ datetime: today(12).toISOString(), condition: 'sunny' }, { datetime: new Date(today(12).getTime() + 24 * HOUR).toISOString(), condition: 'rainy' }];
         expect(turningLine(new Timeline(days, 'daily', now), hass())!.text).toBe('Rain tomorrow');

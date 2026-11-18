@@ -438,6 +438,16 @@ describe('the forecast card', () => {
         expect(mount({ compact: true }, makeHass(), 'animated-forecast-card').getGridOptions().rows).toBe(2);
         expect(mount({ forecast_days: 3 }, makeHass(), 'animated-forecast-card').getGridOptions().rows).toBe(5);
     });
+
+    it('renders Ukrainian forecast controls and screen reader labels', async () => {
+        const hass = makeHass(3, { locale: { language: 'uk', time_format: '24' } });
+        const card = mount({}, hass, 'animated-forecast-card');
+        await settle();
+        expect(card.querySelector('.fc-col .fc-hr')?.textContent).toBe('Зараз');
+        expect(card.querySelector('[data-fc-chips] [data-metric="chance"]')?.getAttribute('aria-label')).toBe('Імовірність дощу');
+        expect(card.querySelector('[role="slider"]')?.getAttribute('aria-label')).toBe('Найближчі години');
+    });
+
     it('has no note: it hides the card\'s own text, so it neither shows one nor loads the note writer', async () => {
         const card = mount({ show_note: true }, makeHass(), 'animated-forecast-card');
         await settle();

@@ -1,4 +1,4 @@
-// The forecast's words in the card's other eight languages, beside English
+// The forecast's words in the card's other languages, beside English
 // and German in fc-words.ts. "Feels like" and its kin reuse localize.ts's
 // words, so the card says the same thing everywhere.
 //
@@ -240,5 +240,34 @@ const NB: FcWords = {
     no_forecast: 'Denne værentiteten har ikke noe varsel',
 };
 
+const UK: FcWords = {
+    now: 'Зараз', back: 'Повернутися до поточної погоди', hours: 'Найближчі години', hourly: 'Погодинний прогноз', daily: 'Прогноз на кілька днів', show: 'Показати',
+    today: 'Сьогодні', tonight: 'Цієї ночі',
+    temp: ['Температура', 'Темп.'], feels: ['За відчуттям', 'Відч.'],
+    chance_rain: 'Імовірність дощу', chance_snow: 'Імовірність снігу', chance_sleet: 'Імовірність мокрого снігу',
+    amount_rain: 'Кількість дощу', amount_snow: 'Кількість снігу', amount_sleet: 'Кількість мокрого снігу',
+    chance: 'Імовірність', amount: 'Кількість',
+    name_temp: 'Температура', name_feels: 'Температура за відчуттям',
+    name_chance_rain: 'Імовірність дощу', name_chance_snow: 'Імовірність снігу', name_chance_sleet: 'Імовірність мокрого снігу',
+    name_amount_rain: 'Кількість дощу', name_amount_snow: 'Кількість снігу', name_amount_sleet: 'Кількість мокрого снігу',
+    degrees: '{v}°', percent: '{v}\u00a0%',
+    day_row: '{day}: {cond}, мінімум {lo}, максимум {hi}', day_now: ', зараз {v}',
+    h: 'Макс.', l: 'Мін.', high_low: 'Максимум {h}, мінімум {l}',
+    rain: 'Дощ', snow: 'Сніг', sleet: 'Мокрий сніг', storms: 'Грози',
+    from: '{k} з {a}', from_to: '{k} з {a} до {b}', until: '{k} до {b}', all_day: '{k} увесь день', all_night: '{k} усю ніч',
+    until_bare: 'до {b}', all_day_bare: 'увесь день', all_night_bare: 'усю ніч',
+    dry_day: 'Без опадів увесь день', dry_night: 'Цієї ночі без опадів', dry_morning: 'Уранці без опадів',
+    k_today: '{k} сьогодні', k_tomorrow: '{k} завтра', midnight: 'півночі',
+    chance_of: 'Імовірність {v}\u00a0%',
+    sunny: 'Ясно', 'clear-night': 'Ясно', partlycloudy: 'Мінлива хмарність', cloudy: 'Хмарно', fog: 'Туман', rainy: 'Дощ', pouring: 'Злива',
+    lightning: 'Гроза', 'lightning-rainy': 'Дощ із грозою', snowy: 'Сніг', 'snowy-rainy': 'Мокрий сніг', hail: 'Град', windy: 'Вітряно',
+    'windy-variant': 'Вітряно й хмарно', exceptional: 'Екстремальна погода',
+    view: 'Погода: {place}', close: 'Закрити', more: 'Історія та налаштування', now_head: 'Зараз', at_head: 'О {t}',
+    wind: 'Вітер', gusts: 'Пориви до {v}', humidity: 'Вологість', dew_point: 'Точка роси', uv: 'УФ-індекс', cloud_cover: 'Хмарність',
+    precipitation: 'Опади', visibility: 'Видимість', pressure: 'Тиск', feels_like: 'Відчувається як',
+    clock: 'Годинник і погода', alarm: 'Будильник', gusts_to: 'Пориви до {v} о {t}', freezing: '{v} о {t}',
+    no_forecast: 'Для цієї сутності погоди прогноз недоступний',
+};
+
 // Home Assistant's Norwegian is Bokmål (`nb`); `no` and Nynorsk (`nn`) get the same words, as in localize.ts
-export const FC_WORDS_MORE: Record<string, FcWords> = { es: ES, fr: FR, it: IT, nl: NL, pl: PL, pt: PT, ro: RO, nb: NB, no: NB, nn: NB };
+export const FC_WORDS_MORE: Record<string, FcWords> = { es: ES, fr: FR, it: IT, nl: NL, pl: PL, pt: PT, ro: RO, nb: NB, no: NB, nn: NB, uk: UK };

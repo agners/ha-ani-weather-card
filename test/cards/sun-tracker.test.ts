@@ -175,6 +175,9 @@ describe('sun tracker card', () => {
         expect(tracker.shadowRoot!.querySelector('.st-eyebrow span')!.textContent).toBe('Sunset');
         tracker.hass = { ...sunHass(30), language: 'fr', locale: { language: 'fr', time_format: '24' } };
         expect(tracker.shadowRoot!.querySelector('.st-eyebrow span')!.textContent).toBe('Coucher du soleil');
+        tracker.hass = { ...sunHass(30), locale: { language: 'uk-UA', time_format: '24' } };
+        expect(tracker.shadowRoot!.querySelector('.st-eyebrow span')!.textContent).toBe('Захід сонця');
+        expect(tracker.shadowRoot!.querySelector('.st-metric[data-kind="daylight"] .st-metric-label span')!.textContent).toBe('Тривалість дня');
         tracker.remove();
     });
 

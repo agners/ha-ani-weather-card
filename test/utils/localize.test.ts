@@ -75,6 +75,12 @@ describe('durations', () => {
         expect(formatDuration(0.5, { locale: { language: 'de' } })).toBe('30m');
     });
 
+    it('keeps Ukrainian duration units on older browsers', () => {
+        intl.DurationFormat = undefined;
+        expect(formatDuration(8 + 43 / 60, { locale: { language: 'uk-UA' } })).toBe('8\u00a0год 43\u00a0хв');
+        expect(formatDuration(0.5, { locale: { language: 'uk' } })).toBe('30\u00a0хв');
+    });
+
     it('uses the browser duration format in the dashboard language when there is one', () => {
         const calls: unknown[] = [];
         intl.DurationFormat = class {

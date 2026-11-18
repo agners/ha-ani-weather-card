@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Ukrainian translations for the weather cards, the sun tracker and the forecast, selected from the Home Assistant profile language.
+
 ## [1.3.2] - 2026-11-15
 
 ### Changed
