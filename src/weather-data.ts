@@ -64,6 +64,33 @@ export function uvWord(hass: HomeAssistant | undefined, level: UvLevel): string 
     return localizeString(hass, `uv_${level}` as CardString);
 }
 
+/** A rain amount or rate as the card shows it: in its sensor's unit, to a tenth (a hundredth in inches) */
+export function formatRain(value: number, unit: string, hass?: HomeAssistant): string {
+    const decimals = /\bin\b|inch/i.test(unit) ? 2 : 1;
+    return `${formatLocalizedNumber(Math.max(0, value), hass, decimals)} ${unit}`.trim();
+}
+
+/** One rain sensor's value and unit; null when its state isn't a number */
+export function rainSensor(hass: HomeAssistant | undefined, entityId: string | undefined, unit: string): { value: number; unit: string } | null {
+    const e = entityId ? hass?.states[entityId] : undefined;
+    const value = toNumber(e?.state);
+    return value === null ? null : { value, unit: typeof e?.attributes?.unit_of_measurement === 'string' ? e.attributes.unit_of_measurement : unit };
+}
+
+/**
+ * The rain reading: while it rains, the rate (rain_rate_entity above 0, "Rain now"); else today's rain (rain_entity,
+ * "Rain today"). Null when neither sensor has a number
+ */
+export function readRain(hass: HomeAssistant | undefined, config: AnimatedWeatherCardConfig): { now: boolean; text: string } | null {
+    const rate = rainSensor(hass, config.rain_rate_entity, 'mm/h');
+    if (rate && rate.value > 0) return { now: true, text: formatRain(rate.value, rate.unit, hass) };
+    const today = rainSensor(hass, config.rain_entity, 'mm');
+    return today ? { now: false, text: formatRain(today.value, today.unit, hass) } : null;
+}
+
+/** The rain reading's label: "Rain now" with the rate, else "Rain today" */
+export const rainLabel = (hass: HomeAssistant | undefined, now: boolean): string => localizeString(hass, now ? 'rain_now' : 'rain_today');
+
 export interface SunData {
     sunrise: string | null;
     sunset: string | null;

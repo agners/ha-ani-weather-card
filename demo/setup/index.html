@@ -371,15 +371,21 @@ indoor_humidity_entity: sensor.living_room_humidity</code></pre>
                     </div>
 
                     <h3 id="readings">The readings</h3>
-                    <p>The row under the temperature holds humidity, wind, pressure and the next sunset or sunrise. <code>metrics</code> picks the readings and their order, from those and <code>uv</code>, the UV index; four fit best, and the editor's <b>Display</b> section sets them. The UV index comes from <code>uv_entity</code>, such as the <a href="https://www.home-assistant.io/integrations/openuv/">OpenUV integration</a>'s current UV index, or from the weather entity when it reports one. It reads as the number and its level, "6 High", on the WHO's scale, and on the sky palette its icon takes the level's colour; <code>uv_levels</code> moves where the levels start. The view that opens on tap adds today's highest, from <code>uv_max_entity</code>.</p>
+                    <p>The row under the temperature holds humidity, wind, pressure and the next sunset or sunrise. <code>metrics</code> picks the readings and their order, from those, <code>uv</code> (the UV index) and <code>rain</code> (a station's rain); four fit best, and the editor's <b>Display</b> section sets them. The UV index comes from <code>uv_entity</code>, such as the <a href="https://www.home-assistant.io/integrations/openuv/">OpenUV integration</a>'s current UV index, or from the weather entity when it reports one. It reads as the number and its level, "6 High", on the WHO's scale, and on the sky palette its icon takes the level's colour; <code>uv_levels</code> moves where the levels start. The view that opens on tap adds today's highest, from <code>uv_max_entity</code>. The rain reading is a weather station's: today's rain from <code>rain_entity</code>, such as an Ecowitt's daily rain, and while it rains, the rate from <code>rain_rate_entity</code>. The view that opens on tap shows both, with the station's totals for the rain event, the week, the month and the year.</p>
                     <div class="code" data-lang="yaml">
                         <div class="code-bar"><span class="code-name">Card YAML</span><button type="button" class="copy"><span class="copy-icon" aria-hidden="true"></span><span class="copy-label">Copy</span></button></div>
                         <pre><code>type: custom:animated-weather-card
 entity: weather.forecast_home
 sun_entity: sun.sun
-metrics: [humidity, wind, uv, sun]
+metrics: [humidity, wind, uv, rain]
 uv_entity: sensor.current_uv_index
-uv_max_entity: sensor.max_uv_index</code></pre>
+uv_max_entity: sensor.max_uv_index
+rain_entity: sensor.gw2000_daily_rain
+rain_rate_entity: sensor.gw2000_rain_rate
+rain_event_entity: sensor.gw2000_event_rain
+rain_week_entity: sensor.gw2000_weekly_rain
+rain_month_entity: sensor.gw2000_monthly_rain
+rain_year_entity: sensor.gw2000_yearly_rain</code></pre>
                     </div>
 
                     <h3 id="tracker">The sun tracker</h3>

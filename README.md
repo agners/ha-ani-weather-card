@@ -228,17 +228,25 @@ indoor_humidity_entity: sensor.living_room_humidity
 
 ### The readings
 
-The row under the hero holds humidity, wind, pressure and the next sunset or sunrise. `metrics` picks the readings and their order, from those and `uv`, the UV index. Four fit best: a phone shows them in a row or a 2 × 2 grid, a wide card in two columns.
+The row under the hero holds humidity, wind, pressure and the next sunset or sunrise. `metrics` picks the readings and their order, from those, `uv` (the UV index) and `rain` (a station's rain). Four fit best: a phone shows them in a row or a 2 × 2 grid, a wide card in two columns.
 
 The UV index comes from `uv_entity`, such as OpenUV's current UV index, or else from the weather entity when it reports one. It reads as the number and its level, "6 High", on the WHO's scale: low, moderate, high, very high and extreme. On the sky palette its icon also takes the level's colour, from green to violet. `uv_levels` moves where moderate, high, very high and extreme start. Drag the card through the hours and it shows each hour's UV from the forecast. The view that opens on tap adds today's highest, from `uv_max_entity`.
+
+The rain reading is a station's own: today's rain from `rain_entity`, such as an Ecowitt's daily rain, and while it rains, the rate from `rain_rate_entity` ("Rain now, 1.2 mm/h"), each in its sensor's unit. The view that opens on tap shows both, and the station's totals: the rain event, the week, the month and the year.
 
 ```yaml
 type: custom:animated-weather-card
 entity: weather.forecast_home
 sun_entity: sun.sun
-metrics: [humidity, wind, uv, sun]
+metrics: [humidity, wind, uv, rain]
 uv_entity: sensor.current_uv_index
 uv_max_entity: sensor.max_uv_index
+rain_entity: sensor.gw2000_daily_rain
+rain_rate_entity: sensor.gw2000_rain_rate
+rain_event_entity: sensor.gw2000_event_rain
+rain_week_entity: sensor.gw2000_weekly_rain
+rain_month_entity: sensor.gw2000_monthly_rain
+rain_year_entity: sensor.gw2000_yearly_rain
 ```
 
 ### Weather and sun tracker
@@ -669,6 +677,9 @@ sunset_hour: 19
 | `moon_entity` | — | A moon phase sensor, such as the Moon integration's `sensor.moon_phase`. A clear night's moon keeps to the phase it names. Without it, the card works the phase out from the date |
 | `uv_entity` | — | A UV index sensor, such as OpenUV's `sensor.current_uv_index`, for the `uv` reading. Without it, the weather entity's UV index, if it reports one |
 | `uv_max_entity` | — | Today's highest UV index, such as OpenUV's `sensor.max_uv_index`, shown in the view that opens on tap |
+| `rain_entity` | — | Today's rain from a weather station, such as an Ecowitt's daily rain, for the `rain` reading |
+| `rain_rate_entity` | — | The station's rain rate. While it's above 0, the `rain` reading shows it instead of today's rain |
+| `rain_event_entity`, `rain_week_entity`, `rain_month_entity`, `rain_year_entity` | — | The station's other rain totals: this rain event, this week, this month and this year, shown in the view that opens on tap |
 | `outdoor_sensor_entity` | — | A temperature sensor to show instead of the weather entity's temperature |
 | `feels_like_entity` | — | An apparent temperature sensor. Without it, the card uses the weather entity's `apparent_temperature` if it has one |
 | `humidity_sensor_entity` | — | A humidity sensor to show instead of the weather entity's humidity |
@@ -687,7 +698,7 @@ sunset_hour: 19
 | `temperature_decimals` | `0` | `1` shows the temperature, "feels like" and the indoor temperature to one decimal, `21.5°`, in your language's format. `0` rounds them to whole degrees |
 | `show_location` | `true` | Show the location name |
 | `show_attributes` | `true` | Show the metric row, with the readings `metrics` names |
-| `metrics` | `[humidity, wind, pressure, sun]` | The readings in the metric row, in order: `humidity`, `wind`, `pressure`, `sun` (the next sunset or sunrise) and `uv` (the UV index and its level). Four fit best. The editor sets four |
+| `metrics` | `[humidity, wind, pressure, sun]` | The readings in the metric row, in order: `humidity`, `wind`, `pressure`, `sun` (the next sunset or sunrise), `uv` (the UV index and its level) and `rain` (today's rain, or the rate while it rains). Four fit best. The editor sets four |
 | `uv_levels` | `[3, 6, 8, 11]` | Where the UV index's moderate, high, very high and extreme levels start, as four rising numbers. The WHO's by default |
 | `show_attribute_labels` | `true` | Show the metric labels |
 | `show_attribute_icons` | `true` | Show the metric icons |

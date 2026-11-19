@@ -14,7 +14,8 @@ export type CardString =
     | 'first_light' | 'last_light' | 'moon'
     | 'in_duration'
     | 'note_reading' | 'note_writing'
-    | 'uv_index' | 'uv_low' | 'uv_moderate' | 'uv_high' | 'uv_very_high' | 'uv_extreme';
+    | 'uv_index' | 'uv_low' | 'uv_moderate' | 'uv_high' | 'uv_very_high' | 'uv_extreme'
+    | 'rain_today' | 'rain_now';
 
 /** Norwegian, Bokmål */
 const NB: Partial<Record<CardString, string>> = {
@@ -25,6 +26,7 @@ const NB: Partial<Record<CardString, string>> = {
     note_reading: 'Leser værmeldingen', note_writing: 'Skriver notatet',
     uv_index: 'UV-indeks',
     uv_low: 'Lav', uv_moderate: 'Moderat', uv_high: 'Høy', uv_very_high: 'Svært høy', uv_extreme: 'Ekstrem',
+    rain_today: 'Regn i dag', rain_now: 'Regn nå',
 };
 
 // One object literal, with no statement after it, so a bundle that never asks for a card string leaves the table out
@@ -37,6 +39,7 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         note_reading: 'Reading the forecast', note_writing: 'Writing the note',
         uv_index: 'UV index',
         uv_low: 'Low', uv_moderate: 'Moderate', uv_high: 'High', uv_very_high: 'Very high', uv_extreme: 'Extreme',
+        rain_today: 'Rain today', rain_now: 'Rain now',
     },
     de: {
         feels_like: 'Gefühlt', indoors: 'Innen',
@@ -46,6 +49,7 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         note_reading: 'Vorhersage wird gelesen', note_writing: 'Notiz wird geschrieben',
         uv_index: 'UV-Index',
         uv_low: 'Niedrig', uv_moderate: 'Mäßig', uv_high: 'Hoch', uv_very_high: 'Sehr hoch', uv_extreme: 'Extrem',
+        rain_today: 'Regen heute', rain_now: 'Regen jetzt',
     },
     es: {
         feels_like: 'Sensación térmica', indoors: 'Interior',
@@ -55,6 +59,7 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         note_reading: 'Leyendo el pronóstico', note_writing: 'Escribiendo la nota',
         uv_index: 'Índice UV',
         uv_low: 'Bajo', uv_moderate: 'Moderado', uv_high: 'Alto', uv_very_high: 'Muy alto', uv_extreme: 'Extremo',
+        rain_today: 'Lluvia hoy', rain_now: 'Lluvia ahora',
     },
     fr: {
         feels_like: 'Ressenti', indoors: 'Intérieur',
@@ -64,6 +69,7 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         note_reading: 'Lecture des prévisions', note_writing: 'Rédaction de la note',
         uv_index: 'Indice UV',
         uv_low: 'Faible', uv_moderate: 'Modéré', uv_high: 'Élevé', uv_very_high: 'Très élevé', uv_extreme: 'Extrême',
+        rain_today: 'Pluie aujourd’hui', rain_now: 'Pluie en cours',
     },
     it: {
         feels_like: 'Percepita', indoors: 'Interno',
@@ -73,6 +79,7 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         note_reading: 'Lettura delle previsioni', note_writing: 'Scrittura della nota',
         uv_index: 'Indice UV',
         uv_low: 'Basso', uv_moderate: 'Moderato', uv_high: 'Alto', uv_very_high: 'Molto alto', uv_extreme: 'Estremo',
+        rain_today: 'Pioggia oggi', rain_now: 'Pioggia ora',
     },
     nl: {
         feels_like: 'Voelt als', indoors: 'Binnen',
@@ -82,6 +89,7 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         note_reading: 'Verwachting lezen', note_writing: 'Notitie schrijven',
         uv_index: 'UV-index',
         uv_low: 'Laag', uv_moderate: 'Matig', uv_high: 'Hoog', uv_very_high: 'Zeer hoog', uv_extreme: 'Extreem',
+        rain_today: 'Regen vandaag', rain_now: 'Regen nu',
     },
     pl: {
         feels_like: 'Odczuwalna', indoors: 'Wewnątrz',
@@ -91,6 +99,7 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         note_reading: 'Czytanie prognozy', note_writing: 'Pisanie notatki',
         uv_index: 'Indeks UV',
         uv_low: 'Niski', uv_moderate: 'Umiarkowany', uv_high: 'Wysoki', uv_very_high: 'Bardzo wysoki', uv_extreme: 'Ekstremalny',
+        rain_today: 'Deszcz dziś', rain_now: 'Deszcz teraz',
     },
     pt: {
         feels_like: 'Sensação térmica', indoors: 'Interior',
@@ -100,6 +109,7 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         note_reading: 'Leitura da previsão', note_writing: 'Escrita da nota',
         uv_index: 'Índice UV',
         uv_low: 'Baixo', uv_moderate: 'Moderado', uv_high: 'Alto', uv_very_high: 'Muito alto', uv_extreme: 'Extremo',
+        rain_today: 'Chuva hoje', rain_now: 'Chuva agora',
     },
     ro: {
         feels_like: 'Resimțită', indoors: 'Interior',
@@ -109,6 +119,7 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         note_reading: 'Citesc prognoza', note_writing: 'Scriu nota',
         uv_index: 'Indice UV',
         uv_low: 'Scăzut', uv_moderate: 'Moderat', uv_high: 'Ridicat', uv_very_high: 'Foarte ridicat', uv_extreme: 'Extrem',
+        rain_today: 'Ploaie azi', rain_now: 'Ploaie acum',
     },
     nb: NB,
     // Home Assistant's Norwegian is Bokmål (`nb`); `no` and Nynorsk (`nn`) get the same words
@@ -122,6 +133,7 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         note_reading: 'Аналіз прогнозу', note_writing: 'Підготовка нотатки',
         uv_index: 'УФ-індекс',
         uv_low: 'Низький', uv_moderate: 'Помірний', uv_high: 'Високий', uv_very_high: 'Дуже високий', uv_extreme: 'Екстремальний',
+        rain_today: 'Дощ сьогодні', rain_now: 'Дощ зараз',
     },
 };
 

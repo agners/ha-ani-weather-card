@@ -44,7 +44,7 @@ import type { NoteWriter, NoteStage } from './note-generator';
 // keeps the runtime bundle (loaded on every dashboard) free of the editor's
 // markup, styles, and entity-picker scaffolding.
 // Import weather data processing
-import { processWeatherData, readNote, noteExpiresAt, WeatherNote, temperatureDecimals, metricKinds, MetricKind, uvReading, readUv, uvLevel, uvLevels, uvWord } from './weather-data';
+import { processWeatherData, readNote, noteExpiresAt, WeatherNote, temperatureDecimals, metricKinds, MetricKind, uvReading, readUv, uvLevel, uvLevels, uvWord, readRain, rainLabel, rainSensor, formatRain } from './weather-data';
 import { localizeString, formatTime, timeHtml, localeKey, clockParts } from './localize';
 import { ActionsConfig, bindActions, readActions, syncActionTarget } from './actions';
 import { loadEditorBundle, loadSiblingBundle } from './bundles';
@@ -309,7 +309,15 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
             still: () => this.config?.animate === false || !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches,
             moreInfo: () => this.dispatchEvent(new CustomEvent('hass-more-info', { detail: { entityId: this.config?.entity }, bubbles: true, composed: true })),
             reading: (kind, value) => {
-                if (!this.config || kind !== 'uv') return null;
+                if (!this.config) return null;
+                // Today's rain and the rain rate, from their sensors, each by its own name
+                if (kind === 'rain_today' || kind === 'rain_now') {
+                    const r = kind === 'rain_now' ? rainSensor(this._hass, this.config.rain_rate_entity, 'mm/h') : rainSensor(this._hass, this.config.rain_entity, 'mm');
+                    // The rate only while it rains
+                    if (!r || (kind === 'rain_now' && !(r.value > 0))) return null;
+                    return { label: rainLabel(this._hass, kind === 'rain_now'), value: formatRain(r.value, r.unit, this._hass) };
+                }
+                if (kind !== 'uv') return null;
                 const v = value ?? readUv(this._hass, this.config);
                 if (v === null || !isFinite(v)) return null;
                 const level = uvLevel(v, uvLevels(this.config));
@@ -594,6 +602,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
             : '';
         // The readings metrics names, in its order (humidity, wind, pressure and the sun by default)
         const uvNow = uvReading(this._hass, this.config, uv);
+        const rain = readRain(this._hass, this.config);
         const reading: Record<MetricKind, () => string> = {
             humidity: () => metric('humidity', 'humidity', cardLocalize(this._hass, 'ui.card.weather.attributes.humidity', 'Humidity'), escapeHtml(humidity)),
             wind: () => metric('wind', 'wind', cardLocalize(this._hass, 'ui.card.weather.attributes.wind_speed', 'Wind'), escapeHtml(windSpeed), windArrow),
@@ -601,6 +610,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
             sun: () => showSun ? metric('sun', sunMetricIcon(sunIsDay), localizeString(this._hass, sunIsDay ? 'sunset' : 'sunrise'),
                 timeHtml(sunEvent, 'awc-ampm')) : '',
             uv: () => metric('uv', 'noon', localizeString(this._hass, 'uv_index'), escapeHtml(uvNow.text), '', uvNow.level),
+            rain: () => metric('rain', 'rain', rainLabel(this._hass, !!rain?.now), escapeHtml(rain?.text ?? '--')),
         };
         const metrics = this.config.show_attributes !== false ? `
               <div class="weather-attributes${showLabels ? '' : ' values-only'}">${metricKinds(this.config).map(k => reading[k]()).join('')}</div>` : '';
@@ -1253,6 +1263,8 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
                     this.config.indoor_temperature_entity,
                     this.config.indoor_humidity_entity,
                     this.config.uv_entity,
+                    this.config.rain_entity,
+                    this.config.rain_rate_entity,
                     this.config.sun_entity,
                 ];
                 for (const entityId of sensorEntities) {
@@ -1313,6 +1325,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
         setAttrValue('wind', windSpeed);
         setAttrValue('pressure', pressure);
         this.setUv(uv);
+        this.setRain();
         }
         if (!away) this.syncValueIcon('wind', 'wind-bearing-arrow', typeof windBearing === 'number' ? {
             icon: 'mdi:navigation',
@@ -1375,6 +1388,19 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
         const text = el.querySelector('.attribute-text');
         if (text && text.textContent !== r.text) text.textContent = r.text;
         if (r.level) el.dataset.level = r.level; else delete el.dataset.level;
+    }
+
+    /** The rain reading: the rate while it rains, else today's rain, its label with it */
+    private setRain(): void {
+        const el = this.querySelector('.weather-attributes .attribute[data-kind="rain"]');
+        if (!el || !this.config) return;
+        const r = readRain(this._hass, this.config);
+        const text = el.querySelector('.attribute-text');
+        const value = r?.text ?? '--';
+        if (text && text.textContent !== value) text.textContent = value;
+        const label = el.querySelector('.attribute-label > span');
+        const name = rainLabel(this._hass, !!r?.now);
+        if (label && label.textContent !== name) label.textContent = name;
     }
 
     /**

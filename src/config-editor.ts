@@ -241,6 +241,60 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
             </div>
             <div class="option">
               <ha-entity-picker
+                id="rain_entity"
+                label="Today's rain sensor (optional)"
+                value="${escapeHtml(this._config.rain_entity || '')}"
+                helper="A station's daily rain, such as an Ecowitt's, for the rain reading"
+                allow-custom-entity
+              ></ha-entity-picker>
+            </div>
+            <div class="option">
+              <ha-entity-picker
+                id="rain_rate_entity"
+                label="Rain rate sensor (optional)"
+                value="${escapeHtml(this._config.rain_rate_entity || '')}"
+                helper="While it rains, the rain reading shows the rate"
+                allow-custom-entity
+              ></ha-entity-picker>
+            </div>
+            <div class="option">
+              <ha-entity-picker
+                id="rain_event_entity"
+                label="Rain event sensor (optional)"
+                value="${escapeHtml(this._config.rain_event_entity || '')}"
+                helper="This rain so far, in the forecast that opens on tap"
+                allow-custom-entity
+              ></ha-entity-picker>
+            </div>
+            <div class="option">
+              <ha-entity-picker
+                id="rain_week_entity"
+                label="This week's rain sensor (optional)"
+                value="${escapeHtml(this._config.rain_week_entity || '')}"
+                helper="In the forecast that opens on tap"
+                allow-custom-entity
+              ></ha-entity-picker>
+            </div>
+            <div class="option">
+              <ha-entity-picker
+                id="rain_month_entity"
+                label="This month's rain sensor (optional)"
+                value="${escapeHtml(this._config.rain_month_entity || '')}"
+                helper="In the forecast that opens on tap"
+                allow-custom-entity
+              ></ha-entity-picker>
+            </div>
+            <div class="option">
+              <ha-entity-picker
+                id="rain_year_entity"
+                label="This year's rain sensor (optional)"
+                value="${escapeHtml(this._config.rain_year_entity || '')}"
+                helper="In the forecast that opens on tap"
+                allow-custom-entity
+              ></ha-entity-picker>
+            </div>
+            <div class="option">
+              <ha-entity-picker
                 id="flights_entity"
                 label="Flights sensor"
                 value="${escapeHtml(this._config.flights_entity || '')}"
@@ -740,7 +794,7 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
             this._updateConfig('moon_entity', (e.target as HTMLInputElement).value);
         });
 
-        for (const id of ['uv_entity', 'uv_max_entity']) {
+        for (const id of ['uv_entity', 'uv_max_entity', 'rain_entity', 'rain_rate_entity', 'rain_event_entity', 'rain_week_entity', 'rain_month_entity', 'rain_year_entity']) {
             this.querySelector(`#${id}`)?.addEventListener('value-changed', (e) => {
                 this._updateConfig(id, (e.target as HTMLInputElement).value);
             });
@@ -902,6 +956,7 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
             { value: 'pressure', label: 'Pressure' },
             { value: 'sun', label: 'Next sunrise or sunset' },
             { value: 'uv', label: 'UV index' },
+            { value: 'rain', label: 'Rain today, or the rate while it rains' },
             { value: 'none', label: 'Nothing' },
         ];
         for (let i = 0; i < 4; i++) {
@@ -1352,6 +1407,12 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
             { id: '#moon_entity', domains: ['sensor'] },
             { id: '#uv_entity', domains: ['sensor'] },
             { id: '#uv_max_entity', domains: ['sensor'] },
+            { id: '#rain_entity', domains: ['sensor'] },
+            { id: '#rain_rate_entity', domains: ['sensor'] },
+            { id: '#rain_event_entity', domains: ['sensor'] },
+            { id: '#rain_week_entity', domains: ['sensor'] },
+            { id: '#rain_month_entity', domains: ['sensor'] },
+            { id: '#rain_year_entity', domains: ['sensor'] },
             { id: '#flights_entity', domains: ['sensor'] },
             { id: '#note_entity', domains: ['sensor', 'input_text'] },
             { id: '#note_ai_task_entity', domains: ['ai_task'] },

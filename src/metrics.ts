@@ -4,7 +4,7 @@
 import type { AnimatedWeatherCardConfig } from './types';
 
 /** The readings the metric row can show, by the names `metrics` takes */
-export const METRIC_KINDS = ['humidity', 'wind', 'pressure', 'sun', 'uv'] as const;
+export const METRIC_KINDS = ['humidity', 'wind', 'pressure', 'sun', 'uv', 'rain'] as const;
 export type MetricKind = typeof METRIC_KINDS[number];
 /** The row as it always was: humidity, wind, pressure and the next sunset or sunrise */
 export const DEFAULT_METRICS: readonly MetricKind[] = ['humidity', 'wind', 'pressure', 'sun'];

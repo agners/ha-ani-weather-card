@@ -85,6 +85,20 @@ function readingsHtml(host: ForecastHost, W: FcWords, slot: Slot | null): string
     const amt = slot ? n(slot.precipitation) : n(a.precipitation);
     const ch = slot ? n(slot.precipitation_probability) : null;
     if (amt !== null || ch !== null) out.push({ label: W.precipitation, value: `${num(amt ?? 0, lang, 1)} ${precipitationUnit(a, hass?.config?.unit_system)}`, sub: ch !== null && ch >= 20 ? fill(W.chance_of, { v: num(Math.round(ch), lang) }) : '' });
+    // A station's rain at now: today's, the rate while it rains, and its totals, each in its sensor's unit
+    if (!slot) {
+        const today = host.reading?.('rain_today'), rate = host.reading?.('rain_now');
+        if (today) out.push({ label: today.label, value: today.value });
+        if (rate) out.push({ label: rate.label, value: rate.value });
+        const cfg = host.config();
+        for (const [id, label] of [[cfg.rain_event_entity, W.rain_event], [cfg.rain_week_entity, W.rain_week], [cfg.rain_month_entity, W.rain_month], [cfg.rain_year_entity, W.rain_year]] as const) {
+            const e = id ? hass?.states[id] : undefined;
+            const v = e ? parseFloat(String(e.state)) : NaN;
+            if (!isFinite(v)) continue;
+            const unit = typeof e?.attributes?.unit_of_measurement === 'string' ? e.attributes.unit_of_measurement : 'mm';
+            out.push({ label, value: `${num(Math.max(0, v), lang, /\bin\b|inch/i.test(unit) ? 2 : 1)} ${unit}`.trim() });
+        }
+    }
     const vis = n(a.visibility);
     if (vis !== null && !slot) out.push({ label: W.visibility, value: `${num(vis, lang)} ${a.visibility_unit ?? 'km'}` });
     const pr = n(pick('pressure'));

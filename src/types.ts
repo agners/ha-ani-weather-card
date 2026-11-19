@@ -211,6 +211,15 @@ export interface AnimatedWeatherCardConfig {
     uv_max_entity?: string;
     /** Where the UV levels start: moderate, high, very high and extreme (default 3, 6, 8, 11, the WHO's) */
     uv_levels?: number[];
+    /** Today's rain from a station's sensor, such as an Ecowitt's daily rain: the rain reading */
+    rain_entity?: string;
+    /** The rain rate: the rain reading while it rains */
+    rain_rate_entity?: string;
+    /** A station's other rain totals, for the view that opens on tap: this rain event, this week, month and year */
+    rain_event_entity?: string;
+    rain_week_entity?: string;
+    rain_month_entity?: string;
+    rain_year_entity?: string;
     // Plane fly-overs: a Flightradar24 area sensor with a `flights` attribute
     flights_entity?: string;
     /** Write a note under the conditions with Home Assistant's AI Task, from the forecast */
