@@ -58,6 +58,22 @@ export interface ForecastHost {
     still(): boolean;
     /** Home Assistant's own more-info dialog for the entity */
     moreInfo(): void;
+    /**
+     * A reading as the card shows it, in its words: the UV index now (uv_entity, else the weather entity's) or at a
+     * value, its number, its level's word and the level. Null when there's none. Optional: an older main bundle has none
+     */
+    reading?(kind: 'uv', value?: number): Reading | null;
+}
+
+/** One reading in the card's words */
+export interface Reading {
+    label: string;
+    /** The figure, with its unit ("6", "4.2 mm") */
+    value: string;
+    /** What follows it on the card: the UV's level ("High") */
+    word?: string;
+    /** The UV's level, which colours its icon */
+    level?: string;
 }
 
 /** What the forecast bundle adds to one card */

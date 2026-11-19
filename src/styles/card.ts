@@ -25,6 +25,14 @@ const GRAIN = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'
  */
 export const CLOUD_OVERHANG_PX = 48;
 
+/**
+ * The UV reading's icon, by level, on the sky palette: the WHO's green, yellow, orange, red and violet, each as light as
+ * it must be to hold 3.2:1 through the label's quiet tint wherever the readings' icons sit, as measured in Chrome from
+ * a phone's four rows to a wide card's eight, the forecast on and off (the contrast test holds it). The level's word
+ * says it too: the colour only repeats it. On a theme, the icon keeps the theme's one colour
+ */
+export const UV_TINTS = { low: '#84ef8a', moderate: '#f2db49', high: '#ffd1a9', very_high: '#ffcdc8', extreme: '#e5d0ff' } as const;
+
 export const getMainCardStyles = () => `
 ${iconBoxCss('animated-weather-card')}
         /* The card's own icons (icons.ts): inline SVG, sized like ha-icon and in the text's colour */
@@ -607,6 +615,7 @@ ${iconBoxCss('animated-weather-card')}
         .weather-attributes.values-only .attribute-value { font-size: 18px; }
         .weather-attributes.values-only .attribute { flex-direction: row; align-items: center; gap: 6px; }
         .weather-attributes.values-only .attribute-icon { --mdc-icon-size: 16px; opacity: var(--awc-secondary); }
+        ${Object.entries(UV_TINTS).map(([level, tint]) => `.animated-weather-card:not(.theme-colors) .attribute[data-kind="uv"][data-level="${level}"] .attribute-icon { color: ${tint}; }`).join('\n        ')}
 
         /* ── Adaptive layout: width ──────────────────────────────────────── */
         @container awc (max-width: 319px) {

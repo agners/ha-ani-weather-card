@@ -402,7 +402,7 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
     // ── The readout: the hour under the needle, in the card's own places ──
     const metricEls = (): Record<string, HTMLElement> => {
         const out: Record<string, HTMLElement> = {};
-        for (const kind of ['humidity', 'wind', 'pressure']) { const e = root.querySelector(`.attribute[data-kind="${kind}"] .attribute-text`) as HTMLElement | null; if (e) out[kind] = e; }
+        for (const kind of ['humidity', 'wind', 'pressure', 'uv']) { const e = root.querySelector(`.attribute[data-kind="${kind}"] .attribute-text`) as HTMLElement | null; if (e) out[kind] = e; }
         return out;
     };
     let saved: Map<HTMLElement, string> | null = null;
@@ -483,11 +483,21 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
         writeLine(k);
         // The readings read the hour too: the card stays whole when pulled
         const els = metricEls();
-        const vals: Record<string, unknown> = { humidity: slot.humidity, wind: slot.wind_speed, pressure: slot.pressure };
+        const vals: Record<string, unknown> = { humidity: slot.humidity, wind: slot.wind_speed, pressure: slot.pressure, uv: slot.uv_index };
         for (const [kind, e] of Object.entries(els)) {
             const v = vals[kind];
             const home = saved?.get(e);
             if (typeof v !== 'number' || home === undefined) continue;
+            // The UV's level goes with its number: the card words both, and colours the icon by the hour's level
+            if (kind === 'uv') {
+                const r = host.reading?.('uv', v);
+                const box = e.closest('.attribute') as HTMLElement | null;
+                if (!r || !box) continue;
+                const t = `${r.value} ${r.word ?? ''}`.trim();
+                if (e.textContent !== t) e.textContent = t;
+                if (r.level) box.dataset.level = r.level;
+                continue;
+            }
             const t = home.replace(/^[\d.,\s  ]+/, `${nf(v)}${/^[\d.,]+[\s ]/.test(home) ? ' ' : ''}`);
             if (e.innerHTML !== t) e.innerHTML = t;
         }

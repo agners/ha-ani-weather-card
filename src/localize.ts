@@ -13,8 +13,21 @@ export type CardString =
     | 'sunrise' | 'sunset' | 'solar_noon' | 'daylight'
     | 'first_light' | 'last_light' | 'moon'
     | 'in_duration'
-    | 'note_reading' | 'note_writing';
+    | 'note_reading' | 'note_writing'
+    | 'uv_index' | 'uv_low' | 'uv_moderate' | 'uv_high' | 'uv_very_high' | 'uv_extreme';
 
+/** Norwegian, Bokmål */
+const NB: Partial<Record<CardString, string>> = {
+    feels_like: 'Føles som', indoors: 'Inne',
+    sunrise: 'Soloppgang', sunset: 'Solnedgang', solar_noon: 'Solens høydepunkt', daylight: 'Dagslengde',
+    first_light: 'Morgengry', last_light: 'Kveldsskumring', moon: 'Måne',
+    in_duration: 'om {duration}',
+    note_reading: 'Leser værmeldingen', note_writing: 'Skriver notatet',
+    uv_index: 'UV-indeks',
+    uv_low: 'Lav', uv_moderate: 'Moderat', uv_high: 'Høy', uv_very_high: 'Svært høy', uv_extreme: 'Ekstrem',
+};
+
+// One object literal, with no statement after it, so a bundle that never asks for a card string leaves the table out
 const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
     en: {
         feels_like: 'Feels like', indoors: 'Indoors',
@@ -22,6 +35,8 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         first_light: 'First light', last_light: 'Last light', moon: 'Moon',
         in_duration: 'in {duration}',
         note_reading: 'Reading the forecast', note_writing: 'Writing the note',
+        uv_index: 'UV index',
+        uv_low: 'Low', uv_moderate: 'Moderate', uv_high: 'High', uv_very_high: 'Very high', uv_extreme: 'Extreme',
     },
     de: {
         feels_like: 'Gefühlt', indoors: 'Innen',
@@ -29,6 +44,8 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         first_light: 'Morgendämmerung', last_light: 'Abenddämmerung', moon: 'Mond',
         in_duration: 'in {duration}',
         note_reading: 'Vorhersage wird gelesen', note_writing: 'Notiz wird geschrieben',
+        uv_index: 'UV-Index',
+        uv_low: 'Niedrig', uv_moderate: 'Mäßig', uv_high: 'Hoch', uv_very_high: 'Sehr hoch', uv_extreme: 'Extrem',
     },
     es: {
         feels_like: 'Sensación térmica', indoors: 'Interior',
@@ -36,6 +53,8 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         first_light: 'Alba', last_light: 'Anochecer', moon: 'Luna',
         in_duration: 'en {duration}',
         note_reading: 'Leyendo el pronóstico', note_writing: 'Escribiendo la nota',
+        uv_index: 'Índice UV',
+        uv_low: 'Bajo', uv_moderate: 'Moderado', uv_high: 'Alto', uv_very_high: 'Muy alto', uv_extreme: 'Extremo',
     },
     fr: {
         feels_like: 'Ressenti', indoors: 'Intérieur',
@@ -43,6 +62,8 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         first_light: 'Aube', last_light: 'Crépuscule', moon: 'Lune',
         in_duration: 'dans {duration}',
         note_reading: 'Lecture des prévisions', note_writing: 'Rédaction de la note',
+        uv_index: 'Indice UV',
+        uv_low: 'Faible', uv_moderate: 'Modéré', uv_high: 'Élevé', uv_very_high: 'Très élevé', uv_extreme: 'Extrême',
     },
     it: {
         feels_like: 'Percepita', indoors: 'Interno',
@@ -50,6 +71,8 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         first_light: 'Prima luce', last_light: 'Ultima luce', moon: 'Luna',
         in_duration: 'tra {duration}',
         note_reading: 'Lettura delle previsioni', note_writing: 'Scrittura della nota',
+        uv_index: 'Indice UV',
+        uv_low: 'Basso', uv_moderate: 'Moderato', uv_high: 'Alto', uv_very_high: 'Molto alto', uv_extreme: 'Estremo',
     },
     nl: {
         feels_like: 'Voelt als', indoors: 'Binnen',
@@ -57,6 +80,8 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         first_light: 'Ochtendschemering', last_light: 'Avondschemering', moon: 'Maan',
         in_duration: 'over {duration}',
         note_reading: 'Verwachting lezen', note_writing: 'Notitie schrijven',
+        uv_index: 'UV-index',
+        uv_low: 'Laag', uv_moderate: 'Matig', uv_high: 'Hoog', uv_very_high: 'Zeer hoog', uv_extreme: 'Extreem',
     },
     pl: {
         feels_like: 'Odczuwalna', indoors: 'Wewnątrz',
@@ -64,6 +89,8 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         first_light: 'Świt', last_light: 'Zmierzch', moon: 'Księżyc',
         in_duration: 'za {duration}',
         note_reading: 'Czytanie prognozy', note_writing: 'Pisanie notatki',
+        uv_index: 'Indeks UV',
+        uv_low: 'Niski', uv_moderate: 'Umiarkowany', uv_high: 'Wysoki', uv_very_high: 'Bardzo wysoki', uv_extreme: 'Ekstremalny',
     },
     pt: {
         feels_like: 'Sensação térmica', indoors: 'Interior',
@@ -71,6 +98,8 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         first_light: 'Aurora', last_light: 'Crepúsculo', moon: 'Lua',
         in_duration: 'em {duration}',
         note_reading: 'Leitura da previsão', note_writing: 'Escrita da nota',
+        uv_index: 'Índice UV',
+        uv_low: 'Baixo', uv_moderate: 'Moderado', uv_high: 'Alto', uv_very_high: 'Muito alto', uv_extreme: 'Extremo',
     },
     ro: {
         feels_like: 'Resimțită', indoors: 'Interior',
@@ -78,26 +107,23 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         first_light: 'Zori', last_light: 'Amurg', moon: 'Lună',
         in_duration: 'în {duration}',
         note_reading: 'Citesc prognoza', note_writing: 'Scriu nota',
+        uv_index: 'Indice UV',
+        uv_low: 'Scăzut', uv_moderate: 'Moderat', uv_high: 'Ridicat', uv_very_high: 'Foarte ridicat', uv_extreme: 'Extrem',
     },
-    nb: {
-        feels_like: 'Føles som', indoors: 'Inne',
-        sunrise: 'Soloppgang', sunset: 'Solnedgang', solar_noon: 'Solens høydepunkt', daylight: 'Dagslengde',
-        first_light: 'Morgengry', last_light: 'Kveldsskumring', moon: 'Måne',
-        in_duration: 'om {duration}',
-        note_reading: 'Leser værmeldingen', note_writing: 'Skriver notatet',
-    },
+    nb: NB,
+    // Home Assistant's Norwegian is Bokmål (`nb`); `no` and Nynorsk (`nn`) get the same words
+    no: NB,
+    nn: NB,
     uk: {
         feels_like: 'Відчувається як', indoors: 'У приміщенні',
         sunrise: 'Схід сонця', sunset: 'Захід сонця', solar_noon: 'Сонячний полудень', daylight: 'Тривалість дня',
         first_light: 'Світанок', last_light: 'Вечірні сутінки', moon: 'Місяць',
         in_duration: 'через {duration}',
         note_reading: 'Аналіз прогнозу', note_writing: 'Підготовка нотатки',
+        uv_index: 'УФ-індекс',
+        uv_low: 'Низький', uv_moderate: 'Помірний', uv_high: 'Високий', uv_very_high: 'Дуже високий', uv_extreme: 'Екстремальний',
     },
 };
-
-// Home Assistant's Norwegian is Bokmål (`nb`); `no` and Nynorsk (`nn`) get the same words.
-STRINGS.no = STRINGS.nb;
-STRINGS.nn = STRINGS.nb;
 
 /** The parts of `hass` these helpers read. */
 export interface LocaleSource {

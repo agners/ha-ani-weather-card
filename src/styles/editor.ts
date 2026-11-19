@@ -119,6 +119,15 @@ ${iconBoxCss('.card-config')}
           padding-left: 20px;
         }
 
+        /* The four readings, two a line */
+        .metric-slots {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 8px 12px;
+          margin-bottom: 12px;
+        }
+        .metric-slots ha-select { width: 100%; }
+
         /* ── Weather engine sliders ──────────────────────────────────────── */
         .engine-grid {
           display: grid;

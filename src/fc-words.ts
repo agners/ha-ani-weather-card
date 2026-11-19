@@ -106,6 +106,8 @@ export interface FcWords {
     humidity: string;
     dew_point: string;
     uv: string;
+    /** Today's highest UV index (uv_max_entity), in the view */
+    uv_max: string;
     cloud_cover: string;
     precipitation: string;
     visibility: string;
@@ -143,7 +145,7 @@ const EN: FcWords = {
     lightning: 'Thunder', 'lightning-rainy': 'Thunderstorm', snowy: 'Snow', 'snowy-rainy': 'Sleet', hail: 'Hail', windy: 'Windy',
     'windy-variant': 'Windy', exceptional: 'Exceptional',
     view: 'Weather at {place}', close: 'Close', more: 'History and settings', now_head: 'Now', at_head: 'At {t}',
-    wind: 'Wind', gusts: 'Gusts {v}', humidity: 'Humidity', dew_point: 'Dew point', uv: 'UV index', cloud_cover: 'Cloud cover',
+    wind: 'Wind', gusts: 'Gusts {v}', humidity: 'Humidity', dew_point: 'Dew point', uv: 'UV index', uv_max: 'Max UV today', cloud_cover: 'Cloud cover',
     precipitation: 'Precipitation', visibility: 'Visibility', pressure: 'Pressure', feels_like: 'Feels like',
     clock: 'Clock and weather', alarm: 'Alarm', gusts_to: 'Gusts to {v} at {t}', freezing: '{v} at {t}',
     no_forecast: 'This weather entity has no forecast',
@@ -172,7 +174,7 @@ const DE: FcWords = {
     lightning: 'Gewitter', 'lightning-rainy': 'Gewitter', snowy: 'Schnee', 'snowy-rainy': 'Schneeregen', hail: 'Hagel', windy: 'Windig',
     'windy-variant': 'Windig', exceptional: 'Unwetter',
     view: 'Wetter, {place}', close: 'Schließen', more: 'Verlauf und Einstellungen', now_head: 'Jetzt', at_head: 'Um {t}',
-    wind: 'Wind', gusts: 'Böen {v}', humidity: 'Luftfeuchte', dew_point: 'Taupunkt', uv: 'UV-Index', cloud_cover: 'Bewölkung',
+    wind: 'Wind', gusts: 'Böen {v}', humidity: 'Luftfeuchte', dew_point: 'Taupunkt', uv: 'UV-Index', uv_max: 'UV-Maximum heute', cloud_cover: 'Bewölkung',
     precipitation: 'Niederschlag', visibility: 'Sichtweite', pressure: 'Luftdruck', feels_like: 'Gefühlt',
     clock: 'Uhr und Wetter', alarm: 'Wecker', gusts_to: 'Böen bis {v} um {t}', freezing: '{v} um {t}',
     no_forecast: 'Diese Wetter-Entität hat keine Vorhersage',

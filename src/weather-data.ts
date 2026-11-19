@@ -3,6 +3,11 @@
 import { HomeAssistant, HassEntity, AnimatedWeatherCardConfig } from './types';
 import { DEV_MODE_TEMPERATURES, DEV_MODE_CONDITION_NAMES, DEV_MODE_SAMPLE_DATA } from './constants';
 import { convertWindSpeedToKmh, formatLocalizedNumber, lookup } from './utils';
+import { CardString, localizeString } from './localize';
+import { UvLevel, uvLevel, uvLevels } from './metrics';
+
+export { DEFAULT_METRICS, METRIC_KINDS, metricKinds, UV_LEVELS, UV_LEVEL_NAMES, uvLevel, uvLevels } from './metrics';
+export type { MetricKind, UvLevel } from './metrics';
 
 /** Home Assistant's English names for weather states, used when HA can't translate. */
 export const HA_CONDITION_NAMES: Record<string, string> = {
@@ -35,6 +40,30 @@ export function conditionName(hass: HomeAssistant, entity: HassEntity): string {
     return lookup(HA_CONDITION_NAMES, entity.state) || entity.state;
 }
 
+const toNumber = (raw: unknown): number | null => {
+    if (raw === null || raw === undefined || raw === '') return null;
+    const n = typeof raw === 'number' ? raw : parseFloat(String(raw));
+    return isFinite(n) ? n : null;
+};
+
+/** The UV index now: uv_entity's state, else the weather entity's uv_index. Null when neither is a number */
+export function readUv(hass: HomeAssistant | undefined, config: AnimatedWeatherCardConfig): number | null {
+    const sensor = config.uv_entity ? toNumber(hass?.states[config.uv_entity]?.state) : null;
+    return sensor ?? toNumber(config.entity ? hass?.states[config.entity]?.attributes?.uv_index : undefined);
+}
+
+/** A UV index as the card shows it, the number and its level's word ("6 High"), and the level, for its colour */
+export function uvReading(hass: HomeAssistant | undefined, config: AnimatedWeatherCardConfig, value: number | null): { text: string; level: UvLevel | null } {
+    if (value === null || !isFinite(value)) return { text: '--', level: null };
+    const level = uvLevel(value, uvLevels(config));
+    return { text: `${formatLocalizedNumber(Math.max(0, Math.round(value)), hass)} ${uvWord(hass, level)}`, level };
+}
+
+/** A UV level's word, in the card's language ("High") */
+export function uvWord(hass: HomeAssistant | undefined, level: UvLevel): string {
+    return localizeString(hass, `uv_${level}` as CardString);
+}
+
 export interface SunData {
     sunrise: string | null;
     sunset: string | null;
@@ -64,6 +93,8 @@ export interface WeatherData {
     feelsLike: string | null;
     indoorTemperature: string;
     indoorHumidity: string;
+    /** The UV index now (uv_entity, else the weather entity's), or null */
+    uv: number | null;
     sun?: SunData;
 }
 
@@ -146,7 +177,8 @@ export function processWeatherData(
             windSpeedValue: 0,
             windBearing: null,
             indoorTemperature: "--",
-            indoorHumidity: "--"
+            indoorHumidity: "--",
+            uv: null
         };
     }
     return processHomeAssistantData(hass, config);
@@ -209,6 +241,7 @@ function processDevModeData(config: AnimatedWeatherCardConfig, currentDevConditi
         feelsLike: null,
         indoorTemperature,
         indoorHumidity,
+        uv: DEV_MODE_SAMPLE_DATA.uv,
         sun
     };
 }
@@ -413,6 +446,7 @@ function processHomeAssistantData(hass: HomeAssistant, config: AnimatedWeatherCa
         feelsLike,
         indoorTemperature,
         indoorHumidity,
+        uv: readUv(hass, config),
         sun
     };
 }

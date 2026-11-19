@@ -203,6 +203,14 @@ export interface AnimatedWeatherCardConfig {
     sun_entity?: string;
     /** A moon phase sensor (the Moon integration's): the night's moon keeps to the phase it names. Without it, the date's */
     moon_entity?: string;
+    /** The readings in the metric row, in order: humidity, wind, pressure, sun (the default) and uv */
+    metrics?: string[] | string;
+    /** A UV index sensor, such as OpenUV's current UV index. Without it, the weather entity's uv_index */
+    uv_entity?: string;
+    /** Today's highest UV index, for the view that opens on tap */
+    uv_max_entity?: string;
+    /** Where the UV levels start: moderate, high, very high and extreme (default 3, 6, 8, 11, the WHO's) */
+    uv_levels?: number[];
     // Plane fly-overs: a Flightradar24 area sensor with a `flights` attribute
     flights_entity?: string;
     /** Write a note under the conditions with Home Assistant's AI Task, from the forecast */

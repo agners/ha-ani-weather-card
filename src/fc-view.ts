@@ -70,8 +70,16 @@ function readingsHtml(host: ForecastHost, W: FcWords, slot: Slot | null): string
     if (hum !== null) out.push({ label: W.humidity, value: `${num(Math.round(hum), lang)}%` });
     const dew = n(pick('dew_point'));
     if (dew !== null) out.push({ label: W.dew_point, value: `${host.temperature(dew)}°` });
+    // The UV index: at now, uv_entity's when there is one; its level under it, in the card's words
     const uv = n(pick('uv_index'));
-    if (uv !== null) out.push({ label: W.uv, value: num(Math.round(uv), lang) });
+    const uvr = slot ? (uv !== null ? host.reading?.('uv', uv) ?? null : null) : host.reading?.('uv') ?? null;
+    if (uvr) out.push({ label: W.uv, value: uvr.value, sub: uvr.word });
+    else if (uv !== null) out.push({ label: W.uv, value: num(Math.round(uv), lang) });
+    // Today's highest, from uv_max_entity, at now
+    const maxId = host.config().uv_max_entity;
+    const max = !slot && maxId ? parseFloat(String(hass?.states[maxId]?.state)) : NaN;
+    const maxr = isFinite(max) ? host.reading?.('uv', max) : null;
+    if (maxr) out.push({ label: W.uv_max, value: maxr.value, sub: maxr.word });
     const cloud = n(pick('cloud_coverage'));
     if (cloud !== null) out.push({ label: W.cloud_cover, value: `${num(Math.round(cloud), lang)}%` });
     const amt = slot ? n(slot.precipitation) : n(a.precipitation);

@@ -112,7 +112,8 @@ export const DEV_MODE_SAMPLE_DATA = {
     windSpeed: "10 km/h",
     pressure: "1013 hPa",
     indoorTemperature: "22°",
-    indoorHumidity: "45%"
+    indoorHumidity: "45%",
+    uv: 4
 };
 
 

@@ -5,6 +5,7 @@ import { DEFAULT_ENGINE_SETTINGS } from './constants';
 import { getConfigEditorStyles } from './styles/editor';
 import { skyColors, oklchToSrgb, toHex, SKY_TEXT } from './sky';
 import { escapeHtml, textField } from './utils';
+import { DEFAULT_METRICS, metricKinds } from './metrics';
 import { ActionConfig, readActions } from './actions';
 import { mountActionsEditor, updateActionsEditor } from './action-editor';
 
@@ -222,6 +223,24 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
             </div>
             <div class="option">
               <ha-entity-picker
+                id="uv_entity"
+                label="UV index sensor (optional)"
+                value="${escapeHtml(this._config.uv_entity || '')}"
+                helper="Such as OpenUV's current UV index, for the UV reading. Without one, the weather entity's own"
+                allow-custom-entity
+              ></ha-entity-picker>
+            </div>
+            <div class="option">
+              <ha-entity-picker
+                id="uv_max_entity"
+                label="Today's highest UV sensor (optional)"
+                value="${escapeHtml(this._config.uv_max_entity || '')}"
+                helper="Shown with the readings in the forecast that opens on tap"
+                allow-custom-entity
+              ></ha-entity-picker>
+            </div>
+            <div class="option">
+              <ha-entity-picker
                 id="flights_entity"
                 label="Flights sensor"
                 value="${escapeHtml(this._config.flights_entity || '')}"
@@ -267,8 +286,14 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
             <div class="option">
               <label class="switch-label">
                 <ha-switch id="show_attributes" ${this._config.show_attributes !== false ? 'checked' : ''}></ha-switch>
-                <span>Humidity, wind and pressure</span>
+                <span>Readings</span>
               </label>
+            </div>
+            <div class="option sub-option" id="metrics-option" style="display: ${this._config.show_attributes !== false ? 'block' : 'none'}">
+              <div class="metric-slots">
+                ${[0, 1, 2, 3].map(i => `<ha-select id="metric_${i}" label="Reading ${i + 1}"></ha-select>`).join('')}
+              </div>
+              ${textField({ id: 'uv_levels', label: 'UV levels start at', placeholder: '3, 6, 8, 11', value: Array.isArray(this._config.uv_levels) ? this._config.uv_levels.join(', ') : (this._config.uv_levels as string | undefined), hint: 'Moderate, high, very high and extreme. The level\'s word follows the UV index, and its icon takes its colour' })}
             </div>
             <div class="option sub-option" id="attribute-labels-option" style="display: ${this._config.show_attributes !== false ? 'block' : 'none'}">
               <label class="switch-label">
@@ -715,6 +740,12 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
             this._updateConfig('moon_entity', (e.target as HTMLInputElement).value);
         });
 
+        for (const id of ['uv_entity', 'uv_max_entity']) {
+            this.querySelector(`#${id}`)?.addEventListener('value-changed', (e) => {
+                this._updateConfig(id, (e.target as HTMLInputElement).value);
+            });
+        }
+
         this.querySelector('#flights_entity')?.addEventListener('value-changed', (e) => {
             this._updateConfig('flights_entity', (e.target as HTMLInputElement).value);
         });
@@ -863,6 +894,33 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
             if (skyNote) skyNote.style.display = value === 'default' ? 'block' : 'none';
             this._syncColorResets();
         });
+        // The four readings, in order. Picking the row as it always was writes no YAML; readings past the fourth,
+        // set in YAML, are kept after them
+        const metricOptions = [
+            { value: 'humidity', label: 'Humidity' },
+            { value: 'wind', label: 'Wind' },
+            { value: 'pressure', label: 'Pressure' },
+            { value: 'sun', label: 'Next sunrise or sunset' },
+            { value: 'uv', label: 'UV index' },
+            { value: 'none', label: 'Nothing' },
+        ];
+        for (let i = 0; i < 4; i++) {
+            this._bindSelect(`metric_${i}`, metricOptions, metricKinds(this._config ?? {})[i] ?? 'none', (value) => {
+                const now = metricKinds(this._config ?? {});
+                const slots = [0, 1, 2, 3].map(j => (j === i ? value : now[j] ?? 'none'));
+                const list = [...slots.filter(k => k !== 'none'), ...now.slice(4)].filter((k, j, all) => all.indexOf(k) === j);
+                const same = list.length === DEFAULT_METRICS.length && list.every((k, j) => k === DEFAULT_METRICS[j]);
+                this._updateConfig('metrics', same ? undefined : list);
+            });
+        }
+        this.querySelector('#uv_levels')?.addEventListener('change', (e) => {
+            const raw = (e.target as HTMLInputElement).value.trim();
+            const n = raw.split(',').map(v => parseFloat(v));
+            const valid = n.length === 4 && n.every((v, j) => isFinite(v) && (j === 0 || v > n[j - 1]));
+            // Four rising numbers are written as a list; anything else as typed, which the card reads as the WHO's levels
+            this._updateConfig('uv_levels', !raw ? undefined : valid ? n : raw);
+        });
+
         this._bindSelect('indoor_style', [
             { value: 'label', label: 'The word "Indoors"' },
             { value: 'icon', label: 'A house icon' },
@@ -883,10 +941,10 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
             this._updateConfig('show_attributes', checked);
 
             // Show/hide sub-options based on main toggle
-            const labelsOption = this.querySelector('#attribute-labels-option') as HTMLElement;
-            const iconsOption = this.querySelector('#attribute-icons-option') as HTMLElement;
-            if (labelsOption) labelsOption.style.display = checked ? 'block' : 'none';
-            if (iconsOption) iconsOption.style.display = checked ? 'block' : 'none';
+            for (const id of ['#attribute-labels-option', '#attribute-icons-option', '#metrics-option']) {
+                const option = this.querySelector(id) as HTMLElement | null;
+                if (option) option.style.display = checked ? 'block' : 'none';
+            }
         });
 
         this.querySelector('#show_attribute_labels')?.addEventListener('change', (e) => {
@@ -1292,6 +1350,8 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
             { id: '#indoor_humidity_entity', domains: ['sensor'] },
             { id: '#sun_entity', domains: ['sun'] },
             { id: '#moon_entity', domains: ['sensor'] },
+            { id: '#uv_entity', domains: ['sensor'] },
+            { id: '#uv_max_entity', domains: ['sensor'] },
             { id: '#flights_entity', domains: ['sensor'] },
             { id: '#note_entity', domains: ['sensor', 'input_text'] },
             { id: '#note_ai_task_entity', domains: ['ai_task'] },

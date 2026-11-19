@@ -226,6 +226,21 @@ indoor_temperature_entity: sensor.living_room_temperature
 indoor_humidity_entity: sensor.living_room_humidity
 ```
 
+### The readings
+
+The row under the hero holds humidity, wind, pressure and the next sunset or sunrise. `metrics` picks the readings and their order, from those and `uv`, the UV index. Four fit best: a phone shows them in a row or a 2 × 2 grid, a wide card in two columns.
+
+The UV index comes from `uv_entity`, such as OpenUV's current UV index, or else from the weather entity when it reports one. It reads as the number and its level, "6 High", on the WHO's scale: low, moderate, high, very high and extreme. On the sky palette its icon also takes the level's colour, from green to violet. `uv_levels` moves where moderate, high, very high and extreme start. Drag the card through the hours and it shows each hour's UV from the forecast. The view that opens on tap adds today's highest, from `uv_max_entity`.
+
+```yaml
+type: custom:animated-weather-card
+entity: weather.forecast_home
+sun_entity: sun.sun
+metrics: [humidity, wind, uv, sun]
+uv_entity: sensor.current_uv_index
+uv_max_entity: sensor.max_uv_index
+```
+
 ### Weather and sun tracker
 
 This is the pairing in the screenshot above. `show_sun: false` leaves the next sunset to the tracker, which frees a slot so the weather card's three remaining metrics can share one row. The tracker takes the sky of the weather card on its sun; `weather_entity` names the weather when the dashboard has more than one, or none. With the forecast on, drag the weather card through the hours and the tracker's sun goes there too.
@@ -652,6 +667,8 @@ sunset_hour: 19
 | `name` | entity's name | The location shown above the temperature |
 | `sun_entity` | — | Usually `sun.sun`. Adds the next sunset (by day) or sunrise (by night) to the metric row. The sky follows it, or `sun.sun` without it |
 | `moon_entity` | — | A moon phase sensor, such as the Moon integration's `sensor.moon_phase`. A clear night's moon keeps to the phase it names. Without it, the card works the phase out from the date |
+| `uv_entity` | — | A UV index sensor, such as OpenUV's `sensor.current_uv_index`, for the `uv` reading. Without it, the weather entity's UV index, if it reports one |
+| `uv_max_entity` | — | Today's highest UV index, such as OpenUV's `sensor.max_uv_index`, shown in the view that opens on tap |
 | `outdoor_sensor_entity` | — | A temperature sensor to show instead of the weather entity's temperature |
 | `feels_like_entity` | — | An apparent temperature sensor. Without it, the card uses the weather entity's `apparent_temperature` if it has one |
 | `humidity_sensor_entity` | — | A humidity sensor to show instead of the weather entity's humidity |
@@ -669,7 +686,9 @@ sunset_hour: 19
 | `compact` | `false` | One line about 88 px tall: the temperature and condition, with the location and "feels like" beside them. Two rows in the sections view |
 | `temperature_decimals` | `0` | `1` shows the temperature, "feels like" and the indoor temperature to one decimal, `21.5°`, in your language's format. `0` rounds them to whole degrees |
 | `show_location` | `true` | Show the location name |
-| `show_attributes` | `true` | Show the metric row: humidity, wind, pressure and sunset |
+| `show_attributes` | `true` | Show the metric row, with the readings `metrics` names |
+| `metrics` | `[humidity, wind, pressure, sun]` | The readings in the metric row, in order: `humidity`, `wind`, `pressure`, `sun` (the next sunset or sunrise) and `uv` (the UV index and its level). Four fit best. The editor sets four |
+| `uv_levels` | `[3, 6, 8, 11]` | Where the UV index's moderate, high, very high and extreme levels start, as four rising numbers. The WHO's by default |
 | `show_attribute_labels` | `true` | Show the metric labels |
 | `show_attribute_icons` | `true` | Show the metric icons |
 | `show_sun` | `true` | Show the next sunset or sunrise in the metric row. Needs `sun_entity` |

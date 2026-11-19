@@ -370,6 +370,18 @@ indoor_temperature_entity: sensor.living_room_temperature
 indoor_humidity_entity: sensor.living_room_humidity</code></pre>
                     </div>
 
+                    <h3 id="readings">The readings</h3>
+                    <p>The row under the temperature holds humidity, wind, pressure and the next sunset or sunrise. <code>metrics</code> picks the readings and their order, from those and <code>uv</code>, the UV index; four fit best, and the editor's <b>Display</b> section sets them. The UV index comes from <code>uv_entity</code>, such as the <a href="https://www.home-assistant.io/integrations/openuv/">OpenUV integration</a>'s current UV index, or from the weather entity when it reports one. It reads as the number and its level, "6 High", on the WHO's scale, and on the sky palette its icon takes the level's colour; <code>uv_levels</code> moves where the levels start. The view that opens on tap adds today's highest, from <code>uv_max_entity</code>.</p>
+                    <div class="code" data-lang="yaml">
+                        <div class="code-bar"><span class="code-name">Card YAML</span><button type="button" class="copy"><span class="copy-icon" aria-hidden="true"></span><span class="copy-label">Copy</span></button></div>
+                        <pre><code>type: custom:animated-weather-card
+entity: weather.forecast_home
+sun_entity: sun.sun
+metrics: [humidity, wind, uv, sun]
+uv_entity: sensor.current_uv_index
+uv_max_entity: sensor.max_uv_index</code></pre>
+                    </div>
+
                     <h3 id="tracker">The sun tracker</h3>
                     <p>It comes in the same download: the sun's path through your day, and the next sunrise or sunset as its headline. Stacked under the weather card it takes the card's sky, by itself or from <code>weather_entity</code> when the dashboard has more than one weather, and the weather card can leave the sunset to it. South of the equator the sun runs right to left, as it crosses your sky; <code>direction: left_to_right</code> or <code>right_to_left</code> sets it.</p>
                     <div class="code" data-lang="yaml">

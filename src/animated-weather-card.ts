@@ -44,7 +44,7 @@ import type { NoteWriter, NoteStage } from './note-generator';
 // keeps the runtime bundle (loaded on every dashboard) free of the editor's
 // markup, styles, and entity-picker scaffolding.
 // Import weather data processing
-import { processWeatherData, readNote, noteExpiresAt, WeatherNote, temperatureDecimals } from './weather-data';
+import { processWeatherData, readNote, noteExpiresAt, WeatherNote, temperatureDecimals, metricKinds, MetricKind, uvReading, readUv, uvLevel, uvLevels, uvWord } from './weather-data';
 import { localizeString, formatTime, timeHtml, localeKey, clockParts } from './localize';
 import { ActionsConfig, bindActions, readActions, syncActionTarget } from './actions';
 import { loadEditorBundle, loadSiblingBundle } from './bundles';
@@ -308,6 +308,18 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
             seen: () => this.noteVisible,
             still: () => this.config?.animate === false || !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches,
             moreInfo: () => this.dispatchEvent(new CustomEvent('hass-more-info', { detail: { entityId: this.config?.entity }, bubbles: true, composed: true })),
+            reading: (kind, value) => {
+                if (!this.config || kind !== 'uv') return null;
+                const v = value ?? readUv(this._hass, this.config);
+                if (v === null || !isFinite(v)) return null;
+                const level = uvLevel(v, uvLevels(this.config));
+                return {
+                    label: localizeString(this._hass, 'uv_index'),
+                    value: formatLocalizedNumber(Math.max(0, Math.round(v)), this._hass),
+                    word: uvWord(this._hass, level),
+                    level,
+                };
+            },
         };
     }
 
@@ -546,7 +558,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
             return;
         }
 
-        const { temperature, weatherCondition, location, humidity, windSpeed, windSpeedValue, windBearing, pressure, pressureValue, feelsLike, indoorTemperature, indoorHumidity, sun } = weatherData;
+        const { temperature, weatherCondition, location, humidity, windSpeed, windSpeedValue, windBearing, pressure, pressureValue, feelsLike, indoorTemperature, indoorHumidity, uv, sun } = weatherData;
 
         const pressureTrend = this.updatePressureTrend(pressureValue);
 
@@ -568,11 +580,11 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
 
         const showIcons = this.config.show_attribute_icons !== false;
         const showLabels = this.config.show_attribute_labels !== false;
-        const metric = (kind: string, iconName: IconName, labelText: string, valueHtml: string, extra = '') => {
+        const metric = (kind: string, iconName: IconName, labelText: string, valueHtml: string, extra = '', level?: string | null) => {
             const label = (showIcons || showLabels)
                 ? `<div class="attribute-label">${showIcons ? icon(iconName, 'attribute-icon') : ''}${showLabels ? `<span>${escapeHtml(labelText)}</span>` : ''}</div>`
                 : '';
-            return `<div class="attribute" data-kind="${kind}">${label}<div class="attribute-value"><span class="attribute-text">${valueHtml}</span>${extra}</div></div>`;
+            return `<div class="attribute" data-kind="${kind}"${level ? ` data-level="${level}"` : ''}>${label}<div class="attribute-value"><span class="attribute-text">${valueHtml}</span>${extra}</div></div>`;
         };
         const windArrow = typeof windBearing === 'number'
             ? `<ha-icon class="wind-bearing-arrow" icon="mdi:navigation" style="transform: rotate(${windBearing + 180}deg);" aria-label="${windArrowLabel(windBearing)}"></ha-icon>`
@@ -580,14 +592,18 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
         const trendArrow = pressureTrend
             ? `<ha-icon class="pressure-trend ${pressureTrend}" icon="${pressureTrendIcon(pressureTrend)}" aria-label="Pressure ${pressureTrend}"></ha-icon>`
             : '';
+        // The readings metrics names, in its order (humidity, wind, pressure and the sun by default)
+        const uvNow = uvReading(this._hass, this.config, uv);
+        const reading: Record<MetricKind, () => string> = {
+            humidity: () => metric('humidity', 'humidity', cardLocalize(this._hass, 'ui.card.weather.attributes.humidity', 'Humidity'), escapeHtml(humidity)),
+            wind: () => metric('wind', 'wind', cardLocalize(this._hass, 'ui.card.weather.attributes.wind_speed', 'Wind'), escapeHtml(windSpeed), windArrow),
+            pressure: () => metric('pressure', 'pressure', cardLocalize(this._hass, 'ui.card.weather.attributes.air_pressure', 'Pressure'), escapeHtml(pressure), trendArrow),
+            sun: () => showSun ? metric('sun', sunMetricIcon(sunIsDay), localizeString(this._hass, sunIsDay ? 'sunset' : 'sunrise'),
+                timeHtml(sunEvent, 'awc-ampm')) : '',
+            uv: () => metric('uv', 'noon', localizeString(this._hass, 'uv_index'), escapeHtml(uvNow.text), '', uvNow.level),
+        };
         const metrics = this.config.show_attributes !== false ? `
-              <div class="weather-attributes${showLabels ? '' : ' values-only'}">${[
-                metric('humidity', 'humidity', cardLocalize(this._hass, 'ui.card.weather.attributes.humidity', 'Humidity'), escapeHtml(humidity)),
-                metric('wind', 'wind', cardLocalize(this._hass, 'ui.card.weather.attributes.wind_speed', 'Wind'), escapeHtml(windSpeed), windArrow),
-                metric('pressure', 'pressure', cardLocalize(this._hass, 'ui.card.weather.attributes.air_pressure', 'Pressure'), escapeHtml(pressure), trendArrow),
-                showSun ? metric('sun', sunMetricIcon(sunIsDay), localizeString(this._hass, sunIsDay ? 'sunset' : 'sunrise'),
-                    timeHtml(sunEvent, 'awc-ampm')) : '',
-              ].join('')}</div>` : '';
+              <div class="weather-attributes${showLabels ? '' : ' values-only'}">${metricKinds(this.config).map(k => reading[k]()).join('')}</div>` : '';
 
         this.innerHTML = `
       <ha-card>
@@ -1211,7 +1227,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
             // that changed. A sentinel for missing attributes keeps a real 0
             // (calm wind, 0% humidity) from reading as "unchanged".
             const project = (v: unknown): string => v == null ? '__missing__' : String(v);
-            const attrs = ['temperature', 'apparent_temperature', 'humidity', 'wind_speed', 'pressure', 'wind_bearing', 'friendly_name'] as const;
+            const attrs = ['temperature', 'apparent_temperature', 'humidity', 'wind_speed', 'pressure', 'wind_bearing', 'uv_index', 'friendly_name'] as const;
             for (const a of attrs) {
                 if (project(oldEntity.attributes[a]) !== project(newEntity.attributes[a])) {
                     dataChanged = true;
@@ -1236,6 +1252,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
                     this.config.wind_direction_sensor_entity,
                     this.config.indoor_temperature_entity,
                     this.config.indoor_humidity_entity,
+                    this.config.uv_entity,
                     this.config.sun_entity,
                 ];
                 for (const entityId of sensorEntities) {
@@ -1270,7 +1287,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
             return; // Don't blow up the card for a data-only update
         }
 
-        const { temperature, weatherCondition, humidity, windSpeed, windSpeedValue, windBearing, pressure, pressureValue, feelsLike, indoorTemperature, indoorHumidity, sun } = weatherData;
+        const { temperature, weatherCondition, humidity, windSpeed, windSpeedValue, windBearing, pressure, pressureValue, feelsLike, indoorTemperature, indoorHumidity, uv, sun } = weatherData;
         this.currentWindSpeedValue = windSpeedValue;
         // While the card shows another hour, the hour's text stays; it's read again when the card comes home
         const away = !!this.extras?.away();
@@ -1295,6 +1312,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
         setAttrValue('humidity', humidity);
         setAttrValue('wind', windSpeed);
         setAttrValue('pressure', pressure);
+        this.setUv(uv);
         }
         if (!away) this.syncValueIcon('wind', 'wind-bearing-arrow', typeof windBearing === 'number' ? {
             icon: 'mdi:navigation',
@@ -1347,6 +1365,16 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
         if (this.animationController) {
             this.animationController.setWindSpeed(windSpeedValue);
         }
+    }
+
+    /** The UV reading: its number and level's word, and the level its icon is coloured by (now, or an hour's) */
+    private setUv(value: number | null): void {
+        const el = this.querySelector('.weather-attributes .attribute[data-kind="uv"]') as HTMLElement | null;
+        if (!el || !this.config) return;
+        const r = uvReading(this._hass, this.config, value);
+        const text = el.querySelector('.attribute-text');
+        if (text && text.textContent !== r.text) text.textContent = r.text;
+        if (r.level) el.dataset.level = r.level; else delete el.dataset.level;
     }
 
     /**

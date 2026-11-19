@@ -4,7 +4,8 @@ import {
     sampleSky, sampleSkyAt, oklchToSrgb, composite, contrastRatio, skyColors, generateSkyCss, toHex,
     DISSOLVING_PROPERTIES, dissolveTransition, SKY_DISSOLVE_SEC, SKY_DISSOLVE_EASE,
 } from '../../src/sky';
-import { getMainCardStyles, CLOUD_OVERHANG_PX } from '../../src/styles/card';
+import { getMainCardStyles, CLOUD_OVERHANG_PX, UV_TINTS } from '../../src/styles/card';
+import { GLYPH_CONTRAST } from '../../src/fc-glyphs';
 
 const text = oklchToSrgb(SKY_TEXT);
 
@@ -73,6 +74,35 @@ describe('sky palettes', () => {
                 }
             });
         }
+    }
+
+    // The UV reading's icon in its level's colour, through the label's quiet tint, wherever the readings' icons sit, as
+    // measured in Chrome: a narrow card's grid of two columns, from 0.40 of its height with the forecast on (over the
+    // hourly row) to its foot; a row of four on a card 460 to 639 px wide, from 0.55; a wide card's two columns, from
+    // 0.45 in a short frame; a wide card's row over the forecast. An icon: 3.2:1, as the forecast's are; the level's
+    // word says it in the text's own colour
+    const range = (from: number, to: number, step: number) => Array.from({ length: Math.round((to - from) / step) + 1 }, (_, i) => +(from + i * step).toFixed(3));
+    const UV_ZONES = [
+        ['narrow grid', grid(range(0.04, 0.58, 0.02), range(0.40, 0.95, 0.03)), SKY_GLOW],
+        ['narrow row', grid(range(0.04, 0.88, 0.02), range(0.55, 0.95, 0.03)), SKY_GLOW],
+        ['wide', grid(range(0.58, 0.85, 0.025), range(0.45, 0.9, 0.03)), SKY_GLOW_WIDE],
+        ['wide over the forecast', grid(range(0.02, 0.9, 0.02), range(0.55, 0.65, 0.02)), SKY_GLOW_WIDE],
+    ] as const;
+    for (const [level, tint] of Object.entries(UV_TINTS)) {
+        it(`the UV icon at ${level} holds ${GLYPH_CONTRAST}:1 in every sky, wherever the readings sit`, () => {
+            const rgb = [1, 3, 5].map(i => parseInt(tint.slice(i, i + 2), 16) / 255) as [number, number, number];
+            let worst = Infinity, where = '';
+            for (const condition of SKY_CONDITIONS) for (const phase of SKY_PHASES) {
+                for (const [zone, points, glow] of UV_ZONES) {
+                    for (const [x, y] of points) {
+                        const bg = sampleSkyAt(condition, phase, x, y, glow);
+                        const ratio = contrastRatio(composite(bg, rgb, SKY_TEXT_SECONDARY_ALPHA), bg);
+                        if (ratio < worst) { worst = ratio; where = `${condition}/${phase} ${zone} at x=${x}, y=${y}`; }
+                    }
+                }
+            }
+            expect(worst, `worst at ${where}`).toBeGreaterThanOrEqual(GLYPH_CONTRAST);
+        });
     }
 
     it('emits valid hex and rgba colors, never oklch()', () => {
