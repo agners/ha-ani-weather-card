@@ -6,6 +6,7 @@ import { getConfigEditorStyles } from './styles/editor';
 import { skyColors, oklchToSrgb, toHex, SKY_TEXT } from './sky';
 import { escapeHtml, textField } from './utils';
 import { DEFAULT_METRICS, metricKinds } from './metrics';
+import { bindPlaceFields, placeFieldsHtml, PLACE_FIELDS_CSS } from './place-editor';
 import { ActionConfig, readActions } from './actions';
 import { mountActionsEditor, updateActionsEditor } from './action-editor';
 
@@ -555,6 +556,9 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
           </div>
           <div class="section-content">
             <div class="option">
+              ${placeFieldsHtml(this._config)}
+            </div>
+            <div class="option">
               <label class="switch-label">
                 <ha-switch id="enable_day_night_cycle" ${this._config.enable_day_night_cycle ? 'checked' : ''}></ha-switch>
                 <span>Follow a fixed day and night schedule</span>
@@ -726,7 +730,7 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
       </div>
       
       <style>
-        ${getConfigEditorStyles()}
+        ${getConfigEditorStyles()}${PLACE_FIELDS_CSS}
       </style>
     `;
 
@@ -975,6 +979,8 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
             // Four rising numbers are written as a list; anything else as typed, which the card reads as the WHO's levels
             this._updateConfig('uv_levels', !raw ? undefined : valid ? n : raw);
         });
+
+        bindPlaceFields(this, patch => { for (const [key, value] of Object.entries(patch)) this._updateConfig(key, value); });
 
         this._bindSelect('indoor_style', [
             { value: 'label', label: 'The word "Indoors"' },

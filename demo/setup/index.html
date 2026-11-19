@@ -405,6 +405,25 @@ cards:
     compact: true</code></pre>
                     </div>
 
+                    <h3 id="place">Weather in another place</h3>
+                    <p>A card can show the weather where your family lives. Give it a weather entity for that place, such as a second Met.no location added under <b>Settings → Devices &amp; services</b>, and the place's <code>latitude</code>, <code>longitude</code> and <code>time_zone</code>; the editor has them under <b>Day and night</b>. The card works out that place's sun from its coordinates, so its sky, sunset reading and moon are that place's, and every time it shows is in the place's time zone. The sun tracker takes the same three options instead of <code>sun_entity</code>, and pairs with the weather card on the same coordinates.</p>
+                    <div class="code" data-lang="yaml">
+                        <div class="code-bar"><span class="code-name">A vertical stack</span><button type="button" class="copy"><span class="copy-icon" aria-hidden="true"></span><span class="copy-label">Copy</span></button></div>
+                        <pre><code>type: vertical-stack
+cards:
+  - type: custom:animated-weather-card
+    entity: weather.sydney
+    name: Sydney
+    latitude: -33.87
+    longitude: 151.21
+    time_zone: Australia/Sydney
+  - type: custom:animated-sun-tracker-card
+    latitude: -33.87
+    longitude: 151.21
+    time_zone: Australia/Sydney
+    compact: true</code></pre>
+                    </div>
+
                     <h3 id="moon">The moon</h3>
                     <p>The weather card draws a clear night's moon in its real phase, worked out from the date, so it needs nothing. The tracker names the phase among its details. Add Home Assistant's <a href="https://www.home-assistant.io/integrations/moon/">Moon integration</a> under <b>Settings → Devices &amp; services</b>, and give the tracker its sensor as <code>moon_entity</code>, as above. Give it to the weather card too, and its moon keeps to the phase the tracker names.</p>
 

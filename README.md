@@ -87,7 +87,7 @@ Prefer your dashboard's own look? The theme palette drops the sky and draws the 
 - **Rests when unseen.** Motion pauses while the tab is hidden or the card is scrolled out of view. It can also pause while the window is in the background.
 - **Respects reduced motion.** If reduced motion is on in your system settings, the sky stays still: the same colour and light, with no moving weather. The sun stays, and so do a clear night's moon and stars, which don't twinkle.
 - **Readable in every sky.** Text sits above the weather, and every built-in sky is tested to meet WCAG AA contrast for the card's text. Screen readers hear temperature and condition changes, and decorative layers are hidden from them.
-- **Light to load.** The card is about 84 KB gzipped, with GSAP, its animation library, inside, so it moves without internet access. The visual editor, the forecast, the note writer, the planes and the developer panel load only when they're needed.
+- **Light to load.** The card is about 89 KB gzipped, with GSAP, its animation library, inside, so it moves without internet access. The visual editor, the forecast, the note writer, the planes and the developer panel load only when they're needed.
 - **Set up visually.** Every weather card option is in the visual editor. YAML is there when you want it.
 
 ## Built with AI.
@@ -265,6 +265,26 @@ cards:
     sun_entity: sun.sun
     moon_entity: sensor.moon_phase
     weather_entity: weather.forecast_home
+    compact: true
+```
+
+### Weather in another place
+
+A card can show the weather somewhere else, such as where your family lives. Give it a weather entity for that place, such as a second Met.no location added under **Settings → Devices & services**, and the place's `latitude`, `longitude` and `time_zone`. The card works out that place's sun from its coordinates, the way Home Assistant works out `sun.sun` for yours. Its sky turns to night when night falls there, and its sunset reading and its moon are that place's. The clock, the forecast's hours and every time it shows are in the place's time zone. The sun tracker takes the same three options instead of `sun_entity`, and on the same coordinates it pairs with the weather card, as on the same sun. The coordinates win over `sun_entity`, which can only be your own `sun.sun`. Sun2's sensors aren't a sun entity, so for a second place, give the coordinates.
+
+```yaml
+type: vertical-stack
+cards:
+  - type: custom:animated-weather-card
+    entity: weather.sydney
+    name: Sydney
+    latitude: -33.87
+    longitude: 151.21
+    time_zone: Australia/Sydney
+  - type: custom:animated-sun-tracker-card
+    latitude: -33.87
+    longitude: 151.21
+    time_zone: Australia/Sydney
     compact: true
 ```
 
@@ -501,6 +521,7 @@ cards:
 | --- | --- | --- |
 | `entity` | required | Your weather entity |
 | `sun_entity` | — | The sun entity the sky's time of day and the icons' light follow. Without it, `sun.sun` |
+| `latitude`, `longitude`, `time_zone` | your Home Assistant's | Another place's coordinates and time zone, as on the weather card: its sun, worked out from the coordinates, and its times |
 | `compact` | `false` | The strip: the hours alone, to sit under the compact weather card. Two rows in the sections view |
 | `forecast_days` | `7` | How many days the list shows, 0 to 10. `0` leaves the days out |
 | `show_hours` | `true` | Show the hourly row and its chips |
@@ -673,7 +694,7 @@ sunset_hour: 19
 | --- | --- | --- |
 | `entity` | required | Your weather entity |
 | `name` | entity's name | The location shown above the temperature |
-| `sun_entity` | — | Usually `sun.sun`. Adds the next sunset (by day) or sunrise (by night) to the metric row. The sky follows it, or `sun.sun` without it |
+| `sun_entity` | — | Usually `sun.sun`. Adds the next sunset (by day) or sunrise (by night) to the metric row. The sky follows it, or `sun.sun` without it. With `latitude` and `longitude`, the card follows that place's own sun instead |
 | `moon_entity` | — | A moon phase sensor, such as the Moon integration's `sensor.moon_phase`. A clear night's moon keeps to the phase it names. Without it, the card works the phase out from the date |
 | `uv_entity` | — | A UV index sensor, such as OpenUV's `sensor.current_uv_index`, for the `uv` reading. Without it, the weather entity's UV index, if it reports one |
 | `uv_max_entity` | — | Today's highest UV index, such as OpenUV's `sensor.max_uv_index`, shown in the view that opens on tap |
@@ -702,7 +723,7 @@ sunset_hour: 19
 | `uv_levels` | `[3, 6, 8, 11]` | Where the UV index's moderate, high, very high and extreme levels start, as four rising numbers. The WHO's by default |
 | `show_attribute_labels` | `true` | Show the metric labels |
 | `show_attribute_icons` | `true` | Show the metric icons |
-| `show_sun` | `true` | Show the next sunset or sunrise in the metric row. Needs `sun_entity` |
+| `show_sun` | `true` | Show the next sunset or sunrise in the metric row. Needs `sun_entity`, or `latitude` and `longitude` |
 | `show_indoor` | `true` | Show the indoor reading |
 | `indoor_style` | `label` | How the indoor reading starts: `label` (the word "Indoors", translated), `icon` (a house) or `both` |
 | `show_flight_labels` | `true` | Show a tag beside each plane. Tags only appear in open sky, never over the temperature |
@@ -768,6 +789,13 @@ sunset_hour: 19
 | `sunrise_hour` | `6` | The hour the day begins, 0–23 |
 | `sunset_hour` | `20` | The hour the night begins, 0–23 |
 
+**Another place**
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `latitude`, `longitude` | your Home Assistant's | Another place's coordinates. The card works out that place's sun from them, for its sky, its sunset reading and its moon, instead of `sun.sun`, even with `sun_entity` set |
+| `time_zone` | your profile's | Another place's time zone, such as `Australia/Sydney`: the clock, the forecast's times and the sunset reading are shown in it |
+
 #### Weather engine
 
 Set these under `engine_settings:`. The editor's sliders cover the useful range, and YAML accepts more. Values outside the YAML range fall back to the default.
@@ -808,7 +836,9 @@ Its options, with examples, are under [The forecast card](#the-forecast-card).
 
 | Option | Default | Description |
 | --- | --- | --- |
-| `sun_entity` | required | Usually `sun.sun` |
+| `sun_entity` | required, or `latitude` and `longitude` | Usually `sun.sun` |
+| `latitude`, `longitude` | — | Another place's coordinates: the tracker works out that place's sun from them, without a sun entity. A tap then does nothing unless `tap_action` says so |
+| `time_zone` | your profile's | Another place's time zone, such as `Australia/Sydney`: the tracker's times are shown in it |
 | `moon_entity` | — | A moon phase sensor, such as the Moon integration's `sensor.moon_phase` |
 | `weather_entity` | — | Share this weather entity's sky: its condition at the current time of day. Without it, the tracker shares the sky of the first weather card on its sun, or keeps a clear sky when there's none |
 | `compact` | `false` | One line about 110 px tall: the next sunrise or sunset beside the sun's path. Two rows in the sections view |

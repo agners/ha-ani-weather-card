@@ -28,6 +28,7 @@ import { loadEditorBundle } from './bundles';
 import { IconName, icon } from './icons';
 import { HOUR_EVENT, HourLink } from './hour-link';
 import { onSharedWeather, weatherOnSun } from './weather-share';
+import { PlaceView } from './place';
 import { COMPACT_PATH, PathGeometry, REGULAR_PATH, VH, VW, hourFrac, pathElevation, xFor, yFor } from './sun-path';
 
 export { pathElevation };
@@ -51,6 +52,11 @@ export interface SunTrackerConfig {
     color_palette?: 'default' | 'theme';
     /** Which way the sun crosses the chart: auto runs right to left south of the equator (Home Assistant's latitude) */
     direction?: 'auto' | 'left_to_right' | 'right_to_left';
+    /** Another place: its coordinates give the tracker its sun, computed, without sun_entity */
+    latitude?: number;
+    longitude?: number;
+    /** Another place's time zone: the tracker's times are in it */
+    time_zone?: string;
     /** What a tap does (default: the sun entity's more-info dialog) */
     tap_action?: ActionConfig;
     /** What a hold does (default: nothing) */
@@ -538,6 +544,9 @@ const STYLES = `
 class AnimatedSunTrackerCard extends HTMLElement {
     private config: SunTrackerConfig = {};
     private _hass?: HomeAssistant;
+    /** Home Assistant as it arrives; _hass is it as seen from the tracker's place (latitude, longitude, time_zone) */
+    private _homeHass?: HomeAssistant;
+    private _place = new PlaceView();
     private _shadow: ShadowRoot;
     private _clock?: ReturnType<typeof setInterval>;
     private _resizeObserver?: ResizeObserver;
@@ -556,14 +565,20 @@ class AnimatedSunTrackerCard extends HTMLElement {
     }
 
     setConfig(config: SunTrackerConfig): void {
-        if (!config.sun_entity) {
-            throw new Error('Please define a sun_entity (e.g. sun.sun)');
+        const placeChanged = this._place.set(config);
+        const placeSun = this._place.place?.sunId;
+        if (!config.sun_entity && !placeSun) {
+            throw new Error('Please define a sun_entity (e.g. sun.sun), or the latitude and longitude of a place');
         }
-        this.config = { ...config };
+        // Another place's sun is computed, under a key from its coordinates; they win over sun_entity, your own sun
+        this.config = { ...config, sun_entity: placeSun || config.sun_entity };
+        if (placeChanged && this._homeHass) this._hass = this._place.see(this._homeHass);
         this._render();
     }
 
     set hass(hass: HomeAssistant) {
+        this._homeHass = hass;
+        hass = this._place.see(hass);
         const sunId = this.config.sun_entity || '';
         const moonId = this.config.moon_entity || '';
         const oldSun = this._hass?.states[sunId];
@@ -589,7 +604,11 @@ class AnimatedSunTrackerCard extends HTMLElement {
 
     connectedCallback(): void {
         // The "now" dot and the countdown move with the clock, not with HA.
-        if (!this._clock) this._clock = setInterval(() => this._render(), 60_000);
+        // A computed sun moves with the clock too: the tracker looks again through its place
+        if (!this._clock) this._clock = setInterval(() => {
+            if (this._homeHass && this._place.place) this._hass = this._place.see(this._homeHass);
+            this._render();
+        }, 60_000);
         // The same listener twice is one
         window.addEventListener(HOUR_EVENT, this._onHour);
         // A weather card on its sun arrives, leaves or changes its weather: the sky follows when it's this one's
@@ -636,7 +655,9 @@ class AnimatedSunTrackerCard extends HTMLElement {
 
     /** The gestures' actions, against the sun entity: a tap opens its more-info dialog unless told otherwise */
     private _actions(): ActionsConfig {
-        return readActions(this.config as Record<string, unknown>, this.config.sun_entity);
+        // A computed sun has no entity in Home Assistant to open: a tap does what tap_action says, else nothing
+        const sun = this.config.sun_entity === this._place.place?.sunId ? undefined : this.config.sun_entity;
+        return readActions(this.config as Record<string, unknown>, sun);
     }
 
     getCardSize(): number { return this.config.compact ? 2 : 6; }

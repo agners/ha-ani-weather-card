@@ -52,6 +52,7 @@ import { IconName, icon, setIcon } from './icons';
 // Sky palettes (condition × time of day) and their animatable properties
 import { registerSkyProperties, skyPhaseFromSun, SkyPhase, skyColors, SKY_TEXT, oklchToSrgb, toHex } from './sky';
 import { moonCycle, moonLook } from './moon';
+import { PlaceView } from './place';
 // Import color utilities
 import { generateCustomColorStyles } from './color-utils';
 // Register the sun tracker card (bundled into same JS file)
@@ -126,6 +127,9 @@ export const NOTE_FIT_STEPS: ReadonlyArray<readonly [string, 'long' | 'line' | '
 class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
     public config?: AnimatedWeatherCardConfig;
     private _hass?: HomeAssistant;
+    /** Home Assistant as it arrives; _hass is it as seen from the card's place (latitude, longitude, time_zone) */
+    private homeHass?: HomeAssistant;
+    private placeView = new PlaceView();
     private _initialRender: boolean = true;
     /** Dev mode's condition (public for the dev panel, like the members below) */
     currentDevCondition?: string;
@@ -360,6 +364,12 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
             throw new Error(`sunset_hour must be a number between 0 and 23 (got ${config.sunset_hour})`);
         }
 
+        // Another place: its own sun, under a key from its coordinates, and its time zone. The coordinates win over
+        // sun_entity, which can only be your own sun.sun (Home Assistant has one), often set for the sunset reading
+        const placeChanged = this.placeView.set(config);
+        const placeSunId = this.placeView.place?.sunId;
+        if (placeSunId) config = { ...config, sun_entity: placeSunId };
+
         const oldAutoPause = this.config?.auto_pause;
         // A different flights sensor has its own flight ids; seed it afresh
         // so switching sensors doesn't fire a fly-over for every plane.
@@ -371,6 +381,8 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
         // Another weather waits for its own needle
         if (this.config?.entity !== config.entity) this.following = false;
         this.config = config;
+        if (placeChanged && this.homeHass) this._hass = this.placeView.see(this.homeHass);
+        if (this.isConnected) this.tickPlace();
         this.shareSky();
 
         // New actions reach the gestures as they happen; the target's role follows now
@@ -432,6 +444,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
         this.style.height = '100%';
         this.shareSky();
         window.addEventListener(HOUR_EVENT, this.onNeedle);
+        this.tickPlace();
 
         if (!this.resizeObserver && typeof ResizeObserver !== 'undefined') {
             this.resizeObserver = new ResizeObserver(() => {
@@ -1183,6 +1196,8 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
 
 
     set hass(hass: HomeAssistant) {
+        this.homeHass = hass;
+        hass = this.placeView.see(hass);
         const oldHass = this._hass;
         this._hass = hass;
 
@@ -1702,7 +1717,13 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
         this.windowBlurred = false;
     }
 
+    /** A computed sun moves with no update from Home Assistant: the card reads it again each minute */
+    private tickPlace(): void {
+        this.placeView.tick(() => { if (this.homeHass && this.isConnected) this.hass = this.homeHass; });
+    }
+
     disconnectedCallback(): void {
+        this.placeView.stop();
         shareWeather(this);
         window.removeEventListener(HOUR_EVENT, this.onNeedle);
         cancelAnimationFrame(this.starFrame);

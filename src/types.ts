@@ -203,6 +203,11 @@ export interface AnimatedWeatherCardConfig {
     sun_entity?: string;
     /** A moon phase sensor (the Moon integration's): the night's moon keeps to the phase it names. Without it, the date's */
     moon_entity?: string;
+    /** Another place: its coordinates give the card its own sun, computed (solar.ts), instead of sun.sun */
+    latitude?: number;
+    longitude?: number;
+    /** Another place's time zone (an IANA name, such as Europe/Rome): every time on the card is shown in it */
+    time_zone?: string;
     /** The readings in the metric row, in order: humidity, wind, pressure, sun (the default) and uv */
     metrics?: string[] | string;
     /** A UV index sensor, such as OpenUV's current UV index. Without it, the weather entity's uv_index */

@@ -4,6 +4,7 @@
 
 import { HomeAssistant } from './types';
 import { textField } from './utils';
+import { bindPlaceFields, placeFieldsHtml, PLACE_FIELDS_CSS } from './place-editor';
 import { readActions } from './actions';
 import { mountActionsEditor, updateActionsEditor } from './action-editor';
 import type { SunTrackerConfig } from './sun-tracker-card';
@@ -110,9 +111,10 @@ export class AnimatedSunTrackerEditor extends HTMLElement {
                         <ha-switch id="${id}" ${checked ? 'checked' : ''}></ha-switch>
                     </label>`;
         this.innerHTML = `
-            <style>${EDITOR_STYLES}</style>
+            <style>${EDITOR_STYLES}${PLACE_FIELDS_CSS}</style>
             <div class="st-editor">
                 <ha-entity-picker id="sun-picker" allow-custom-entity></ha-entity-picker>
+                ${placeFieldsHtml(c)}
                 <ha-entity-picker id="moon-picker" allow-custom-entity></ha-entity-picker>
                 <ha-entity-picker id="weather-picker" allow-custom-entity></ha-entity-picker>
                 ${textField({ id: 'title', label: 'Title (optional)', value: c.title })}
@@ -155,6 +157,7 @@ export class AnimatedSunTrackerEditor extends HTMLElement {
         this.querySelector('#sun-picker')?.addEventListener('value-changed', (e: any) => {
             this._update({ sun_entity: e.detail.value });
         });
+        bindPlaceFields(this, patch => this._update(patch as Partial<SunTrackerConfig>));
         this.querySelector('#moon-picker')?.addEventListener('value-changed', (e: any) => {
             this._update({ moon_entity: e.detail.value || undefined });
         });

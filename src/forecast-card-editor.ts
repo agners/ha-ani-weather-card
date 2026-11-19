@@ -2,6 +2,7 @@
 // other two, and the forecast card loads that bundle the first time someone
 // opens its settings.
 
+import { bindPlaceFields, placeFieldsHtml, PLACE_FIELDS_CSS } from './place-editor';
 import { HomeAssistant } from './types';
 import { readActions } from './actions';
 import { mountActionsEditor, updateActionsEditor } from './action-editor';
@@ -131,10 +132,11 @@ export class AnimatedForecastCardEditor extends HTMLElement {
                         <ha-switch id="${id}" ${checked ? 'checked' : ''}></ha-switch>
                     </label>`;
         this.innerHTML = `
-            <style>${EDITOR_STYLES}</style>
+            <style>${EDITOR_STYLES}${PLACE_FIELDS_CSS}</style>
             <div class="fc-editor">
                 <ha-entity-picker id="weather-picker" allow-custom-entity></ha-entity-picker>
                 <ha-entity-picker id="sun-picker" allow-custom-entity></ha-entity-picker>
+                ${placeFieldsHtml(c)}
                 <ha-select id="forecast_metric" label="The hours first show"></ha-select>
                 <ha-select id="forecast_graph" label="The hours' graph"></ha-select>
                 <ha-select id="forecast_days" label="Days"></ha-select>
@@ -186,6 +188,7 @@ export class AnimatedForecastCardEditor extends HTMLElement {
         this.querySelector('#sun-picker')?.addEventListener('value-changed', (e: Event) => {
             this._update({ sun_entity: (e as CustomEvent).detail.value || undefined });
         });
+        bindPlaceFields(this, patch => this._update(patch as Partial<ForecastCardConfig>));
         // A tap opens the whole forecast unless it's set to something else
         const actions = readActions(this._config as Record<string, unknown>, this._config.entity);
         mountActionsEditor(this.querySelector('#fc-actions') as HTMLElement, this._hass,
