@@ -62,6 +62,14 @@ describe('localized weather card', () => {
         expect(card.querySelector('.indoor-label')!.textContent).toBe('Innen');
     });
 
+    it.each(['uk', 'uk-UA'])('renders Ukrainian labels and the profile clock for %s', async (language) => {
+        await mount({ ...hass(true, language, 'language'), language: 'en' });
+        expect(sunMetric().querySelector('.attribute-label > span')!.textContent).toBe('Захід сонця');
+        expect(sunMetric().querySelector('.attribute-text')!.textContent).toBe('19:12');
+        expect(card.querySelector('.feels-like')!.textContent).toMatch(/^Відчувається як /);
+        expect(card.querySelector('.indoor-label')!.textContent).toBe('У приміщенні');
+    });
+
     const indoor = () => card.querySelector('.indoor-climate-inline')!;
 
     it('introduces the indoor reading with the word by default', async () => {

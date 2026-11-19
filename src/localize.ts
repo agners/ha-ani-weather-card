@@ -86,6 +86,13 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         in_duration: 'om {duration}',
         note_reading: 'Leser værmeldingen', note_writing: 'Skriver notatet',
     },
+    uk: {
+        feels_like: 'Відчувається як', indoors: 'У приміщенні',
+        sunrise: 'Схід сонця', sunset: 'Захід сонця', solar_noon: 'Сонячний полудень', daylight: 'Тривалість дня',
+        first_light: 'Світанок', last_light: 'Вечірні сутінки', moon: 'Місяць',
+        in_duration: 'через {duration}',
+        note_reading: 'Аналіз прогнозу', note_writing: 'Підготовка нотатки',
+    },
 };
 
 // Home Assistant's Norwegian is Bokmål (`nb`); `no` and Nynorsk (`nn`) get the same words.
@@ -274,20 +281,24 @@ export function dayKey(date: Date, hass?: LocaleSource): string {
 
 /**
  * A duration in hours as "8h 43m", in the dashboard's language where the
- * browser can format durations (Intl.DurationFormat), else in that form.
+ * browser can format durations (Intl.DurationFormat), with a compact fallback.
  */
 export function formatDuration(hours: number, hass?: LocaleSource): string {
     const total = Math.round(Math.abs(hours) * 60);
     const h = Math.floor(total / 60);
     const m = total % 60;
+    const language = cardLanguage(hass);
     const DurationFormat = (Intl as unknown as {
         DurationFormat?: new (locale?: string, options?: { style: string }) => { format(d: object): string };
     }).DurationFormat;
     if (DurationFormat && hass) {
         try {
-            return new DurationFormat(cardLanguage(hass), { style: 'narrow' })
+            return new DurationFormat(language, { style: 'narrow' })
                 .format(h > 0 ? { hours: h, minutes: m } : { minutes: m });
         } catch { /* fall through */ }
+    }
+    if (language.toLowerCase().split('-')[0] === 'uk') {
+        return h > 0 ? `${h}\u00a0год ${m}\u00a0хв` : `${m}\u00a0хв`;
     }
     return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
