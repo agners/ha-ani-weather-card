@@ -213,6 +213,15 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
             </div>
             <div class="option">
               <ha-entity-picker
+                id="moon_entity"
+                label="Moon phase sensor (optional)"
+                value="${escapeHtml(this._config.moon_entity || '')}"
+                helper="The Moon integration's sensor.moon_phase. The night's moon shows its phase; without one, the card works it out from the date"
+                allow-custom-entity
+              ></ha-entity-picker>
+            </div>
+            <div class="option">
+              <ha-entity-picker
                 id="flights_entity"
                 label="Flights sensor"
                 value="${escapeHtml(this._config.flights_entity || '')}"
@@ -700,6 +709,10 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
 
         this.querySelector('#sun_entity')?.addEventListener('value-changed', (e) => {
             this._updateConfig('sun_entity', (e.target as HTMLInputElement).value);
+        });
+
+        this.querySelector('#moon_entity')?.addEventListener('value-changed', (e) => {
+            this._updateConfig('moon_entity', (e.target as HTMLInputElement).value);
         });
 
         this.querySelector('#flights_entity')?.addEventListener('value-changed', (e) => {
@@ -1278,6 +1291,7 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
             { id: '#indoor_temperature_entity', domains: ['sensor'] },
             { id: '#indoor_humidity_entity', domains: ['sensor'] },
             { id: '#sun_entity', domains: ['sun'] },
+            { id: '#moon_entity', domains: ['sensor'] },
             { id: '#flights_entity', domains: ['sensor'] },
             { id: '#note_entity', domains: ['sensor', 'input_text'] },
             { id: '#note_ai_task_entity', domains: ['ai_task'] },

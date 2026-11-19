@@ -71,7 +71,10 @@ export function veilStars(stars: Iterable<HTMLElement>, words: Box[]): void {
 /** No star behind a word, after the card has been fitted and its words have moved */
 export function clearStarsFromWords(card: Element): void {
     const stars = card.querySelectorAll<HTMLElement>('.stars-field .star-gsap');
-    if (stars.length) veilStars(stars, wordBoxes(card));
+    if (!stars.length) return;
+    // Nor behind the moon's faint disc of earthshine
+    const moon = card.querySelector('.moon-gsap')?.getBoundingClientRect();
+    veilStars(stars, moon?.width ? [...wordBoxes(card), moon] : wordBoxes(card));
 }
 
 /**
@@ -83,6 +86,16 @@ export function clearStarsFromWords(card: Element): void {
 export function drawNight(layer: Element, count: number, { moon, still = false, words = [] }: { moon: boolean; still?: boolean; words?: Box[] }): HTMLElement[] {
     const field = document.createElement('div');
     field.className = 'stars-field';
+    // The moon takes the sun's place in the top-right, clear of the temperature. Its disc stays steady; only its halo
+    // breathes (CSS), and a still night's rests. Most of a moon that isn't full is the faint disc of earthshine, which
+    // a star would show through, so the stars keep clear of the moon as of the words
+    const disc = moon ? document.createElement('div') : null;
+    if (disc) {
+        disc.className = 'moon-gsap';
+        layer.appendChild(disc);
+        const r = disc.getBoundingClientRect();
+        if (r.width && r.height) words = [...words, r];
+    }
     const sky = (layer as HTMLElement).getBoundingClientRect();
     const placeable = words.length > 0 && sky.width > 0 && sky.height > 0;
     for (let i = 0; i < count; i++) {
@@ -115,17 +128,9 @@ export function drawNight(layer: Element, count: number, { moon, still = false, 
         }
         field.appendChild(star);
     }
-    layer.appendChild(field);
-    const drawn = [field];
-    // The moon takes the sun's place in the top-right, clear of the temperature. Its disc stays steady; only its halo
-    // breathes (CSS), and a still night's rests
-    if (moon) {
-        const disc = document.createElement('div');
-        disc.className = 'moon-gsap';
-        layer.appendChild(disc);
-        drawn.push(disc);
-    }
-    return drawn;
+    // Under the moon, which is drawn over them
+    if (disc) layer.insertBefore(field, disc); else layer.appendChild(field);
+    return disc ? [field, disc] : [field];
 }
 
 export interface StarsAnimationConfig extends BaseAnimationConfig {

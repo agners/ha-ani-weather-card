@@ -201,6 +201,8 @@ export interface AnimatedWeatherCardConfig {
     indoor_temperature_entity?: string;
     indoor_humidity_entity?: string;
     sun_entity?: string;
+    /** A moon phase sensor (the Moon integration's): the night's moon keeps to the phase it names. Without it, the date's */
+    moon_entity?: string;
     // Plane fly-overs: a Flightradar24 area sensor with a `flights` attribute
     flights_entity?: string;
     /** Write a note under the conditions with Home Assistant's AI Task, from the forecast */

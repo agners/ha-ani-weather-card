@@ -51,6 +51,7 @@ import { loadEditorBundle, loadSiblingBundle } from './bundles';
 import { IconName, icon, setIcon } from './icons';
 // Sky palettes (condition × time of day) and their animatable properties
 import { registerSkyProperties, skyPhaseFromSun, SkyPhase, skyColors, SKY_TEXT, oklchToSrgb, toHex } from './sky';
+import { moonCycle, moonLook } from './moon';
 // Import color utilities
 import { generateCustomColorStyles } from './color-utils';
 // Register the sun tracker card (bundled into same JS file)
@@ -1756,6 +1757,33 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
         if (!card) return;
         const phase = this.currentSkyPhase();
         if (card.dataset.phase !== phase) card.dataset.phase = phase;
+        this.applyMoon(card);
+    }
+
+    /**
+     * The night's moon in its real phase (moon.ts): from the date, within the phase moon_entity names. Its look is two
+     * custom properties on the sky's layer, which the moon's CSS reads, so every moon the card draws (moving, still,
+     * the slide's, the view's) is the same moon; the card's own style keeps to the colours. It's set with the sky,
+     * which follows the sun entity's updates
+     */
+    private applyMoon(card: HTMLElement): void {
+        const layer = card.querySelector('.animation-layer') as HTMLElement | null;
+        if (!layer) return;
+        const id = this.config?.moon_entity;
+        const cycle = moonCycle(new Date(), id ? this._hass?.states[id]?.state : undefined);
+        const southern = (this.latitude() ?? 0) < 0;
+        const key = `${cycle.toFixed(3)}${southern ? 's' : 'n'}`;
+        if (layer.dataset.moon === key) return;
+        layer.dataset.moon = key;
+        const look = moonLook(cycle, southern);
+        layer.style.setProperty('--awc-moon-mask', look.mask);
+        layer.style.setProperty('--awc-moon-halo', look.halo);
+    }
+
+    /** Where the card's sky is, north or south: Home Assistant's latitude */
+    private latitude(): number | undefined {
+        const lat = Number(this._hass?.config?.latitude);
+        return this._hass?.config?.latitude !== undefined && isFinite(lat) ? lat : undefined;
     }
 
     /**

@@ -26,7 +26,7 @@ Each condition has its own sky and its own motion, and both follow what your wea
 
 ## It follows the sun.
 
-The sky moves through dawn, day, dusk and night with the real sun, read from Home Assistant's `sun.sun`. When the light changes, one sky dissolves into the next over about three seconds.
+The sky moves through dawn, day, dusk and night with the real sun, read from Home Assistant's `sun.sun`. When the light changes, one sky dissolves into the next over about three seconds. On a clear night the moon is in its real phase, worked out from the date, or kept to your Moon integration's sensor with `moon_entity`.
 
 ![The same partly cloudy card at dawn, midday, dusk and night](docs/images/phases.webp)
 
@@ -103,7 +103,7 @@ The [setup guide](https://alexsto1an.github.io/ha-ani-weather-card/setup/) walks
 ### What you need
 
 - **A weather entity.** Any weather integration works: Met.no, OpenWeatherMap, AccuWeather, Pirate Weather, the National Weather Service and others. The card's forecast reads the one your integration already provides: its row of hours needs an hourly forecast, and a daily or twice-daily one gives the rest. The forecast needs Home Assistant 2023.9 or later.
-- **Optional:** an AI integration with an AI Task (Home Assistant 2025.8 or later) for the weather note, the [Moon](https://www.home-assistant.io/integrations/moon/) integration for the tracker's moon phase, and the [Flightradar24 integration](https://github.com/AlexandrErohin/home-assistant-flightradar24) for planes.
+- **Optional:** an AI integration with an AI Task (Home Assistant 2025.8 or later) for the weather note, the [Moon](https://www.home-assistant.io/integrations/moon/) integration for the tracker's moon phase (the weather card's moon works out its phase without it), and the [Flightradar24 integration](https://github.com/AlexandrErohin/home-assistant-flightradar24) for planes.
 
 The card ships as six files that sit in the same folder:
 
@@ -236,6 +236,7 @@ cards:
   - type: custom:animated-weather-card
     entity: weather.forecast_home
     sun_entity: sun.sun
+    moon_entity: sensor.moon_phase
     show_sun: false
   - type: custom:animated-sun-tracker-card
     sun_entity: sun.sun
@@ -650,6 +651,7 @@ sunset_hour: 19
 | `entity` | required | Your weather entity |
 | `name` | entity's name | The location shown above the temperature |
 | `sun_entity` | — | Usually `sun.sun`. Adds the next sunset (by day) or sunrise (by night) to the metric row. The sky follows it, or `sun.sun` without it |
+| `moon_entity` | — | A moon phase sensor, such as the Moon integration's `sensor.moon_phase`. A clear night's moon keeps to the phase it names. Without it, the card works the phase out from the date |
 | `outdoor_sensor_entity` | — | A temperature sensor to show instead of the weather entity's temperature |
 | `feels_like_entity` | — | An apparent temperature sensor. Without it, the card uses the weather entity's `apparent_temperature` if it has one |
 | `humidity_sensor_entity` | — | A humidity sensor to show instead of the weather entity's humidity |
@@ -798,7 +800,7 @@ The card reads the standard Home Assistant conditions. It also understands free-
 | Home Assistant condition | What you see | Theme variable |
 | --- | --- | --- |
 | `sunny` | Clear sky and the sun | `weather-sunny-background` |
-| `clear-night` | The moon, and stars, half of them twinkling | `weather-clear-night-background` |
+| `clear-night` | The moon in its real phase, and stars, half of them twinkling | `weather-clear-night-background` |
 | `partlycloudy` | The sun between drifting clouds, behind each one that passes in front of it | `weather-partly-cloudy-background` |
 | `cloudy` | Overcast, with drifting clouds | `weather-cloudy-background` |
 | `fog` | Drifting fog | `weather-foggy-background` |

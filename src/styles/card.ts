@@ -1034,7 +1034,8 @@ ${iconBoxCss('animated-weather-card')}
           to { opacity: var(--star-dim); }
         }
         /* The moon takes the sun's place in the top-right, clear of the
-           temperature: soft maria, a steady disc and a slowly breathing halo. */
+           temperature: soft maria, a steady disc and a slowly breathing halo,
+           in its real phase (moon.ts). */
         .moon-gsap {
           position: absolute;
           left: 84%;
@@ -1044,19 +1045,30 @@ ${iconBoxCss('animated-weather-card')}
           border-radius: 50%;
           transform: translate(-50%, -50%);
           background:
+            radial-gradient(circle at 38% 40%, rgba(120, 132, 160, 0.08) 0 12%, transparent 13%),
+            radial-gradient(circle at 34% 30%, rgba(196, 206, 230, 0.15) 0%, rgba(170, 182, 210, 0.09) 100%);
+          opacity: 0;
+          pointer-events: none;
+        }
+        .moon-gsap::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          border-radius: 50%;
+          background:
             radial-gradient(circle at 38% 40%, rgba(160, 166, 180, 0.28) 0 12%, transparent 13%),
             radial-gradient(circle at 62% 62%, rgba(160, 166, 180, 0.22) 0 9%, transparent 10%),
             radial-gradient(circle at 58% 32%, rgba(160, 166, 180, 0.16) 0 6%, transparent 7%),
             radial-gradient(circle at 34% 30%, #fbfaf4 0%, #ece8dc 55%, #cfcabc 100%);
-          opacity: 0;
-          pointer-events: none;
+          -webkit-mask: var(--awc-moon-mask, none) center / 100% 100% no-repeat;
+          mask: var(--awc-moon-mask, none) center / 100% 100% no-repeat;
         }
         .moon-gsap::before {
           content: '';
           position: absolute;
           inset: 0;
           border-radius: 50%;
-          box-shadow: 0 0 16px 2px rgba(226, 232, 255, 0.28), 0 0 56px 12px rgba(190, 206, 255, 0.12);
+          box-shadow: var(--awc-moon-halo, 0 0 16px 2px rgba(226, 232, 255, 0.28), 0 0 56px 12px rgba(190, 206, 255, 0.12));
           animation: awcMoonHalo 6s ease-in-out infinite alternate;
         }
         @keyframes awcMoonHalo {
