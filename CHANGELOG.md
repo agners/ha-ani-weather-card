@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Ukrainian translations for the weather cards, the sun tracker and the forecast, selected from the Home Assistant profile language.
+- Ukrainian translations for the weather cards, the sun tracker and the forecast, selected from the Home Assistant profile language. Thanks to rodion981 ([#37](https://github.com/alexsto1an/ha-ani-weather-card/pull/37)).
 - A clear night's moon is in its real phase, where it was always full: a crescent, a half or a gibbous moon, lit on the right side as it waxes and the left as it wanes (the other way round south of the equator), the rest of it a faint disc, as is a new moon. The card works the phase out from the date. With `moon_entity`, the Moon integration's sensor as the sun tracker reads it, it keeps to the phase the sensor names. Its glow is as bright as it's lit, and no star shows through it ([#12](https://github.com/alexsto1an/ha-ani-weather-card/issues/12)).
 
 ### Fixed
