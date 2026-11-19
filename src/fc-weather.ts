@@ -246,6 +246,13 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
     let tintsFor: ((i: number) => Tints | null) | null = null;
     let pendingRebuild = false;
     const wide = () => !compact && root.clientWidth >= 640;
+    /** The row's width: the text's on a narrow card, the hero's column (to 448 px) on a wide one */
+    const rowWidth = () => (wide()
+        ? Math.min(hero.clientWidth || 448, 448)
+        : (root.clientWidth || 353) - 2 * (parseFloat(getComputedStyle(info).paddingLeft) || 20));
+    /** Where the row was built and for what width: a card laid out narrow and then wide (or the other way) builds it again */
+    let builtFor: { wide: boolean; w: number } | null = null;
+    let resized = 0;
     const desc = root.querySelector('.weather-desc') as HTMLElement | null;
     const current = () => host.current();
 
@@ -315,8 +322,8 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
             sec = document.createElement('div');
             sec.className = 'fc-section';
             if (wide()) hero.append(sec); else info.append(sec);
-            const pad = parseFloat(getComputedStyle(info).paddingLeft) || 20;
-            const w = wide() ? Math.min(hero.clientWidth || 448, 448) : (root.clientWidth || 353) - 2 * pad;
+            const w = rowWidth();
+            builtFor = { wide: wide(), w };
             if (wide()) sec.style.width = `${w}px`;
             const cols = hourCols(w, wide() ? 8 : 6);
             tintsFor = iconTints(host, m, { y0: 0.5, y1: 0.66, glow: wide() ? SKY_GLOW_WIDE : SKY_GLOW, reach: cols });
@@ -338,7 +345,7 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
         slide?.destroy(); slide = null; rulerKind = '';
         hourly?.destroy(); hourly = null;
         chips?.destroy(); chips = null;
-        sec?.remove(); sec = null;
+        sec?.remove(); sec = null; builtFor = null;
         away?.remove(); away = null;
         lineEl?.remove(); lineEl = null;
         if (descRow && desc && !descRow.classList.contains('awc-lead-row')) { descRow.before(desc); descRow.remove(); }
@@ -579,7 +586,22 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
             if (e.getBoundingClientRect().right > limit || e.offsetTop > lineEl.offsetTop + 4) e.style.display = 'none';
         }
     }
+    /**
+     * The row is placed for one layout: a card built narrow and then made wide (or the other way) kept it where the
+     * other layout has it, and the wide layout made it a third column at the top. Crossing 640 px builds it again,
+     * once the card is home. Narrow, the row runs to the card's edge and a new width shows more or fewer hours; wide,
+     * it has the hero column's width, so a column that changes by more than the gap before the readings has room for
+     * builds it again too (the readings' own values move it by less)
+     */
+    function stale(): boolean {
+        if (!sec || !builtFor) return false;
+        return builtFor.wide !== wide() || (builtFor.wide && Math.abs(builtFor.w - rowWidth()) > 16);
+    }
     function fitted() {
+        if (stale()) {
+            if (slide?.active()) pendingRebuild = true;
+            else if (!resized) resized = requestAnimationFrame(() => { resized = 0; if (stale() && !slide?.active()) rebuild(); });
+        }
         clock.fit();
         fitCompanion();
         fitLine();
@@ -668,6 +690,7 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
             info.removeEventListener('focusin', prepare);
             dropView(el);
             clearTimeout(prepTimer);
+            cancelAnimationFrame(resized);
             ticker.stop();
             clock.finish();
             teardownForecast();

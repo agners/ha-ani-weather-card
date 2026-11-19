@@ -192,6 +192,49 @@ describe('the forecast on the weather card', () => {
         });
     });
 
+    it('builds the row again when the card crosses 640 px: in the hero\'s column wide, under the readings narrow (#32)', async () => {
+        // Home Assistant can lay a 24-column card out narrow before it's wide: the row stayed under the readings,
+        // which the wide layout turned into a third column at the top, beside a clipped temperature
+        let w = 600;
+        const proto = HTMLElement.prototype;
+        const cw = Object.getOwnPropertyDescriptor(proto, 'clientWidth');
+        Object.defineProperty(proto, 'clientWidth', { configurable: true, get() { return this.classList?.contains('animated-weather-card') ? w : 0; } });
+        try {
+            const card = mount({ show_forecast: true });
+            await settle();
+            const extras = (card as unknown as { extras: ForecastExtras }).extras;
+            const sec = () => card.querySelector('.fc-section') as HTMLElement;
+            const parent = () => sec()?.parentElement?.className;
+            expect(parent()).toBe('weather-info');
+            const narrow = sec();
+            w = 715;
+            extras.fitted();
+            await until(() => parent() === 'main-weather-info');
+            expect(parent()).toBe('main-weather-info');
+            expect(sec()).not.toBe(narrow);
+            // The hero's column, to 448 px (jsdom lays out no column: the most)
+            expect(sec().style.width).toBe('448px');
+            // Unchanged, it stays as built
+            const wide = sec();
+            extras.fitted();
+            await settle();
+            expect(sec()).toBe(wide);
+            // Narrow again: under the readings, as wide as the card
+            w = 400;
+            extras.fitted();
+            await until(() => parent() === 'weather-info');
+            const at400 = sec();
+            expect(at400.style.width).toBe('');
+            // A new width within the narrow layout shows more or fewer hours: nothing is built again
+            w = 353;
+            extras.fitted();
+            await settle();
+            expect(sec()).toBe(at400);
+        } finally {
+            if (cw) Object.defineProperty(proto, 'clientWidth', cw); else delete (proto as { clientWidth?: number }).clientWidth;
+        }
+    });
+
     it('keeps the clouds above the readings, and with no row gives the card today\'s sky', async () => {
         const card = mount({ show_forecast: true });
         await settle();
