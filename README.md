@@ -875,7 +875,7 @@ The note needs Home Assistant 2025.8 or later and an AI Task: the default one fr
 **Planes don't appear**
 Planes only fly in a few cases:
 
-- Only flights that enter your area after the dashboard loads fly. Flights already overhead stay put, so reloading doesn't replay them, unless you set `planes_on_load: true`.
+- Only flights that enter your area after the dashboard loads fly. Flights already overhead stay put, so reloading doesn't replay them, unless you set `planes_on_load: true`: then those still up fly once the card is on screen.
 - Planes on the ground wait until they take off.
 - Flights that arrive while the card is paused are skipped.
 - At most three planes cross at once.

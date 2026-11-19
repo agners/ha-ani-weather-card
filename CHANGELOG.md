@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Ukrainian translations for the weather cards, the sun tracker and the forecast, selected from the Home Assistant profile language.
 
+### Fixed
+
+- `planes_on_load: true` flew nothing. The card took its first look at the flights as the dashboard opened, before the planes had loaded, and the planes already overhead were dropped. They now wait for the planes to load and for the card to be on screen, then the ones still up fly, as they report then ([#36](https://github.com/alexsto1an/ha-ani-weather-card/issues/36)).
+
 ## [1.3.2] - 2026-11-15
 
 ### Changed

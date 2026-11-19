@@ -161,6 +161,8 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
     private planesWanted = false;
     private flightTracker = new FlightTracker();
     private lastFlightsState?: HassEntity; // Skip hass pushes that didn't touch the flights sensor
+    /** planes_on_load: the planes up at the first look, waiting for the overlay to fly and the card to be seen */
+    private heldPlanes?: Set<string>;
     /** Hides the note when it stops being true (see currentNote) */
     private noteExpiryTimer?: ReturnType<typeof setTimeout>;
     /** Writes the note with the AI Task (show_note), loaded on demand (see mountNoteWriter) */
@@ -343,6 +345,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
         if (this.config?.flights_entity !== config.flights_entity) {
             this.flightTracker.reset();
             this.lastFlightsState = undefined;
+            this.heldPlanes = undefined;
         }
         // Another weather waits for its own needle
         if (this.config?.entity !== config.entity) this.following = false;
@@ -972,6 +975,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
                 this.animationController?.resumeAllAnimations();
                 void this.planes?.resume();
                 resumeCardGSAPAnimations(this);
+                this.flyHeldPlanes();
             }
         }
 
@@ -1498,6 +1502,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
         planes.start()
             .then(() => {
                 if (this.animationsPaused) void planes.pause();
+                else if (this.planes === planes) this.flyHeldPlanes();
             })
             .catch((err) => {
                 console.error('Failed to start plane fly-overs:', err);
@@ -1520,8 +1525,25 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
         const state = this._hass?.states[this.config.flights_entity];
         if (state && state === this.lastFlightsState) return;
         this.lastFlightsState = state;
-        const arrivals = this.flightTracker.update(readFlights(this._hass, this.config.flights_entity), !!this.config.planes_on_load);
-        if (arrivals.length) this.flyPlanes(arrivals);
+        const first = !this.flightTracker.seeded;
+        // The view that opens on tap is built ahead, hidden: the card itself flew the planes that were up, so the view
+        // doesn't fly them again when it opens
+        const onLoad = !!this.config.planes_on_load && this.surface !== 'view';
+        const arrivals = this.flightTracker.update(readFlights(this._hass, this.config.flights_entity), onLoad);
+        if (!arrivals.length) return;
+        // The first look comes with the first update, before the planes bundle has loaded and often before the card
+        // is seen: planes_on_load's planes wait for both, where a later arrival is simply missed
+        if (first && (!this.planes || this.animationsPaused)) this.heldPlanes = new Set(arrivals.map(f => f.id));
+        else this.flyPlanes(arrivals);
+    }
+
+    /** Fly the planes held from the first look that are still up, as they report now */
+    private flyHeldPlanes(): void {
+        const held = this.heldPlanes;
+        if (!held || !this.planes || this.animationsPaused) return;
+        this.heldPlanes = undefined;
+        const up = (readFlights(this._hass, this.config?.flights_entity) ?? []).filter(f => !f.onGround && held.has(f.id));
+        if (up.length) this.flyPlanes(up);
     }
 
     /** Arrivals while paused (or before the overlay starts) are skipped, not queued. */
