@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `planes_on_load: true` flew nothing. The card took its first look at the flights as the dashboard opened, before the planes had loaded, and the planes already overhead were dropped. They now wait for the planes to load and for the card to be on screen, then the ones still up fly, as they report then ([#36](https://github.com/alexsto1an/ha-ani-weather-card/issues/36)).
 - A weather card with the forecast on that was resized past 640 px wide, such as to 24 columns in a two-column section, showed the hours in the top right corner, the readings over the temperature and the temperature cut off: it kept the hours where a narrower card has them. The hours now move to the hero's column when the card grows past 640 px, and back under the readings when it shrinks ([#32](https://github.com/alexsto1an/ha-ani-weather-card/issues/32)).
+- In the view that opens on tap, a reading's label too long for its column, such as "Couverture nuageuse" or "Luchtvochtigheid", and the gusts under the wind in some languages, were cut short with an ellipsis. They now wrap between words, a word too long for a line of its own hyphenates by its language's rules, and the readings in a row keep their values on one line. On a tablet, where the readings make the right column taller than the screen, as a weather station's can, that column now scrolls from the week down, where the week went over the top of the panel.
 
 ## [1.3.2] - 2026-11-15
 

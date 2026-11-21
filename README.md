@@ -436,7 +436,7 @@ With the forecast on, a tap opens the whole forecast. The card's own sky grows f
 - every reading your weather entity reports: feels like, wind with its gusts, humidity, dew point, UV, cloud cover, precipitation, visibility and pressure. While you're at another hour, they're that hour's ("At 17:00").
 - **History and settings**, which opens Home Assistant's own dialog for the entity
 
-Close it with ×, Escape, Back, a tap outside it, or a swipe down on a phone, where it starts just below the status bar. It's a dialog: focus moves into it, the page behind it can't be reached, and focus comes back to the card when it closes. On a tablet, 900 px and wider, it has two columns and nothing scrolls. It's built ahead of time, hidden and with its weather paused, so it opens on the next frame. The row in the view doesn't come home on its own; it does when the view closes.
+Close it with ×, Escape, Back, a tap outside it, or a swipe down on a phone, where it starts just below the status bar. It's a dialog: focus moves into it, the page behind it can't be reached, and focus comes back to the card when it closes. On a tablet, 900 px and wider, it has two columns and nothing scrolls, unless the readings make the right column taller than the screen, as a weather station's can: then that column scrolls. It's built ahead of time, hidden and with its weather paused, so it opens on the next frame. The row in the view doesn't come home on its own; it does when the view closes.
 
 To have a tap do something else, set `tap_action`, or pick it under **Interactions** in the editor.
 

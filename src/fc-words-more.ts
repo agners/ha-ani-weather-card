@@ -60,7 +60,7 @@ const FR: FcWords = {
     lightning: 'Orage', 'lightning-rainy': 'Orage', snowy: 'Neige', 'snowy-rainy': 'Neige fondue', hail: 'Grêle', windy: 'Venteux',
     'windy-variant': 'Venteux', exceptional: 'Intempéries',
     view: 'Météo, {place}', close: 'Fermer', more: 'Historique et paramètres', now_head: 'Maintenant', at_head: 'À {t}',
-    wind: 'Vent', gusts: 'Rafales {v}', humidity: 'Humidité', dew_point: 'Point de rosée', uv: 'Indice UV', uv_max: 'UV max. aujourd’hui', rain_event: 'Épisode pluvieux', rain_week: 'Pluie cette semaine', rain_month: 'Pluie ce mois-ci', rain_year: 'Pluie cette année', cloud_cover: 'Couverture nuageuse',
+    wind: 'Vent', gusts: 'Rafales {v}', humidity: 'Humidité', dew_point: 'Point de rosée', uv: 'Indice UV', uv_max: 'UV max. aujourd’hui', rain_event: 'Épisode pluvieux', rain_week: 'Pluie cette semaine', rain_month: 'Pluie ce mois\u2011ci', rain_year: 'Pluie cette année', cloud_cover: 'Couverture nuageuse',
     precipitation: 'Précipitations', visibility: 'Visibilité', pressure: 'Pression', feels_like: 'Ressenti',
     clock: 'Horloge et météo', alarm: 'Réveil', gusts_to: 'Rafales jusqu’à {v} à {t}', freezing: '{v} à {t}',
     no_forecast: 'Cette entité météo n’a pas de prévisions',

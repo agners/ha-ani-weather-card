@@ -19,7 +19,7 @@ import type { ForecastExtras, ForecastHost } from './forecast-host';
 import { CURVE, HOUR, Slot, css, ease, esc, mixHex, num, reducedMotion, whole } from './fc-core';
 import { conditionNoun, timeText, week } from './fc-data';
 import { layoutLeft, minuteTicker } from './fc-clock';
-import { FcWords, fcWords, fill } from './fc-words';
+import { FcWords, fcWords, fcWordsLang, fill } from './fc-words';
 import { Chips, Daily, Hourly, createChips, createDaily, createHourly, graphOf } from './fc-row';
 import { litTints } from './fc-glyphs';
 import { Slide, attachSlide } from './fc-slide';
@@ -54,6 +54,12 @@ interface ViewApi {
 type ViewElement = HTMLElement & { awcView?: ViewApi; surface?: string; setConfig?(c: AnimatedWeatherCardConfig): void; hass?: HomeAssistant };
 
 // ── The readings, at now or at an hour ─────────────────────────────────────
+/** Away from now, a block keeps the height it had at now (call before its content changes); back at now, its own */
+export function holdNowHeight(el: HTMLElement, away: boolean): void {
+    if (!away) el.style.minHeight = '';
+    else if (!el.style.minHeight && el.offsetHeight) el.style.minHeight = `${el.offsetHeight}px`;
+}
+
 function readingsHtml(host: ForecastHost, W: FcWords, slot: Slot | null): string {
     const hass = host.hass();
     const lang = hass?.locale?.language || hass?.language || 'en';
@@ -65,7 +71,7 @@ function readingsHtml(host: ForecastHost, W: FcWords, slot: Slot | null): string
     if (feels !== null) out.push({ label: W.feels_like, value: `${host.temperature(feels)}°` });
     const ws = n(pick('wind_speed')), gust = n(pick('wind_gust_speed'));
     const wu = String(a.wind_speed_unit ?? 'km/h');
-    if (ws !== null) out.push({ label: W.wind, value: `${num(Math.round(ws), lang)} ${wu}`, sub: gust !== null ? fill(W.gusts, { v: `${num(Math.round(gust), lang)} ${wu}` }) : '' });
+    if (ws !== null) out.push({ label: W.wind, value: `${num(Math.round(ws), lang)} ${wu}`, sub: gust !== null ? fill(W.gusts, { v: `${num(Math.round(gust), lang)} ${wu}` }) : '' });
     const hum = n(pick('humidity'));
     if (hum !== null) out.push({ label: W.humidity, value: `${num(Math.round(hum), lang)}%` });
     const dew = n(pick('dew_point'));
@@ -157,14 +163,30 @@ export function attachView(host: ForecastHost): ForecastExtras {
     daily = createDaily({ hass: host.hass(), W, week: wk, current: host.current(), theme, fahrenheit: model.fahrenheit, tints: theme ? null : litTints(45, false, lum), hours: model.hours, currentFeels: feelsNow(host), noun: model.noun, unit: model.unit, lang: model.lang, conditionName: c => conditionNoun(c, host.hass(), s => host.conditionName(s)) });
     if (metric !== 'temp') daily.setMetric(metric, { animate: false });
     list.append(daily.el);
-    list.insertAdjacentHTML('beforeend', `<section class="fv-now"><h3 class="fv-head"></h3><div class="fv-readings"></div></section>`
+    list.insertAdjacentHTML('beforeend', `<section class="fv-now" lang="${esc(fcWordsLang(host.hass()))}"><h3 class="fv-head"></h3><div class="fv-readings"></div></section>`
         + `<button class="fv-more awc-noclaim" type="button"><span>${esc(W.more)}</span><i aria-hidden="true"></i></button>`);
     root.insertAdjacentHTML('beforeend', `<div class="fv-grab" aria-hidden="true"></div><button class="fv-close awc-noclaim" type="button" aria-label="${esc(W.close)}"><i></i></button>`);
     const readings = list.querySelector('.fv-readings') as HTMLElement;
     const head = list.querySelector('.fv-head') as HTMLElement;
+    // On a tablet the right column fits as a rule. A station's readings can make it taller than the panel: then it
+    // scrolls, from the week down, rather than spilling past the panel's top. Its 6 px top padding may run into the
+    // panel's margin, as it always could. The scrolling column's own bottom padding doesn't count, so it lets go once
+    // the readings fit again
+    const scrollFit = () => {
+        const over = list.scrollHeight - list.clientHeight - (parseFloat(getComputedStyle(list).paddingBottom) || 0);
+        list.toggleAttribute('data-scrolls', tablet() && over > 6);
+    };
+    // At an hour there are fewer readings than at now (a station's are now's alone). Their block keeps now's height while
+    // the hours are browsed, so nothing beside or above it moves: on a tablet the column stands at the foot of its area,
+    // and a shorter block would drop the week
     const render = (slot: Slot | null) => {
+        if (slot) holdNowHeight(readings, true);
         readings.innerHTML = readingsHtml(host, W, slot);
         head.textContent = slot ? fill(W.at_head, { t: timeText(slot.at, host.hass()) }) : W.now_head;
+        if (!slot) {
+            holdNowHeight(readings, false);
+            scrollFit();
+        }
     };
     render(null);
     // The turning line, on the line under the condition (the card's own place for it)
@@ -250,6 +272,7 @@ export function attachView(host: ForecastHost): ForecastExtras {
             }
             hourly?.remeasure();
             chips?.fit();
+            scrollFit();
             // Clouds roam the whole sky above the hours, behind the hero's text, as on the card; on a tablet the week
             // stands at the right from the top, so they keep to the upper third there, as its first rows allow
             if (!fc.getClientRects().length) return;

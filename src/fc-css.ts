@@ -354,9 +354,21 @@ const VIEW_CSS = `
 .fv-now { margin-top: 22px; }
 .fv-head { margin: 0; font-size: 11px; line-height: 14px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.8; }
 .fv-readings { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 14px; margin-top: 10px; }
-.fv-rd-l { display: block; font-size: 11px; line-height: 14px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Whole labels: they wrap, and only a word too long for a line hyphenates (lang on .fv-now). Each tile is a subgrid of
+   three rows, so a row's labels end together and its values share a line */
+.fv-rd-l {
+  display: block; font-size: 11px; line-height: 14px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.8;
+  overflow-wrap: anywhere; -webkit-hyphens: auto; hyphens: auto; hyphenate-limit-chars: 12 5 5; -webkit-hyphenate-limit-before: 5; -webkit-hyphenate-limit-after: 5;
+}
 .fv-rd strong { display: block; margin-top: 3px; font-size: 17px; line-height: 22px; font-weight: 500; font-variant-numeric: tabular-nums; }
-.fv-rd em { display: block; font-style: normal; font-size: 13px; line-height: 18px; opacity: 0.8; white-space: nowrap; }
+.fv-rd em { display: block; font-style: normal; font-size: 13px; line-height: 18px; opacity: 0.8; overflow-wrap: anywhere; }
+@supports (grid-template-rows: subgrid) {
+  .fv-rd { display: grid; grid-row: span 3; grid-template-rows: subgrid; row-gap: 0; }
+  .fv-rd-l { align-self: end; }
+}
+@supports not (grid-template-rows: subgrid) {
+  .fv-rd { align-self: end; }
+}
 .fv-more {
   margin-top: 26px; width: 100%; height: 50px; border: 0; border-radius: 14px; padding: 0 18px; display: flex; align-items: center; justify-content: space-between;
   font: 600 15px/20px var(--awc-font, inherit); color: inherit; background: rgba(255, 255, 255, 0.14); cursor: pointer; text-shadow: inherit;
@@ -374,14 +386,21 @@ const VIEW_CSS = `
 .fv-grab { position: absolute; z-index: 40; top: 7px; left: 50%; width: 36px; height: 5px; margin-left: -18px; border-radius: 3px; background: currentColor; opacity: 0.4; pointer-events: none; }
 .animated-weather-card[data-fc-view] :is(.sun, .moon-gsap) { top: 12%; left: 76%; }
 /* The tablet (900 px and up): the hero, the line, the hours and the chips on the left; the week, the readings and the way
-   to Home Assistant on the right. Nothing scrolls. */
+   to Home Assistant on the right. Nothing scrolls, unless the readings make the right column too tall (data-scrolls);
+   it can't grow past its area, so the week never goes over the panel's top */
 @container awc (min-width: 900px) {
   .animated-weather-card[data-fc-view] .sky { --awc-sky-glow-layer: radial-gradient(14% 24% at 54% 2%, var(--awc-sky-glow), transparent 64%); }
   .animated-weather-card[data-fc-view] .weather-info { display: grid; grid-template-columns: minmax(0, 1fr) 420px; grid-template-rows: minmax(0, 1fr) auto; column-gap: 64px; padding: 40px 48px 38px; }
   .fv-top { grid-column: 1; grid-row: 1; padding: 0; display: flex; flex-direction: column; min-height: 0; }
   .fv-top .main-weather-info { flex: 1; display: flex; flex-direction: column; align-items: stretch; }
   .fv-fc { grid-column: 1; grid-row: 2; margin: 18px 0 0; --fc-chip-h: 36px; --fc-chip-size: 15px; --fc-chip-pad: 16px; --fc-chips-gap: 18px; }
-  .fv-list { grid-column: 2; grid-row: 1 / -1; padding: 6px 0 0; overflow: visible; -webkit-mask-image: none; mask-image: none; display: flex; flex-direction: column; }
+  .fv-list { grid-column: 2; grid-row: 1 / -1; box-sizing: border-box; padding: 6px 0 0; max-height: 100%; overflow: visible; -webkit-mask-image: none; mask-image: none; display: flex; flex-direction: column; }
+  /* 6 px either side for the button's focus ring, which a scroller clips */
+  .fv-list[data-scrolls] {
+    overflow-x: hidden; overflow-y: auto; margin: 0 -6px; padding: 6px 6px 22px;
+    -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 10px, #000 calc(100% - 22px), transparent);
+    mask-image: linear-gradient(180deg, transparent 0, #000 10px, #000 calc(100% - 22px), transparent);
+  }
   .animated-weather-card[data-fc-view] .location { font-size: 21px; line-height: 26px; }
   .animated-weather-card[data-fc-view] .temperature { font-size: 192px !important; line-height: 0.86; letter-spacing: -0.05em; margin-top: 8px; }
   .animated-weather-card[data-fc-view] .awc-desc-row { height: 32px; max-width: none; margin-top: 14px !important; }

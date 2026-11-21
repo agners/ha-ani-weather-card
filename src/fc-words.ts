@@ -196,6 +196,11 @@ export function hasFcWords(hass?: LocaleSource): boolean {
     return Object.prototype.hasOwnProperty.call(FC_WORDS, lang) || Object.prototype.hasOwnProperty.call(FC_WORDS, lang.split('-')[0]);
 }
 
+/** The language the words are in: the profile's when it's one of the forecast's own, else English (for lang, so a word breaks by its own language's rules) */
+export function fcWordsLang(hass?: LocaleSource): string {
+    return hasFcWords(hass) ? cardLanguage(hass) : 'en';
+}
+
 /** Fill a template's {names}; a time after a word is bound to it with a no-break space */
 export function fill(template: string, vars: Record<string, string>): string {
     return template.replace(/ \{(a|b|t)\}/g, ' {$1}').replace(/\{(\w+)\}/g, (_, k: string) => vars[k] ?? '');
