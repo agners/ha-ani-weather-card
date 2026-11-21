@@ -67,6 +67,12 @@ describe('a place', () => {
         expect(seen.callService).toBe(callService);
         // Seen from the same place, it stays as it is
         expect(locate(seen as never, place)).toBe(seen);
+        // The card's weather says its clear sky by the place's sun; Home Assistant's own entity is left as it is
+        const night = { entity_id: place.sunId, state: 'below_horizon', attributes: {} } as never;
+        const fromThere = locate(hass, place, night, ['weather.home', undefined, 'weather.gone']) as unknown as { states: Record<string, { state: string }> };
+        expect(fromThere.states['weather.home'].state).toBe('clear-night');
+        expect((hass as { states: Record<string, { state: string }> }).states['weather.home'].state).toBe('sunny');
+        expect(fromThere.states['weather.gone']).toBeUndefined();
     });
 });
 
@@ -118,6 +124,36 @@ describe('the weather card in another place', () => {
         expect(root.dataset.phase).not.toBe('night');
         vi.advanceTimersByTime(100 * MIN);
         expect(root.dataset.phase).toBe('night');
+    });
+
+    it('names a clear sky by that place\'s sun, whatever the weather entity says by Home Assistant\'s own', async () => {
+        vi.useFakeTimers({ toFake: ['Date'] });
+        const seen = async (state: string, config: object) => {
+            const hass = homeHass();
+            (hass.states['weather.home'] as { state: string }).state = state;
+            const card = document.createElement('animated-weather-card') as Card;
+            card.setConfig({ entity: 'weather.home', ...config });
+            document.body.append(card);
+            card.hass = hass;
+            mounted.push(card);
+            const root = card.querySelector('.animated-weather-card') as HTMLElement;
+            const clear = () => ['sunny', 'clear-night'].filter(c => root.classList.contains(c)).join();
+            for (let i = 0; i < 50 && !clear() && !/cloud/.test(root.className); i++) await new Promise(r => setTimeout(r, 20));
+            const sky = clear();
+            return { sky, words: root.querySelector('.weather-desc')?.textContent, ha: hass.states['weather.home'].state };
+        };
+        // 21:00 in Sydney: an entity that says sunny by home's sun, which is up, reads as Sydney's clear night
+        vi.setSystemTime(new Date('2026-11-19T10:00:00Z'));
+        expect(await seen('sunny', SYDNEY)).toEqual({ sky: 'clear-night', words: 'Clear, night', ha: 'sunny' });
+        // At home it's still sunny
+        expect(await seen('sunny', {})).toMatchObject({ sky: 'sunny', words: 'Sunny' });
+        // 11:00 in Sydney: clear night by home's sun is Sydney's sunny morning
+        vi.setSystemTime(new Date('2026-11-19T00:00:00Z'));
+        expect(await seen('clear-night', SYDNEY)).toEqual({ sky: 'sunny', words: 'Sunny', ha: 'clear-night' });
+        // Only a clear sky: the rest is the weather's own
+        expect((await seen('partlycloudy', SYDNEY)).words).toBe('Partly cloudy');
+        // A time zone alone gives no sun of its own, so the entity's word stands
+        expect((await seen('sunny', { time_zone: 'Australia/Sydney' })).words).toBe('Sunny');
     });
 
     it('says what\'s wrong with a place it can\'t use', () => {

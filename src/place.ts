@@ -6,7 +6,9 @@
 // coordinates (so a tracker on the same place pairs with the weather card, as on the same sun entity), and the place's
 // coordinates and time zone in its config, the profile set to the server's time. So the sky's phase, the sunset
 // reading, the moon's hemisphere, the forecast's sun at any hour, the clock, the forecast's times and the tracker all
-// follow without each reading its own option.
+// follow without each reading its own option. A clear sky is named by the place's sun too: a weather entity for
+// another place can say sunny or clear night by Home Assistant's own sun, which is home's, so the card's weather reads
+// `clear-night` once the place's sun has set and `sunny` once it's up, as Home Assistant's own do at home.
 
 import type { HomeAssistant, HassEntity } from './types';
 import { solarState } from './solar';
@@ -61,9 +63,11 @@ type Located = HomeAssistant & { awcPlace?: string; awcHome?: HomeAssistant };
 /**
  * Home Assistant as seen from the place: its own, under the place's coordinates, time zone and computed sun. Reading
  * through it is reading Home Assistant (its states, services and connection are its own); only those differ. The
- * sun is the one passed (`sun`), so a card can keep one object for a minute. Already seen from this place, it stays
+ * sun is the one passed (`sun`), so a card can keep one object for a minute. The weather entities named (`weather`,
+ * the card's own) say `sunny` or `clear-night` by that sun, whatever their own says. Already seen from this place, it
+ * stays
  */
-export function locate(hass: HomeAssistant, place: Place, sun?: HassEntity): HomeAssistant {
+export function locate(hass: HomeAssistant, place: Place, sun?: HassEntity, weather: readonly (string | undefined)[] = []): HomeAssistant {
     const seen = hass as Located;
     if (seen.awcPlace === place.key) return hass;
     const home = seen.awcHome ?? hass;
@@ -71,6 +75,11 @@ export function locate(hass: HomeAssistant, place: Place, sun?: HassEntity): Hom
     if (place.sunId && sun) {
         const states = Object.create(home.states) as HomeAssistant['states'];
         states[place.sunId] = sun;
+        const clear = sun.state === 'above_horizon' ? 'sunny' : 'clear-night';
+        for (const id of weather) {
+            const e = id ? home.states[id] : undefined;
+            if (id && e && (e.state === 'sunny' || e.state === 'clear-night') && e.state !== clear) states[id] = { ...e, state: clear };
+        }
         out.states = states;
     }
     out.config = {
@@ -102,6 +111,9 @@ export class PlaceView {
     private sun?: { minute: number; entity: HassEntity };
     private timer = 0;
 
+    /** `weather`: the card's weather entities, whose clear sky the place's sun names */
+    constructor(private readonly weather: () => readonly (string | undefined)[] = () => []) {}
+
     /** Read the config's place (throws on a bad one); true when it changed */
     set(config: PlaceConfig): boolean {
         const place = placeOf(config);
@@ -119,7 +131,7 @@ export class PlaceView {
             const entity = placeSun(this.place);
             this.sun = entity ? { minute, entity } : undefined;
         }
-        return locate(hass, this.place, this.sun?.entity);
+        return locate(hass, this.place, this.sun?.entity, this.weather());
     }
 
     /** Each minute while there's a computed sun, `run` (the card reads Home Assistant again) */

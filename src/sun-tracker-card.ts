@@ -546,7 +546,7 @@ class AnimatedSunTrackerCard extends HTMLElement {
     private _hass?: HomeAssistant;
     /** Home Assistant as it arrives; _hass is it as seen from the tracker's place (latitude, longitude, time_zone) */
     private _homeHass?: HomeAssistant;
-    private _place = new PlaceView();
+    private _place = new PlaceView(() => [this.config ? this._weatherId() : undefined]);
     private _shadow: ShadowRoot;
     private _clock?: ReturnType<typeof setInterval>;
     private _resizeObserver?: ResizeObserver;

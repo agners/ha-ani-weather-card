@@ -129,7 +129,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
     private _hass?: HomeAssistant;
     /** Home Assistant as it arrives; _hass is it as seen from the card's place (latitude, longitude, time_zone) */
     private homeHass?: HomeAssistant;
-    private placeView = new PlaceView();
+    private placeView = new PlaceView(() => [this.config?.entity]);
     private _initialRender: boolean = true;
     /** Dev mode's condition (public for the dev panel, like the members below) */
     currentDevCondition?: string;
