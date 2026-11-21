@@ -401,7 +401,8 @@ async function grow(host: ForecastHost, o: Overlay, state: ViewState): Promise<v
     const v: ViewApi = view;
     const small = state.small;
     const smallEl = host.element;
-    const { T, phone, radius } = target();
+    // The panel, from the window; it follows the window while the view is open (refit, below)
+    let { T, phone, radius } = target();
     const W = fcWords(host.hass());
     const groot = o.card.querySelector('.animated-weather-card') as HTMLElement;
     o.sheet.setAttribute('aria-label', fill(W.view, { place: host.hass()?.states[host.config().entity ?? '']?.attributes?.friendly_name ?? '' }));
@@ -414,8 +415,8 @@ async function grow(host: ForecastHost, o: Overlay, state: ViewState): Promise<v
     const keyboard = !!lastFocus?.matches?.(':focus-visible');
     // The words and parts that fly from the card
     const NAMES: Array<[string, string]> = [['place', '.location'], ['temp', '.temperature'], ['cond', '.awc-desc-row, .weather-desc'], ['line', '.awc-line'], ['row', '.fc-hourly'], ['chips', '.fc-chips']];
-    const S = rectOf(small);
-    const pairs: Array<{ a: Rect | null; b: Rect; el: HTMLElement; k: number }> = [];
+    let S = rectOf(small);
+    const pairs: Array<{ a: Rect | null; b: Rect; el: HTMLElement; src: HTMLElement | null; k: number }> = [];
     const mid = getComputedStyle(small).getPropertyValue('--awc-sky-mid').trim() || '#33475f';
     const theme = groot.classList.contains('theme-colors');
     o.scrim.style.background = theme ? 'rgba(0, 0, 0, 0.45)' : `${mixHex('#05070c', mid, 0.32)}a6`;
@@ -427,7 +428,7 @@ async function grow(host: ForecastHost, o: Overlay, state: ViewState): Promise<v
     // A modal dialog in the top layer; without one (an old WebView), a plain open dialog over the page
     if (typeof o.dialog.showModal === 'function') o.dialog.showModal(); else o.dialog.setAttribute('open', '');
     // The sheet is the window: the clip is measured from its edges
-    const V = { w: o.sheet.clientWidth || window.innerWidth, h: o.sheet.clientHeight || window.innerHeight };
+    let V = { w: o.sheet.clientWidth || window.innerWidth, h: o.sheet.clientHeight || window.innerHeight };
     const inset = (R: Rect, rad: number[]) => `inset(${R.y.toFixed(2)}px ${(V.w - R.x - R.w).toFixed(2)}px ${(V.h - R.y - R.h).toFixed(2)}px ${R.x.toFixed(2)}px round ${rad.map(r => `${r.toFixed(1)}px`).join(' ')})`;
     const pausable = o.card as unknown as { wasManuallyPaused: boolean; setAnimationsPaused(p: boolean): void };
     if (pausable.wasManuallyPaused) { pausable.wasManuallyPaused = false; pausable.setAnimationsPaused(false); }
@@ -449,19 +450,19 @@ async function grow(host: ForecastHost, o: Overlay, state: ViewState): Promise<v
     const cloudClone = theme || still ? null : clone('.clouds-container', 'fv-clouds');
     const carry = still ? null : clone('.weather-attributes', 'fv-carry');
     if (gClouds && cloudClone) { gClouds.getAnimations?.().forEach(a => a.cancel()); gClouds.style.opacity = '0'; }
+    const shown = (e: HTMLElement | null): e is HTMLElement => !!e && !!e.getClientRects().length && getComputedStyle(e).display !== 'none';
+    const fs = (e: HTMLElement) => parseFloat(getComputedStyle(e.querySelector('.temperature-value, .weather-desc, .awc-line, .fc-val') ?? e).fontSize) || 1;
     for (const [, sel] of NAMES) {
         const a = small.querySelector(sel) as HTMLElement | null, b = groot.querySelector(sel) as HTMLElement | null;
         if (!b || !b.getClientRects().length) continue;
         b.style.transform = '';
-        const ar = a && a.getClientRects().length && getComputedStyle(a).display !== 'none' ? rectOf(a) : null;
-        const fs = (e: HTMLElement) => parseFloat(getComputedStyle(e.querySelector('.temperature-value, .weather-desc, .awc-line, .fc-val') ?? e).fontSize) || 1;
-        pairs.push({ a: ar, b: rectOf(b), el: b, k: a ? fs(a) / fs(b) : 1 });
+        pairs.push({ a: shown(a) ? rectOf(a) : null, b: rectOf(b), el: b, src: a, k: a ? fs(a) / fs(b) : 1 });
     }
     const sky = groot.querySelector('.sky') as HTMLElement | null;
     const track = groot.querySelector('.sun-track') as HTMLElement | null;
     const sunA = small.querySelector('.sun'), sunB = groot.querySelector('.sun');
     const centre = (e: Element) => { const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; };
-    const sunFrom = sunA ? centre(sunA) : null, sunTo = sunB ? centre(sunB) : null;
+    let sunFrom = sunA ? centre(sunA) : null, sunTo = sunB ? centre(sunB) : null;
     const rest = [...v.groups, ...v.chrome];
     const apply = (p: number, dy: number, closing: boolean) => {
         const R = { x: lerp(S.x, T.x, p), y: lerp(S.y, T.y + dy, p), w: lerp(S.w, T.w, p), h: lerp(S.h, T.h, p) };
@@ -513,11 +514,45 @@ async function grow(host: ForecastHost, o: Overlay, state: ViewState): Promise<v
     o.sheet.focus({ preventScroll: true });
     // The card behind is hidden a frame later, once the sheet has painted over it
     void frame().then(() => { if (phase !== 'closing') small.style.visibility = 'hidden'; });
+    // ── The window changes while it's open (a resize, a tablet turned): the panel follows it, and the grown card fits
+    // itself to its new size as it does to any. The words' places and the card's are measured again once it has, so
+    // the close shrinks from where things are to where the card now is. The next open builds the view afresh for the
+    // new size (prepareView keys it by the panel's) ──
+    let resized = false, refitting = 0;
+    const refit = () => {
+        resized = true;
+        if (phase !== 'open' || dragY || refitting) return;
+        resized = false;
+        const next = target();
+        const nv = { w: o.sheet.clientWidth || window.innerWidth, h: o.sheet.clientHeight || window.innerHeight };
+        if (next.T.x === T.x && next.T.y === T.y && next.T.w === T.w && next.T.h === T.h && nv.w === V.w && nv.h === V.h) return;
+        ({ T, phone, radius } = next);
+        V = nv;
+        o.card.style.cssText = `left:${T.x}px;top:${T.y}px;width:${T.w}px;height:${T.h}px`;
+        o.sheet.style.clipPath = inset(T, radius);
+        // Its own fit runs on its resize, before the next paint; measure after it
+        refitting = requestAnimationFrame(() => {
+            refitting = requestAnimationFrame(() => {
+                refitting = 0;
+                if (phase !== 'open') return;
+                S = rectOf(small);
+                for (const q of pairs) {
+                    q.a = shown(q.src) ? rectOf(q.src) : null;
+                    if (q.el.getClientRects().length) q.b = rectOf(q.el);
+                    q.k = q.src ? fs(q.src) / fs(q.el) : 1;
+                }
+                sunFrom = sunA ? centre(sunA) : null; sunTo = sunB ? centre(sunB) : null;
+                if (resized) refit();
+            });
+        });
+    };
+    window.addEventListener('resize', refit);
     const finishOpen = () => {
         phase = 'open'; p = 1; dragY = 0;
         apply(1, 0, false);
         o.sheet.style.clipPath = inset(T, radius);
         delete o.sheet.dataset.moving;
+        if (resized) refit();
     };
     if (still) {
         apply(1, 0, false); setRest(true, false); finishOpen(); if (gClouds) gClouds.style.opacity = '';
@@ -553,6 +588,8 @@ async function grow(host: ForecastHost, o: Overlay, state: ViewState): Promise<v
         if (closed) return;
         closed = true;
         window.removeEventListener('popstate', onPop);
+        window.removeEventListener('resize', refit);
+        cancelAnimationFrame(refitting); refitting = 0;
         o.dialog.removeEventListener('cancel', onCancel);
         v.close.removeEventListener('click', onClose);
         o.scrim.removeEventListener('click', onClose);
