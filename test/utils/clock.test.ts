@@ -46,7 +46,8 @@ describe('the cards\' clock', () => {
         // How long something took stays on the real clock: the note's typing, the clock's fade, the nightstand's hold,
         // the calendar's refresh. Anything else asks clock.ts
         const timings = [/readAt/, /darkSince/, /calendarRead/, /const start = Date\.now\(\)/, /Date\.now\(\) - start/, /step\(Date\.now\(\)\)/, /demo-\$\{Date\.now\(\)\}/];
-        const exempt = new Set(['clock.ts', 'dev-world.ts']);
+        // The dev card and its world compare the cards' clock with the real one
+        const exempt = new Set(['clock.ts', 'dev-world.ts', 'dev-card.ts']);
         const dir = join(__dirname, '../../src');
         const bare: string[] = [];
         for (const file of readdirSync(dir).filter(f => f.endsWith('.ts') && !exempt.has(f))) {

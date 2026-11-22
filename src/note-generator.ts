@@ -704,6 +704,8 @@ export class NoteWriter {
     private subscriptions: Promise<(() => void) | void>[] = [];
     private stopForecast?: () => void;
     private subscribedTo?: string;
+    /** The connection the note's storage and forecast are read through: Home Assistant's, or the dev card's world */
+    private connection?: unknown;
     private lastWeather?: HassEntity;
     private timer?: ReturnType<typeof setInterval>;
     private failedAt = 0;
@@ -729,9 +731,10 @@ export class NoteWriter {
         const { hass, config } = this.host;
         if (!hass?.connection || !config?.entity) return;
         const target = noteStorageKey(config, cardLanguage(hass));
-        if (this.subscribedTo === target && this.timer) return;
+        if (this.subscribedTo === target && this.connection === hass.connection && this.timer) return;
         this.unsubscribe();
         this.subscribedTo = target;
+        this.connection = hass.connection;
         this.lastWeather = hass.states[config.entity];
         this.waking = true;
         this.stored = null;
@@ -817,7 +820,8 @@ export class NoteWriter {
     hassChanged(): void {
         const { hass, config } = this.host;
         if (!this.running || !hass || !config?.entity) return;
-        if (!this.timer || this.subscribedTo !== noteStorageKey(config, cardLanguage(hass))) {
+        // A new key, or another connection: the dev card's world keeps its notes apart from yours
+        if (!this.timer || this.subscribedTo !== noteStorageKey(config, cardLanguage(hass)) || this.connection !== hass.connection) {
             this.connect();
             return;
         }

@@ -87,7 +87,7 @@ Prefer your dashboard's own look? The theme palette drops the sky and draws the 
 - **Rests when unseen.** Motion pauses while the tab is hidden or the card is scrolled out of view. It can also pause while the window is in the background.
 - **Respects reduced motion.** If reduced motion is on in your system settings, the sky stays still: the same colour and light, with no moving weather. The sun stays, and so do a clear night's moon and stars, which don't twinkle.
 - **Readable in every sky.** Text sits above the weather, and every built-in sky is tested to meet WCAG AA contrast for the card's text. Screen readers hear temperature and condition changes, and decorative layers are hidden from them.
-- **Light to load.** The card is about 89 KB gzipped, with GSAP, its animation library, inside, so it moves without internet access. The visual editor, the forecast, the note writer, the planes and the developer panel load only when they're needed.
+- **Light to load.** The card is about 89 KB gzipped, with GSAP, its animation library, inside, so it moves without internet access. The visual editor, the forecast, the note writer, the planes and the dev card load only when they're needed.
 - **Set up visually.** Every weather card option is in the visual editor. YAML is there when you want it.
 
 ## Built with AI.
@@ -114,7 +114,7 @@ The card ships as six files that sit in the same folder:
 | `animated-weather-card-note.js` | The note writer. It loads only for cards that write their own note (`show_note`). |
 | `animated-weather-card-planes.js` | The planes. It loads only for cards with a flights sensor (`flights_entity`). |
 | `animated-weather-card-forecast.js` | The forecast, the clock, the forecast card, the nightstand and the view that opens on tap. It loads only for cards that use one of them. |
-| `animated-weather-card-dev.js` | The developer panel. It loads only for cards with `dev_mode: true`, so a manual install can leave it out. |
+| `animated-weather-card-dev.js` | The dev card, for trying the cards on any weather at any time. It loads only for the dev card and cards with `dev_mode: true`, so a manual install can leave it out. |
 
 <!-- ha-marketplace:exclude-start -->
 ### Marketplace
@@ -145,7 +145,7 @@ When you update Home Assistant to 2026.11 or later, the card moves to the Market
 
 ### Manual
 
-1. Download [`animated-weather-card.js`](https://github.com/alexsto1an/ha-ani-weather-card/releases/latest/download/animated-weather-card.js), [`animated-weather-card-editor.js`](https://github.com/alexsto1an/ha-ani-weather-card/releases/latest/download/animated-weather-card-editor.js) and [`animated-weather-card-note.js`](https://github.com/alexsto1an/ha-ani-weather-card/releases/latest/download/animated-weather-card-note.js) from the [latest release](https://github.com/alexsto1an/ha-ani-weather-card/releases/latest). Add [`animated-weather-card-forecast.js`](https://github.com/alexsto1an/ha-ani-weather-card/releases/latest/download/animated-weather-card-forecast.js) if you use the forecast, the clock, the forecast card or the nightstand, [`animated-weather-card-planes.js`](https://github.com/alexsto1an/ha-ani-weather-card/releases/latest/download/animated-weather-card-planes.js) if you fly planes, and [`animated-weather-card-dev.js`](https://github.com/alexsto1an/ha-ani-weather-card/releases/latest/download/animated-weather-card-dev.js) if you want developer mode. You can also build them from source with `npm install && npm run build`.
+1. Download [`animated-weather-card.js`](https://github.com/alexsto1an/ha-ani-weather-card/releases/latest/download/animated-weather-card.js), [`animated-weather-card-editor.js`](https://github.com/alexsto1an/ha-ani-weather-card/releases/latest/download/animated-weather-card-editor.js) and [`animated-weather-card-note.js`](https://github.com/alexsto1an/ha-ani-weather-card/releases/latest/download/animated-weather-card-note.js) from the [latest release](https://github.com/alexsto1an/ha-ani-weather-card/releases/latest). Add [`animated-weather-card-forecast.js`](https://github.com/alexsto1an/ha-ani-weather-card/releases/latest/download/animated-weather-card-forecast.js) if you use the forecast, the clock, the forecast card or the nightstand, [`animated-weather-card-planes.js`](https://github.com/alexsto1an/ha-ani-weather-card/releases/latest/download/animated-weather-card-planes.js) if you fly planes, and [`animated-weather-card-dev.js`](https://github.com/alexsto1an/ha-ani-weather-card/releases/latest/download/animated-weather-card-dev.js) if you use the dev card. You can also build them from source with `npm install && npm run build`.
 2. Copy the files to your `config/www/` folder. If you had to create `www/`, restart Home Assistant once so `/local/` is served.
 3. Go to **Settings → Dashboards → ⋮ → Resources → Add resource** and add:
    - URL: `/local/animated-weather-card.js?v=1`
@@ -161,7 +161,7 @@ When you update Home Assistant to 2026.11 or later, the card moves to the Market
 
 4. Refresh your browser.
 
-To update a manual install, overwrite the files and raise the `?v=` number in the resource URL so browsers fetch the new version. The editor, the forecast, the note writer, the planes and the developer panel pick up the same `?v=` automatically.
+To update a manual install, overwrite the files and raise the `?v=` number in the resource URL so browsers fetch the new version. The editor, the forecast, the note writer, the planes and the dev card pick up the same `?v=` automatically.
 
 > **Load the card from one place only.** If you switch between the Marketplace (`/local/community/`) and a manual install (`/local/`), remove the old resource. Otherwise the second copy can't register, and you keep running whichever version loaded first.
 
@@ -779,7 +779,7 @@ sunset_hour: 19
 | `spill_particles` | `true` | Let rain, snow, sleet and leaves fall out of the card onto the dashboard, and clouds drift a little above its top edge. Turn it off to keep all weather inside the card |
 | `disable_lightning_shake` | `false` | Turn off the card's small jolt on lightning strikes |
 | `auto_pause` | `false` | Also pause while the browser window is in the background. Cards always pause while the tab is hidden or the card is off-screen |
-| `dev_mode` | `false` | A developer panel with sample data for trying every condition. Needs `animated-weather-card-dev.js` |
+| `dev_mode` | `false` | The card always runs on the [dev card](#the-dev-card)'s simulated weather, and needs no `entity`. Without a dev card on the dashboard, that's a partly cloudy sky at the real time. Needs `animated-weather-card-dev.js` |
 
 **Day and night**
 
@@ -852,6 +852,12 @@ Its options, with examples, are under [The forecast card](#the-forecast-card).
 | `double_tap_action` | `none` | What a double tap does |
 
 `custom_colors` and theme skies apply to the weather card only.
+
+### Dev card
+
+`type: custom:animated-weather-dev-card`
+
+Its option, and what it does, are under [The dev card](#the-dev-card).
 
 ## Conditions
 
@@ -943,7 +949,7 @@ Planes only fly in a few cases:
 - At most three planes cross at once.
 - On a manual install, `animated-weather-card-planes.js` has to sit next to `animated-weather-card.js`. The browser console says so if it can't load.
 
-To check the setup, the developer panel's **Fly a plane** button sends one across in `dev_mode`.
+To check the setup, the [dev card](#the-dev-card)'s **Fly a plane** button sends one across every weather card on the dashboard.
 
 ## Contributing
 
@@ -957,11 +963,32 @@ npm run type-check
 npm run build        # the six bundles, written to the repository root
 ```
 
-To try a change in Home Assistant, copy the six `.js` files to `config/www/` and add `dev_mode: true` to a card. You get sample data and a panel for trying every condition and time of day.
+To try a change in Home Assistant, copy the six `.js` files to `config/www/` and add the dev card to a dashboard.
+
+### The dev card
+
+```yaml
+type: custom:animated-weather-dev-card
+```
+
+The dev card drives every Animated Weather card on its dashboard: they read its simulated weather instead of yours, and do what they would do with it.
+
+- **Condition:** any of Home Assistant's, with a clear sky sunny or a clear night by the sun.
+- **Time:** move the time of day and the date, and the sky, the sun, the moon, the clock, the forecast's hours, the tracker and the nightstand all follow. The sun is the real one where your Home Assistant is.
+- **Readings:** they fill the weather entity and every sensor a card names (temperature, humidity, wind, pressure, UV, rain, the moon), in your units.
+- **Forecast:** hours and days, days only, or none.
+- **Notes:** sample notes, or your own AI Task. Either way they stay apart from the notes your other screens show.
+- **Live** gives the cards your own weather back. **Fly a plane** and **Pause all** work on both.
+
+Take the dev card off the dashboard and the cards are back on your weather. What it's set to stays in this browser. It's in YAML only, not the card picker, whose live preview would take over the dashboard behind it.
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `cards` | `all` | `all` drives every card on the dashboard; `dev_mode` only the cards with `dev_mode: true`, beside your others. Time travel moves every card's clock, so it works with `all` only |
 
 ### How it's built
 
-- **Six bundles,** built with esbuild. The card bundle loads the editor, the forecast, the note writer, the planes and the developer panel from its own folder when they're needed, so most dashboards only download the first.
+- **Six bundles,** built with esbuild. The card bundle loads the editor, the forecast, the note writer, the planes and the dev card from its own folder when they're needed, so most dashboards only download the first.
 - **One forecast for the page.** The main bundle holds the cards, their skies and one forecast subscription per weather entity; the forecast bundle draws the forecast, the clock, the forecast card, the view on tap, the nightstand and the wall.
 - **One animation class per kind of weather,** on a shared lifecycle base and run by an animation controller. Rain, snow and sleet draw from fixed pools of recycled particles.
 - **Skies defined in OKLCH,** with tests for contrast at every point where text sits.
@@ -984,8 +1011,11 @@ src/
 ├── icons.ts                        # The cards' own icons
 ├── actions.ts, action-editor.ts    # Tap, hold and double-tap actions, and their editor
 ├── bundles.ts                      # Loads the other bundles from beside the main one
-├── animated-weather-card-dev.ts    # Entry point of the developer panel bundle
-├── dev-panel.ts                    # Developer panel (dev_mode)
+├── clock.ts                        # The cards' clock, which the dev card can move
+├── dev-link.ts                     # How the cards read the dev card's world
+├── animated-weather-card-dev.ts    # Entry point of the dev card's bundle
+├── dev-card.ts, dev-world.ts       # The dev card, and the simulated world it gives the cards
+├── dev-forecast.ts, dev-samples.ts # The world's forecast, readings, notes and planes
 ├── animated-weather-card-note.ts   # Entry point of the note writer bundle
 ├── note-generator.ts               # Writes the note with Home Assistant's AI Task
 ├── animation-controller.ts         # Starts and stops animations per condition
@@ -1007,7 +1037,7 @@ src/
 ├── weather-data.ts                 # Reads the weather entity and sensors
 ├── color-utils.ts                  # custom_colors
 ├── constants.ts, types.ts, utils.ts
-└── styles/                         # CSS for the card, editor and developer panel
+└── styles/                         # CSS for the card, the editor and the dev card
 ```
 
 ## Credits

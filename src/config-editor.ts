@@ -596,7 +596,7 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
             <div class="option">
               <label class="switch-label">
                 <ha-switch id="dev_mode" ${this._config.dev_mode ? 'checked' : ''}></ha-switch>
-                <span>Developer mode (preview any condition)</span>
+                <span>Developer mode: the dev card's simulated weather</span>
               </label>
             </div>
           </div>

@@ -1165,8 +1165,8 @@ describe('the time as the big value (hero: clock), and the date (show_date)', ()
         expect(at(L + 8 + P + 10)).toEqual([long, false]);
     });
 
-    it('leaves the nightstand, the forecast card and dev mode their own text', async () => {
-        for (const [config, type] of [[{ hero: 'clock', layout: 'nightstand' }, undefined], [{ hero: 'clock' }, 'animated-forecast-card'], [{ hero: 'clock', dev_mode: true }, undefined]] as const) {
+    it('leaves the nightstand and the forecast card their own text', async () => {
+        for (const [config, type] of [[{ hero: 'clock', layout: 'nightstand' }, undefined], [{ hero: 'clock' }, 'animated-forecast-card']] as const) {
             const card = mount(config, makeHass(), type);
             await settle();
             expect(card.querySelector('.awc-hero-clock'), JSON.stringify(config)).toBeNull();
@@ -1602,15 +1602,13 @@ describe('a weather card without the forecast follows a card dragged on its weat
         expect(text(card, '.temperature-value')).toBe('21');
     });
 
-    it('the nightstand and dev mode stay as they are', async () => {
+    it('the nightstand stays as it is', async () => {
         const night = mount({ layout: 'nightstand' });
-        const dev = mount({ dev_mode: true });
         await settle();
         needle(Date.now() + 3 * HOUR);
         await settle();
         await settle();
-        for (const c of [night, dev]) expect(rootOf(c)?.hasAttribute('data-awc-away') ?? false).toBe(false);
-        expect(extrasOf(dev)).toBeUndefined();
+        expect(rootOf(night)?.hasAttribute('data-awc-away') ?? false).toBe(false);
         needle(null);
     });
 });

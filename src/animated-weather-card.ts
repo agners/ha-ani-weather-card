@@ -37,7 +37,6 @@ import { FlightInfo, FlightTracker, readFlights } from './flight-tracker';
 import { TimeOfDayManager } from './time-manager';
 // Import styles
 import { getMainCardStyles } from './styles';
-import type { DevPanel } from './dev-panel';
 import type { NoteWriter, NoteStage } from './note-generator';
 // NOTE: the config editor is lazy-loaded via a separate bundle in
 // `getConfigElement()`. We deliberately do NOT import it here — that's what
@@ -64,6 +63,7 @@ import type { ForecastExtras, ForecastHost, Surface } from './forecast-host';
 import { HOUR_EVENT, type HourLink } from './hour-link';
 import { clearStarsFromWords, drawNight, starCount, wordBoxes } from './stars-animation';
 import { cardNow, cardDate } from './clock';
+import { AnimatedWeatherDevCard, DEV_ENTITY, DEV_EVENT, devBase, devCards, devOffset, devSee, loadDevWorld, type DevCard, type DevConfig } from './dev-link';
 
 registerSkyProperties();
 
@@ -125,15 +125,13 @@ export const NOTE_FIT_STEPS: ReadonlyArray<readonly [string, 'long' | 'line' | '
     ...HEIGHT_STEPS.map(height => [height, 'none'] as const),
 ];
 
-class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
+class AnimatedWeatherCard extends HTMLElement implements LovelaceCard, DevCard {
     public config?: AnimatedWeatherCardConfig;
     private _hass?: HomeAssistant;
-    /** Home Assistant as it arrives; _hass is it as seen from the card's place (latitude, longitude, time_zone) */
+    /** Home Assistant as it arrives; _hass is it as the card reads it: through the dev card's world, and from its place (latitude, longitude, time_zone) */
     private homeHass?: HomeAssistant;
     private placeView = new PlaceView(() => [this.config?.entity]);
     private _initialRender: boolean = true;
-    /** Dev mode's condition (public for the dev panel, like the members below) */
-    currentDevCondition?: string;
     private isInitializing: boolean = false;
     animationController?: WeatherAnimationController;
     private animationInitTimeout?: ReturnType<typeof setTimeout>;
@@ -143,10 +141,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
     wasManuallyPaused: boolean = false;
     private _needsAnimationRestart: boolean = false;
     private currentWindSpeedValue: number = 10; // Store current wind speed for animations
-    devTimeOverride: boolean = false; // The dev panel is forcing the time of day
     timeOfDayManager?: TimeOfDayManager; // Day/night cycle manager
-    /** Developer panel, loaded on demand in dev mode (see mountDevPanel) */
-    private devPanel?: DevPanel;
     private _animationGeneration: number = 0; // Incremented on each initializeAnimations to invalidate stale deferred starts
     private _lastPressureValue?: number; // The reading the pressure trend is measured from
     private _pressureTrend?: 'rising' | 'falling';
@@ -169,6 +164,9 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
     private lastFlightsState?: HassEntity; // Skip hass pushes that didn't touch the flights sensor
     /** planes_on_load: the planes up at the first look, waiting for the overlay to fly and the card to be seen */
     private heldPlanes?: Set<string>;
+    /** The dev card flies planes over this card: the overlay runs without a flights sensor, and the first waits for it (flyOver) */
+    private devPlanes = false;
+    private askedPlanes?: FlightInfo[];
     /** Hides the note when it stops being true (see currentNote) */
     private noteExpiryTimer?: ReturnType<typeof setTimeout>;
     /** Writes the note with the AI Task (show_note), loaded on demand (see mountNoteWriter) */
@@ -201,9 +199,9 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
         return weatherCardConfig(ids.find(id => id.startsWith('weather.')) ?? DEFAULT_CONFIG.entity!, hass);
     }
 
-    /** The gestures' actions, against the weather entity. None in dev mode, which has no real entity */
+    /** The gestures' actions, against the weather entity */
     private actionsConfig(): ActionsConfig {
-        if (this.config?.dev_mode || this.surface === 'view') return {};
+        if (this.surface === 'view') return {};
         const actions = readActions(this.config, this.config?.entity);
         if (actions.tap_action) return actions;
         // A bedside screen opens nothing bright on a tap; tap_action still sets one
@@ -212,14 +210,39 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
         return this.forecastOn() ? { ...actions, tap_action: { action: 'forecast' } } : actions;
     }
 
+    /** Home Assistant as this card reads it: through the dev card's world when it's on for the card, then from its place */
+    private see(hass: HomeAssistant): HomeAssistant {
+        return this.placeView.see(devSee(hass, this.config as DevConfig | undefined));
+    }
+
+    /** The dev card's world changed (dev-link.ts): read Home Assistant again through it, and the time when it moved */
+    private devChanged = (): void => {
+        if (this.homeHass && this.isConnected) this.hass = this.homeHass;
+        const offset = devOffset();
+        if (offset === this.devClock) return;
+        this.devClock = offset;
+        this.timeOfDayManager?.updateConfig({});
+        if (this.noteVisible) this.extras?.seen(true);
+    };
+    private devClock = 0;
+
+    /** What the dev card sees: which card this is, and its options */
+    get devKind(): 'weather' | 'forecast' {
+        return this.surface === 'forecast' ? 'forecast' : 'weather';
+    }
+
+    devConfig(): DevConfig | undefined {
+        return this.config as DevConfig | undefined;
+    }
+
     /** The forecast is drawn on this card (show_forecast, or the forecast card) */
     private forecastOn(): boolean {
-        return !this.config?.dev_mode && (this.surface !== 'card' || !!this.config?.show_forecast || this.config?.layout === 'nightstand');
+        return this.surface !== 'card' || !!this.config?.show_forecast || this.config?.layout === 'nightstand';
     }
 
     /** The forecast bundle has something to draw here */
     private extrasWanted(): boolean {
-        return this.forecastOn() || this.following || ((!!this.config?.show_clock || !!this.config?.show_date || this.heroClock()) && !this.config?.dev_mode);
+        return this.forecastOn() || this.following || !!this.config?.show_clock || !!this.config?.show_date || this.heroClock();
     }
 
     /**
@@ -229,7 +252,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
      */
     private onNeedle = (e: Event): void => {
         const l = (e as CustomEvent<HourLink>).detail;
-        if (this.following || this.forecastOn() || this.config?.dev_mode || l?.at == null || l.source === this || l.entity !== this.config?.entity) return;
+        if (this.following || this.forecastOn() || l?.at == null || l.source === this || l.entity !== this.config?.entity) return;
         this.following = true;
         this.syncForecastFeed();
         if (this.extras) this.extras.update(); else this.mountExtras();
@@ -237,10 +260,10 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
 
     /**
      * Tell the page which weather this card shows, on which sun (weather-share.ts): a sun tracker with no weather of
-     * its own takes its sky. Not the view, a second instance of a card already on the page, nor dev mode's sample weather.
+     * its own takes its sky. Not the view, a second instance of a card already on the page.
      */
     private shareSky(): void {
-        const shows = this.isConnected && this.surface !== 'view' && !this.config?.dev_mode;
+        const shows = this.isConnected && this.surface !== 'view';
         shareWeather(this, shows ? this.config?.entity : undefined, this.config?.sun_entity);
     }
 
@@ -254,7 +277,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
 
     /** hero: clock, the time is the big value and the temperature leads the condition's line (not the forecast card's or the nightstand's text, which they draw themselves) */
     private heroClock(): boolean {
-        return this.config?.hero === 'clock' && !this.config.dev_mode && this.surface !== 'forecast' && this.config.layout !== 'nightstand';
+        return this.config?.hero === 'clock' && this.surface !== 'forecast' && this.config.layout !== 'nightstand';
     }
 
     /** Listen to this entity's forecast through the page's subscriptions, while the card shows one */
@@ -370,6 +393,12 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
         const placeChanged = this.placeView.set(config);
         const placeSunId = this.placeView.place?.sunId;
         if (placeSunId) config = { ...config, sun_entity: placeSunId };
+        // dev_mode: the card runs on the dev card's world, its own weather entity when it names none
+        const devChanged = !!this.config?.dev_mode !== !!config.dev_mode;
+        if (config.dev_mode) {
+            if (!config.entity) config = { ...config, entity: DEV_ENTITY };
+            loadDevWorld().then(() => this.devChanged()).catch((err: Error) => console.warn(`Animated Weather Card: ${err.message}`));
+        }
 
         const oldAutoPause = this.config?.auto_pause;
         // A different flights sensor has its own flight ids; seed it afresh
@@ -382,7 +411,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
         // Another weather waits for its own needle
         if (this.config?.entity !== config.entity) this.following = false;
         this.config = config;
-        if (placeChanged && this.homeHass) this._hass = this.placeView.see(this.homeHass);
+        if ((placeChanged || devChanged) && this.homeHass) this._hass = this.see(this.homeHass);
         if (this.isConnected) this.tickPlace();
         this.shareSky();
 
@@ -445,13 +474,13 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
         this.style.height = '100%';
         this.shareSky();
         window.addEventListener(HOUR_EVENT, this.onNeedle);
+        window.addEventListener(DEV_EVENT, this.devChanged);
+        // The view that opens on tap is a second instance of a card already on the page
+        if (this.surface !== 'view') devCards().add(this);
         this.tickPlace();
 
         if (!this.resizeObserver && typeof ResizeObserver !== 'undefined') {
-            this.resizeObserver = new ResizeObserver(() => {
-                this.applySizeState();
-                if (this.devPanel?.isOpen) this.devPanel.dock();
-            });
+            this.resizeObserver = new ResizeObserver(() => this.applySizeState());
             this.resizeObserver.observe(this);
             // Text metrics change when the web font swaps in
             document.fonts?.ready.then(() => this.applySizeState()).catch(() => {});
@@ -517,7 +546,9 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
 
 
     render() {
-        if (!this.config || (!this.hass && !this.config.dev_mode)) return;
+        if (!this.config || !this.hass) return;
+        // A dev_mode card waits for the dev card's world, which brings its weather
+        if (this.config.dev_mode && !this.hass.states[this.config.entity ?? '']) return;
 
         // Kill GSAP tweens on OLD elements BEFORE innerHTML replaces the DOM.
         // After innerHTML, old elements are detached and killTweensOf can't find them.
@@ -533,7 +564,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
         // Process weather data using extracted function
         let weatherData;
         try {
-            weatherData = processWeatherData(this.hass, this.config, this.currentDevCondition);
+            weatherData = processWeatherData(this.hass, this.config);
         } catch (error) {
             const message = (error as Error)?.message || 'Error loading weather data';
             this.innerHTML = `
@@ -657,7 +688,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
                     : `<div class="temperature" aria-live="polite"><span class="temperature-value">${escapeHtml(temperature)}</span><span class="degree">°</span></div>
                 <div class="weather-desc" aria-live="polite">${escapeHtml(weatherCondition)}</div>`}
                 ${compact
-                    ? `<div class="compact-meta">${this.config.show_clock && !hero ? '<span class="awc-clock"></span>' : ''}${this.config.show_date && !this.config.dev_mode ? '<span class="awc-date"></span>' : ''}<span class="awc-meta-text">${escapeHtml(this.compactMeta(location, feelsLike))}</span></div>`
+                    ? `<div class="compact-meta">${this.config.show_clock && !hero ? '<span class="awc-clock"></span>' : ''}${this.config.show_date ? '<span class="awc-date"></span>' : ''}<span class="awc-meta-text">${escapeHtml(this.compactMeta(location, feelsLike))}</span></div>`
                     : `<div class="hero-meta">${this.heroMetaHtml(feelsLike, indoorTemperature, indoorHumidity)}</div>`}
                 ${this.noteEnabled() ? this.noteHtml(this.currentNote()) : ''}
               </div>
@@ -708,8 +739,8 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
     private locationHtml(compact: boolean, location: string | undefined): string {
         if (compact) return '';
         const place = this.config?.show_location !== false && location ? `<span class="awc-place">${escapeHtml(location)}</span>` : '';
-        const clock = this.config?.show_clock && !this.config.dev_mode && !this.heroClock() ? '<span class="awc-clock"></span>' : '';
-        const date = this.config?.show_date && !this.config.dev_mode ? '<span class="awc-date"></span>' : '';
+        const clock = this.config?.show_clock && !this.heroClock() ? '<span class="awc-clock"></span>' : '';
+        const date = this.config?.show_date ? '<span class="awc-date"></span>' : '';
         return place || clock || date ? `<div class="location">${clock}${date}${place}</div>` : '';
     }
 
@@ -776,7 +807,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
      * neither shows a note nor asks the AI for one.
      */
     private noteEnabled(): boolean {
-        return !!(this.config?.note_entity || this.config?.show_note) && !this.config.compact && !this.config.dev_mode && this.surface !== 'forecast';
+        return !!(this.config?.note_entity || this.config?.show_note) && !this.config.compact && this.surface !== 'forecast';
     }
 
     /**
@@ -943,31 +974,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
     }
 
 
-    /**
-     * Developer mode: show the dev panel. Its code is a separate bundle
-     * (animated-weather-card-dev.js), fetched the first time it's needed.
-     */
-    private mountDevPanel(): void {
-        if (!this.config?.dev_mode) {
-            this.devPanel?.disconnect();
-            this.devPanel = undefined;
-            return;
-        }
-        const Panel = window.AnimatedWeatherCardDevPanel;
-        if (Panel) {
-            this.devPanel ??= new Panel(this);
-            this.devPanel.mount();
-            return;
-        }
-        loadSiblingBundle('animated-weather-card-dev', () => !!window.AnimatedWeatherCardDevPanel)
-            .then(() => {
-                if (this.isConnected) this.mountDevPanel();
-            })
-            .catch((err: Error) => console.warn(`Animated Weather Card: ${err.message}`));
-    }
-
     attachEventListeners() {
-        this.mountDevPanel();
         this.mountNoteWriter();
 
         // A tap on the weather opens the entity's more-info dialog, as Home
@@ -979,17 +986,10 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
             syncActionTarget(info, this.actionsConfig(), 'group');
         }
 
-        // Only run initial setup if not in the middle of a dev mode change.
         // Track this timeout so a fast disconnect/reconnect cycle doesn't queue
         // multiple un-cancellable initializers.
         if (!this.isInitializing) {
-            const handle = window.setTimeout(() => {
-                this.initializeAnimations();
-                // Set initial condition if none selected
-                if (this.config?.dev_mode && !this.currentDevCondition) {
-                    this.currentDevCondition = 'sunny';
-                }
-            }, 100);
+            const handle = window.setTimeout(() => this.initializeAnimations(), 100);
             this.pendingTimeouts.push(handle);
         }
     }
@@ -1019,9 +1019,6 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
                 this.flyHeldPlanes();
             }
         }
-
-        // Update just the pause button without full re-render
-        this.devPanel?.updatePauseButton();
     }
 
     // Get weather engine settings with defaults
@@ -1049,23 +1046,13 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
             }
             this.clearAnimations();
 
-            let condition: string;
-            if (config.dev_mode) {
-                condition = this.currentDevCondition || 'sunny';
-            } else {
-                if (!this.hass || !config.entity) {
-                    return;
-                }
-                const entity = this.hass.states[config.entity];
-                if (!entity) {
-                    return;
-                }
-                condition = entity.state.toLowerCase();
-            }
+            if (!this.hass || !config.entity) return;
+            const entity = this.hass.states[config.entity];
+            if (!entity) return;
+            const condition = entity.state.toLowerCase();
 
             const weatherClass = getWeatherClass(
                 condition,
-                config.dev_mode ?? false,
                 config.sunrise_hour,
                 config.sunset_hour,
                 this._hass?.config?.time_zone,
@@ -1197,8 +1184,8 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
 
 
     set hass(hass: HomeAssistant) {
-        this.homeHass = hass;
-        hass = this.placeView.see(hass);
+        this.homeHass = devBase(hass);
+        hass = this.see(hass);
         const oldHass = this._hass;
         this._hass = hass;
 
@@ -1224,7 +1211,6 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
                 return;
             }
 
-            if (this.config.dev_mode) return; // Don't update in dev mode from hass changes
             if (!this.config.entity) return;
 
             const oldEntity = oldHass.states[this.config.entity];
@@ -1306,11 +1292,11 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
 
     /** Update only the text values in existing DOM elements — no innerHTML rebuild, no animation restart */
     private _updateDataInPlace(): void {
-        if (!this.config || (!this._hass && !this.config.dev_mode)) return;
+        if (!this.config || !this._hass) return;
 
         let weatherData;
         try {
-            weatherData = processWeatherData(this._hass, this.config, this.currentDevCondition);
+            weatherData = processWeatherData(this._hass, this.config);
         } catch (_) {
             return; // Don't blow up the card for a data-only update
         }
@@ -1547,8 +1533,8 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
     }
 
     /**
-     * Start the plane overlay when a flights sensor is configured (or in dev
-     * mode, for the demo button). Called at the end of initializeAnimations,
+     * Start the plane overlay when a flights sensor is configured, or the dev
+     * card has flown a plane over the card. Called at the end of initializeAnimations,
      * which already returns early for `animate: false` and reduced motion.
      * The overlay is a separate bundle (animated-weather-card-planes.js),
      * fetched the first time a card needs it; arrivals before then are
@@ -1556,7 +1542,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
      */
     private startPlanes(): void {
         if (!this.config || this.planes) return;
-        if (!this.config.flights_entity && !this.config.dev_mode) return;
+        if (!this.config.flights_entity && !this.devPlanes) return;
         this.planesWanted = true;
 
         const Planes = window.AnimatedWeatherCardPlanes;
@@ -1568,12 +1554,17 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
                 .catch((err: Error) => console.warn(`Animated Weather Card: ${err.message}`));
             return;
         }
-        const planes = new Planes(this, { intensity: 1, scale: 1, devMode: this.config.dev_mode || false }, this.config);
+        const planes = new Planes(this, { intensity: 1, scale: 1, devMode: !!this.config.dev_mode }, this.config);
         this.planes = planes;
         planes.start()
             .then(() => {
                 if (this.animationsPaused) void planes.pause();
-                else if (this.planes === planes) this.flyHeldPlanes();
+                else if (this.planes === planes) {
+                    this.flyHeldPlanes();
+                    const asked = this.askedPlanes;
+                    this.askedPlanes = undefined;
+                    if (asked) this.flyPlanes(asked);
+                }
             })
             .catch((err) => {
                 console.error('Failed to start plane fly-overs:', err);
@@ -1617,6 +1608,19 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
         if (up.length) this.flyPlanes(up);
     }
 
+    /**
+     * The dev card flies planes over this card, its flights sensor or not: the overlay starts for them if it isn't
+     * running. Not while paused, nor on a still sky, which flies nothing.
+     */
+    flyOver(flights: FlightInfo[]): void {
+        const still = this.config?.animate === false || !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || !this.weatherShown();
+        if (this.animationsPaused || still) return;
+        if (this.planes) { this.flyPlanes(flights); return; }
+        this.devPlanes = true;
+        this.askedPlanes = flights;
+        this.startPlanes();
+    }
+
     /** Arrivals while paused (or before the overlay starts) are skipped, not queued. */
     flyPlanes(flights: FlightInfo[]): void {
         if (!this.planes || this.animationsPaused) return;
@@ -1633,7 +1637,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
     private isNightForPlanes(): boolean {
         const card = this.querySelector('.animated-weather-card');
         if (card?.classList.contains('clear-night')) return true;
-        if (this.timeOfDayManager && (this.timeOfDayManager.isEnabled() || this.devTimeOverride)) {
+        if (this.timeOfDayManager?.isEnabled()) {
             return this.timeOfDayManager.getCurrentState().isNighttime;
         }
         const sun = this._hass?.states[this.config?.sun_entity || 'sun.sun'];
@@ -1643,7 +1647,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
     /**
      * Pause while nobody can see the card: the tab is hidden, the card is
      * scrolled off-screen, or (with auto_pause) the browser window is in
-     * the background. A manual pause from the dev panel always wins.
+     * the background. A manual pause from the dev card always wins.
      */
     private updateAutoPause(): void {
         // Back in view: a stale note can be rewritten now
@@ -1727,6 +1731,8 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
         this.placeView.stop();
         shareWeather(this);
         window.removeEventListener(HOUR_EVENT, this.onNeedle);
+        window.removeEventListener(DEV_EVENT, this.devChanged);
+        devCards().delete(this);
         cancelAnimationFrame(this.starFrame);
         if (this.conditionChangeTimeout) clearTimeout(this.conditionChangeTimeout);
         this.conditionChangeTimeout = undefined;
@@ -1741,9 +1747,6 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
         this.resizeObserver?.disconnect();
         this.resizeObserver = undefined;
         this.removeVisibilityTracking();
-
-        // Cleanup performance metrics interval
-        this.devPanel?.disconnect();
 
         // Cleanup time of day manager
         if (this.timeOfDayManager) {
@@ -1805,8 +1808,8 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
 
     /** Which sky to paint: dawn, day, dusk or night. */
     private currentSkyPhase(): SkyPhase {
-        // The day/night cycle (or the dev panel's override) owns the phase when on.
-        if (this.timeOfDayManager && (this.timeOfDayManager.isEnabled() || this.devTimeOverride)) {
+        // The day/night cycle owns the phase when on.
+        if (this.timeOfDayManager?.isEnabled()) {
             return this.timeOfDayManager.getCurrentState().timePhase as SkyPhase;
         }
         // Otherwise follow the real sun when Home Assistant knows where it is.
@@ -1823,7 +1826,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
      * either, so the clock's default hours decide.
      */
     private skyIsNight(): boolean | undefined {
-        const cycle = !!this.timeOfDayManager && (this.timeOfDayManager.isEnabled() || this.devTimeOverride);
+        const cycle = !!this.timeOfDayManager?.isEnabled();
         if (!cycle && !this._hass?.states[this.config?.sun_entity || 'sun.sun']) return undefined;
         return this.currentSkyPhase() === 'night';
     }
@@ -1975,7 +1978,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
     gridRows(): number {
         const note = this.noteEnabled() ? 1 : 0;
         if (this.config?.layout === 'nightstand') return 6;
-        if (this.config?.show_forecast && !this.config.dev_mode) {
+        if (this.config?.show_forecast) {
             const hourly = forecastTypes(this.config.entity ? this._hass?.states[this.config.entity] : undefined).includes('hourly');
             return (hourly ? 8 : 5) + note;
         }
@@ -2021,7 +2024,7 @@ class AnimatedForecastCard extends AnimatedWeatherCard {
     }
 
     setConfig(config: AnimatedWeatherCardConfig): void {
-        if (!config.entity) throw new Error('Please define a weather entity (entity: weather.home)');
+        if (!config.entity && !config.dev_mode) throw new Error('Please define a weather entity (entity: weather.home)');
         super.setConfig(config);
     }
 
@@ -2050,6 +2053,8 @@ class AnimatedForecastCard extends AnimatedWeatherCard {
 }
 
 customElements.define('animated-forecast-card', AnimatedForecastCard);
+// The dev card: YAML only, never in the card picker (dev-link.ts)
+customElements.define('animated-weather-dev-card', AnimatedWeatherDevCard);
 
 window.customCards = window.customCards || [];
 window.customCards.push({

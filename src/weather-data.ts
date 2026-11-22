@@ -1,7 +1,6 @@
 // Weather data processing for Animated Weather Card
 
 import { HomeAssistant, HassEntity, AnimatedWeatherCardConfig } from './types';
-import { DEV_MODE_TEMPERATURES, DEV_MODE_CONDITION_NAMES, DEV_MODE_SAMPLE_DATA } from './constants';
 import { convertWindSpeedToKmh, formatLocalizedNumber, lookup } from './utils';
 import { CardString, localizeString } from './localize';
 import { UvLevel, uvLevel, uvLevels } from './metrics';
@@ -166,32 +165,12 @@ export function noteExpiresAt(note: WeatherNote, config: AnimatedWeatherCardConf
 }
 
 /**
- * Process weather data from either dev mode or Home Assistant entities
+ * The card's readings from Home Assistant: the weather entity and the sensors the card names
  */
 export function processWeatherData(
     hass: HomeAssistant | undefined,
-    config: AnimatedWeatherCardConfig,
-    currentDevCondition?: string
+    config: AnimatedWeatherCardConfig
 ): WeatherData {
-    if (config.dev_mode) {
-        const devData = processDevModeData(config, currentDevCondition);
-        // In dev mode, override sample sun data with real entity data if available
-        if (hass && config.sun_entity) {
-            const sunEntity = hass.states[config.sun_entity];
-            if (sunEntity) {
-                devData.sun = {
-                    sunrise: sunEntity.attributes.next_rising || null,
-                    sunset: sunEntity.attributes.next_setting || null,
-                    dawn: sunEntity.attributes.next_dawn || null,
-                    dusk: sunEntity.attributes.next_dusk || null,
-                    noon: sunEntity.attributes.next_noon || null,
-                    elevation: sunEntity.attributes.elevation ?? null,
-                    aboveHorizon: sunEntity.state === 'above_horizon'
-                };
-            }
-        }
-        return devData;
-    }
     if (!hass) {
         return {
             temperature: "--",
@@ -210,68 +189,6 @@ export function processWeatherData(
         };
     }
     return processHomeAssistantData(hass, config);
-}
-
-/**
- * Process dev mode weather data
- */
-function processDevModeData(config: AnimatedWeatherCardConfig, currentDevCondition?: string): WeatherData {
-    const currentCondition = currentDevCondition || "sunny";
-    const temperatures = DEV_MODE_TEMPERATURES;
-    const sample = (temperatures as Record<string, string>)[currentCondition] || "22";
-    // The samples are whole degrees; with a decimal they show the format chosen
-    const temperature = temperatureDecimals(config) ? formatLocalizedNumber(parseFloat(sample), undefined, 1) : sample;
-    const location = config.name || "";  // Only show if name is provided
-
-    // Dev mode attribute values
-    const humidity = DEV_MODE_SAMPLE_DATA.humidity;
-    const windSpeed = DEV_MODE_SAMPLE_DATA.windSpeed;
-    // Extract numeric value from windSpeed string (e.g., "100 km/h" -> 100)
-    const windSpeedValue = parseFloat(windSpeed.split(' ')[0]) || 15;
-    const pressure = DEV_MODE_SAMPLE_DATA.pressure;
-
-    // Map condition to proper display name
-    const conditionNames = DEV_MODE_CONDITION_NAMES as Record<string, string>;
-    const weatherCondition = conditionNames[currentDevCondition || "sunny"] || currentDevCondition || "sunny";
-
-    // Dev mode sample indoor data
-    const indoorTemperature = DEV_MODE_SAMPLE_DATA.indoorTemperature;
-    const indoorHumidity = DEV_MODE_SAMPLE_DATA.indoorHumidity;
-
-    // Dev mode sample sun data — simulate today's sunrise/sunset
-    const today = cardDate();
-    const sunriseDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 6, 14);
-    const sunsetDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 18, 32);
-    const dawnDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 5, 45);
-    const duskDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 19, 1);
-    const noonDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12, 23);
-    const nowMs = cardNow();
-    const sun: SunData = {
-        sunrise: sunriseDate.toISOString(),
-        sunset: sunsetDate.toISOString(),
-        dawn: dawnDate.toISOString(),
-        dusk: duskDate.toISOString(),
-        noon: noonDate.toISOString(),
-        elevation: 42.5,
-        aboveHorizon: nowMs >= sunriseDate.getTime() && nowMs <= sunsetDate.getTime()
-    };
-
-    return {
-        temperature,
-        weatherCondition,
-        location,
-        humidity,
-        windSpeed,
-        windSpeedValue,
-        windBearing: null,
-        pressure,
-        pressureValue: null,
-        feelsLike: null,
-        indoorTemperature,
-        indoorHumidity,
-        uv: DEV_MODE_SAMPLE_DATA.uv,
-        sun
-    };
 }
 
 const CARDINAL_BEARINGS: Record<string, number> = {

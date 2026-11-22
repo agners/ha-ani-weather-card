@@ -134,7 +134,7 @@ entity: weather.forecast_home</code></pre>
 
                     <h3 id="manual">By hand</h3>
                     <p>The card is six files that sit in the same folder. Only the first is a dashboard resource; it loads the others when it needs them.</p>
-                    <p>It's split so each screen downloads only what it uses. Every phone and wall tablet that shows your dashboard loads the card, but few of them ever open the editor, and only some cards show the forecast or the clock, write a note, fly planes or run in developer mode. Those parts wait in files of their own until a card needs one. Each is fetched from the folder the first file came from, so keep all six together.</p>
+                    <p>It's split so each screen downloads only what it uses. Every phone and wall tablet that shows your dashboard loads the card, but few of them ever open the editor, and only some cards show the forecast or the clock, write a note, fly planes or run the dev card. Those parts wait in files of their own until a card needs one. Each is fetched from the folder the first file came from, so keep all six together.</p>
                     <div class="table-scroll">
                         <table class="files">
                             <thead><tr><th scope="col">File</th><th scope="col">What it is</th></tr></thead>
@@ -144,7 +144,7 @@ entity: weather.forecast_home</code></pre>
                                 <tr><td><code>animated-weather-card-note.js</code></td><td>The note writer, loaded only by cards that write their own note.</td></tr>
                                 <tr><td><code>animated-weather-card-planes.js</code></td><td>The planes, loaded only by cards with a flights sensor.</td></tr>
                                 <tr><td><code>animated-weather-card-forecast.js</code></td><td>The forecast, the clock, the forecast card, the nightstand and the view that opens on tap, loaded only by cards that use one of them.</td></tr>
-                                <tr><td><code>animated-weather-card-dev.js</code></td><td>The developer panel, loaded only with <code>dev_mode: true</code>. You can leave it out.</td></tr>
+                                <tr><td><code>animated-weather-card-dev.js</code></td><td>The dev card, for trying the cards on any weather at any time, loaded only by the dev card and <code>dev_mode: true</code>. You can leave it out.</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -494,7 +494,7 @@ color_palette: theme</code></pre>
                         </div>
                         <div>
                             <dt>Planes don't appear</dt>
-                            <dd>Only flights that enter your area after the dashboard loads fly, unless you set <code>planes_on_load: true</code>, which flies those already up once the card is on screen; planes on the ground wait until they take off, flights that arrive while the card is paused are skipped, and at most three cross at once. In <code>dev_mode</code>, the developer panel's <b>Fly a plane</b> button sends one across to check the setup. On a copy of your own, <code>animated-weather-card-planes.js</code> has to be in the same folder as <code>animated-weather-card.js</code>.</dd>
+                            <dd>Only flights that enter your area after the dashboard loads fly, unless you set <code>planes_on_load: true</code>, which flies those already up once the card is on screen; planes on the ground wait until they take off, flights that arrive while the card is paused are skipped, and at most three cross at once. To check the setup, the dev card's <b>Fly a plane</b> button (<code>type: custom:animated-weather-dev-card</code>) sends one across every weather card on the dashboard. On a copy of your own, <code>animated-weather-card-planes.js</code> has to be in the same folder as <code>animated-weather-card.js</code>.</dd>
                         </div>
                     </dl>
                     <p>Something else? <a href="https://github.com/alexsto1an/ha-ani-weather-card/issues">Open an issue</a> with what you see and your card's YAML.</p>

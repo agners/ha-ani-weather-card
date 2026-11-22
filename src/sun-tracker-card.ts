@@ -28,6 +28,7 @@ import { loadEditorBundle } from './bundles';
 import { IconName, icon } from './icons';
 import { HOUR_EVENT, HourLink } from './hour-link';
 import { onSharedWeather, weatherOnSun } from './weather-share';
+import { DEV_EVENT, devBase, devCards, devOffset, devSee, loadDevWorld, type DevCard, type DevConfig } from './dev-link';
 import { PlaceView } from './place';
 import { COMPACT_PATH, PathGeometry, REGULAR_PATH, VH, VW, hourFrac, pathElevation, xFor, yFor } from './sun-path';
 
@@ -42,6 +43,8 @@ import { cardDate } from './clock';
 
 export interface SunTrackerConfig {
     sun_entity?: string;
+    /** Always on the dev card's world (dev-link.ts): no sun entity needed */
+    dev_mode?: boolean;
     moon_entity?: string;
     /** Match the sky to this weather entity's condition; without it, the first weather card's on the same sun */
     weather_entity?: string;
@@ -542,10 +545,10 @@ const STYLES = `
     }
 `;
 
-class AnimatedSunTrackerCard extends HTMLElement {
+class AnimatedSunTrackerCard extends HTMLElement implements DevCard {
     private config: SunTrackerConfig = {};
     private _hass?: HomeAssistant;
-    /** Home Assistant as it arrives; _hass is it as seen from the tracker's place (latitude, longitude, time_zone) */
+    /** Home Assistant as it arrives; _hass is it as the tracker reads it: through the dev card's world, and from its place */
     private _homeHass?: HomeAssistant;
     private _place = new PlaceView(() => [this.config ? this._weatherId() : undefined]);
     private _shadow: ShadowRoot;
@@ -560,26 +563,47 @@ class AnimatedSunTrackerCard extends HTMLElement {
     private _drawnWeather: string | undefined;
     private _unshare?: () => void;
 
+    readonly devKind = 'tracker' as const;
+    /** The dev card's world changed: read Home Assistant again through it, and draw the now line again when the time moved */
+    private _onDev = () => {
+        if (this._homeHass && this.isConnected) this.hass = this._homeHass;
+        const offset = devOffset();
+        if (offset !== this._devClock) { this._devClock = offset; this._render(); }
+    };
+    private _devClock = 0;
+
     constructor() {
         super();
         this._shadow = this.attachShadow({ mode: 'open' });
     }
 
+    devConfig(): DevConfig {
+        return this.config as DevConfig;
+    }
+
+    /** Home Assistant as the tracker reads it: through the dev card's world when it's on for it, then from its place */
+    private _see(hass: HomeAssistant): HomeAssistant {
+        return this._place.see(devSee(hass, this.config as DevConfig));
+    }
+
     setConfig(config: SunTrackerConfig): void {
         const placeChanged = this._place.set(config);
         const placeSun = this._place.place?.sunId;
-        if (!config.sun_entity && !placeSun) {
+        if (!config.sun_entity && !placeSun && !config.dev_mode) {
             throw new Error('Please define a sun_entity (e.g. sun.sun), or the latitude and longitude of a place');
         }
-        // Another place's sun is computed, under a key from its coordinates; they win over sun_entity, your own sun
-        this.config = { ...config, sun_entity: placeSun || config.sun_entity };
-        if (placeChanged && this._homeHass) this._hass = this._place.see(this._homeHass);
+        const devChanged = !!this.config.dev_mode !== !!config.dev_mode;
+        // Another place's sun is computed, under a key from its coordinates; they win over sun_entity, your own sun.
+        // dev_mode runs on the dev card's world, whose sun is sun.sun
+        this.config = { ...config, sun_entity: placeSun || config.sun_entity || 'sun.sun' };
+        if (config.dev_mode) loadDevWorld().then(this._onDev).catch((err: Error) => console.warn(`Animated Weather Card: ${err.message}`));
+        if ((placeChanged || devChanged) && this._homeHass) this._hass = this._see(this._homeHass);
         this._render();
     }
 
     set hass(hass: HomeAssistant) {
-        this._homeHass = hass;
-        hass = this._place.see(hass);
+        this._homeHass = devBase(hass);
+        hass = this._see(hass);
         const sunId = this.config.sun_entity || '';
         const moonId = this.config.moon_entity || '';
         const oldSun = this._hass?.states[sunId];
@@ -607,11 +631,13 @@ class AnimatedSunTrackerCard extends HTMLElement {
         // The "now" dot and the countdown move with the clock, not with HA.
         // A computed sun moves with the clock too: the tracker looks again through its place
         if (!this._clock) this._clock = setInterval(() => {
-            if (this._homeHass && this._place.place) this._hass = this._place.see(this._homeHass);
+            if (this._homeHass && this._place.place) this._hass = this._see(this._homeHass);
             this._render();
         }, 60_000);
         // The same listener twice is one
         window.addEventListener(HOUR_EVENT, this._onHour);
+        window.addEventListener(DEV_EVENT, this._onDev);
+        devCards().add(this);
         // A weather card on its sun arrives, leaves or changes its weather: the sky follows when it's this one's
         if (!this._unshare) this._unshare = onSharedWeather(() => { if (this._weatherId() !== this._drawnWeather) this._render(); });
         if (!this._resizeObserver && typeof ResizeObserver !== 'undefined') {
@@ -624,6 +650,8 @@ class AnimatedSunTrackerCard extends HTMLElement {
         if (this._clock) clearInterval(this._clock);
         this._clock = undefined;
         window.removeEventListener(HOUR_EVENT, this._onHour);
+        window.removeEventListener(DEV_EVENT, this._onDev);
+        devCards().delete(this);
         this._unshare?.();
         this._unshare = undefined;
         this._link = null;
@@ -686,7 +714,7 @@ class AnimatedSunTrackerCard extends HTMLElement {
         const id = this._weatherId();
         const state = id ? this._hass?.states[id]?.state : undefined;
         if (state && state !== 'unavailable' && state !== 'unknown') {
-            const weatherClass = getWeatherClass(state, false, undefined, undefined, this._hass?.config?.time_zone,
+            const weatherClass = getWeatherClass(state, undefined, undefined, this._hass?.config?.time_zone,
                 { night: phase === 'night' });
             if ((SKY_CONDITIONS as readonly string[]).includes(weatherClass)) return weatherClass as SkyCondition;
         }

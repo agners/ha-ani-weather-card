@@ -237,3 +237,19 @@ describe('clouds over the top edge', () => {
         expect(css).toMatch(/\.clouds-layer \{[^}]*top: var\(--awc-cloud-overhang\)/);
     });
 });
+
+describe('the dev card\'s window', () => {
+    // A band of the world's sky, zenith to the middle and no glow, with every word at full strength
+    const hex = (h: string): [number, number, number] => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255) as [number, number, number];
+    for (const condition of SKY_CONDITIONS) {
+        for (const phase of SKY_PHASES) {
+            it(`${condition} / ${phase}: its text holds 4.5:1 from the zenith to the middle`, () => {
+                const { top, mid } = skyColors(condition, phase);
+                for (const t of [0, 0.25, 0.5, 0.75, 1]) {
+                    const bg = composite(hex(top), hex(mid), t);
+                    expect(contrastRatio(text, bg), `${condition}/${phase} at ${t}`).toBeGreaterThanOrEqual(4.5);
+                }
+            });
+        }
+    }
+});

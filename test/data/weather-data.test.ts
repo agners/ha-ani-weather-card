@@ -222,10 +222,6 @@ describe('processWeatherData — temperature decimals', () => {
         expect(processWeatherData(cold(-0.04, -0.03), { entity: 'weather.home', temperature_decimals: 1 }).temperature).toBe('0.0');
     });
 
-    it('shows the dev mode samples to one decimal too', () => {
-        const data = processWeatherData(undefined, { dev_mode: true, temperature_decimals: 1 }, 'sunny');
-        expect(data.temperature).toMatch(/^26[.,]0$/);
-    });
 });
 
 describe('processWeatherData — humidity edge cases', () => {

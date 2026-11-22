@@ -1,6 +1,6 @@
 // Utility functions for Animated Weather Card
 
-import { DEFAULT_ENGINE_SETTINGS, DEV_MODE_TEMPERATURES, DEV_MODE_CONDITION_NAMES, DAY_NIGHT_ANIMATION_COLORS } from './constants';
+import { DEFAULT_ENGINE_SETTINGS, DAY_NIGHT_ANIMATION_COLORS } from './constants';
 import type { 
     AnimatedWeatherCardConfig, 
     WeatherEngineSettings, 
@@ -11,18 +11,6 @@ import type {
     HassEntity
 } from './types';
 import { cardDate } from './clock';
-
-/**
- * Type guard to check if a value is a valid weather condition
- */
-export function isValidWeatherCondition(condition: string): condition is WeatherCondition {
-    const validConditions: readonly WeatherCondition[] = [
-        'sunny', 'clear-night', 'partly-cloudy', 'cloudy', 'rainy', 'light-rain', 
-        'pouring', 'stormy', 'snowy', 'snowy-rainy', 'snowy-stormy', 'sleety', 
-        'sleety-stormy', 'windy', 'foggy'
-    ] as const;
-    return validConditions.includes(condition as WeatherCondition);
-}
 
 /**
  * Type guard to check if a value is a valid number within range
@@ -260,35 +248,6 @@ export function getWeatherSettings(
 }
 
 /**
- * Update weather info for dev mode with type validation
- * @param element - The HTML element to update
- * @param condition - The weather condition
- * @throws {Error} If element is invalid or condition is not supported
- */
-export function updateDevModeWeatherInfo(element: HTMLElement | null, condition: string): void {
-    if (!element) {
-        throw new Error('Invalid element provided to updateDevModeWeatherInfo');
-    }
-    
-    if (!isValidWeatherCondition(condition)) {
-        console.warn(`Unknown weather condition: ${condition}, using default`);
-        condition = 'sunny';
-    }
-    const conditionNames = DEV_MODE_CONDITION_NAMES;
-
-    // Different temperatures for different conditions - add degree symbols
-    const temperatures = Object.fromEntries(
-        Object.entries(DEV_MODE_TEMPERATURES).map(([key, value]) => [key, value + '°'])
-    );
-
-    const tempElement = element.querySelector('.temperature');
-    const descElement = element.querySelector('.weather-desc');
-
-    if (tempElement) tempElement.textContent = (temperatures as Record<string, string>)[condition] || '22°';
-    if (descElement) descElement.textContent = (conditionNames as Record<string, string>)[condition] || condition;
-}
-
-/**
  * Clear all pending timeouts with type safety
  * @param timeouts - Array of timeout handles
  */
@@ -371,7 +330,6 @@ export interface ClearSkyTime {
  */
 export function getWeatherClass(
     condition: string,
-    isDevMode: boolean,
     sunriseHour?: number,
     sunsetHour?: number,
     timeZone?: string,
@@ -379,12 +337,6 @@ export function getWeatherClass(
 ): WeatherCondition {
     if (typeof condition !== 'string') {
         console.warn('Invalid condition type provided, using sunny as fallback');
-        return 'sunny';
-    }
-    if (isDevMode && isValidWeatherCondition(condition)) {
-        return condition;
-    } else if (isDevMode) {
-        console.warn(`Invalid dev mode condition: ${condition}, using sunny`);
         return 'sunny';
     }
 

@@ -154,7 +154,7 @@ describe('engine settings', () => {
 });
 
 describe('weather condition mapping', () => {
-    const cls = (state: string) => getWeatherClass(state, false);
+    const cls = (state: string) => getWeatherClass(state);
 
     it('maps Home Assistant states to a sky and its weather', () => {
         expect(cls('partlycloudy')).toBe('partly-cloudy');
@@ -173,7 +173,7 @@ describe('weather condition mapping', () => {
 describe('a clear sky by day and by night', () => {
     // 19:55 UTC: after a winter sunset, before the clock's default sunset hour (20)
     const at = (hour: number, minute = 0) => vi.setSystemTime(new Date(Date.UTC(2026, 10, 6, hour, minute)));
-    const clear = (state: string, time = {}) => getWeatherClass(state, false, undefined, undefined, 'UTC', time);
+    const clear = (state: string, time = {}) => getWeatherClass(state, undefined, undefined, 'UTC', time);
 
     beforeEach(() => vi.useFakeTimers());
     afterEach(() => vi.useRealTimers());
@@ -213,8 +213,8 @@ describe('a clear sky by day and by night', () => {
 
     it('lets the day/night cycle decide by its hours, as it follows the clock', () => {
         at(12);
-        expect(getWeatherClass('clear-night', false, 7, 19, 'UTC', { clock: true, night: false })).toBe('sunny');
+        expect(getWeatherClass('clear-night', 7, 19, 'UTC', { clock: true, night: false })).toBe('sunny');
         at(19, 30);
-        expect(getWeatherClass('clear-night', false, 7, 19, 'UTC', { clock: true, night: true })).toBe('clear-night');
+        expect(getWeatherClass('clear-night', 7, 19, 'UTC', { clock: true, night: true })).toBe('clear-night');
     });
 });

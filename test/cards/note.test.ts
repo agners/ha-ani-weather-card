@@ -91,12 +91,6 @@ describe('the weather note', () => {
         expect(note()).toBeNull();
     });
 
-    it('stays out of dev mode, whose sample weather a real note wouldn\'t be about', async () => {
-        await mount({ dev_mode: true });
-        expect(note()).toBeNull();
-        expect(card.getGridOptions().rows).toBe(4);
-    });
-
     it('updates in place when only the longer note changes', async () => {
         await mount({});
         const temperature = card.querySelector('.temperature-value');

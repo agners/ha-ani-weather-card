@@ -535,10 +535,12 @@ declare global {
         /** The card's own GSAP, bundled into animated-weather-card.js and set there; the planes bundle reads it too */
         AnimatedWeatherCardGsap: GSAP;
         customCards: CustomCardDefinition[];
-        /** The dev card's world, while it's on: how far it has moved the cards' clock (clock.ts) */
-        AnimatedWeatherCardDev?: import('./clock').DevClock;
-        /** Set by the dev panel bundle (animated-weather-card-dev.js) when it loads */
-        AnimatedWeatherCardDevPanel?: new (card: import('./dev-panel').DevPanelHost) => import('./dev-panel').DevPanel;
+        /** The dev card's world (dev-link.ts), set by the dev bundle (animated-weather-card-dev.js): the cards' clock and Home Assistant as they read it */
+        AnimatedWeatherCardDev?: import('./dev-link').DevWorld;
+        /** Set by the dev bundle when it loads: what draws the dev card */
+        AnimatedWeatherCardDevCards?: import('./dev-link').DevCards;
+        /** The cards on the page, for the dev card (dev-link.ts) */
+        AnimatedWeatherCardsOnPage?: Set<import('./dev-link').DevCard>;
         /** Set by the note bundle (animated-weather-card-note.js) when it loads */
         AnimatedWeatherCardNote?: new (host: import('./note-generator').NoteHost) => import('./note-generator').NoteWriter;
         /** Set by the planes bundle (animated-weather-card-planes.js) when it loads */

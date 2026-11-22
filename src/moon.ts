@@ -39,6 +39,13 @@ export function moonCycle(date: Date, entityState?: string): number {
     return ((d / 28) % 1 + 1) % 1;
 }
 
+/** The phase the Moon integration would name on a date, as the dev card's moon sensor reads */
+export function moonPhaseName(date: Date): string {
+    let d = moonCycle(date) * 28;
+    if (d >= 27.5) d -= 28;
+    return Object.keys(ENTITY_DAYS).find(name => d >= ENTITY_DAYS[name][0] && d < ENTITY_DAYS[name][1]) ?? 'new_moon';
+}
+
 /** How much of the disc is lit, 0 to 1 */
 export const moonLit = (cycle: number): number => (1 - Math.cos(2 * Math.PI * cycle)) / 2;
 

@@ -1,5 +1,5 @@
 // Card / animation CSS for Animated Weather Card.
-// Dev panel styles live in ./dev-panel.ts, editor styles in ./editor.ts.
+// The dev card's styles live in ./dev-card.ts, editor styles in ./editor.ts.
 //
 // Layering inside .animated-weather-card (one stacking context; the sky and
 // sky-borne layers are clipped to the rounded frame, precipitation may spill
