@@ -85,7 +85,8 @@ h3 { margin: 0 0 8px; font-size: 12px; line-height: 16px; font-weight: 600; colo
 }
 .link[hidden] { display: none; }
 .scrub { position: relative; height: 76px; border-radius: 10px; background: var(--dc-well); }
-.scrub input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: ew-resize; z-index: 2; touch-action: pan-y; }
+.scrub input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: grab; z-index: 2; touch-action: pan-y; }
+.scrub input:active { cursor: grabbing; }
 .scrub input:disabled { cursor: default; }
 .track { position: absolute; inset: 6px 0; pointer-events: none; }
 .sky-path { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }

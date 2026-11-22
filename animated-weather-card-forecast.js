@@ -137,6 +137,11 @@ dialog.fv-dialog::backdrop { background: transparent; }
 `,fo=`
 /* Vertical pans and pinch stay the dashboard's; a sideways drag is the slide. A mouse pull selects no text. */
 .animated-weather-card[data-fc], .animated-weather-card[data-slide] { touch-action: pan-y pinch-zoom; -webkit-user-select: none; user-select: none; }
+/* A card that slides through the hours shows it under a mouse: a hand, closed while it holds the hours */
+@media (hover: hover) and (pointer: fine) {
+  .animated-weather-card[data-slide] { cursor: grab; }
+  .animated-weather-card[data-slide].awc-held { cursor: grabbing; }
+}
 /* Under a finger the slide drives these, so the card's own dissolves step aside */
 .animated-weather-card.awc-pulling { transition: none !important; }
 .animated-weather-card.awc-pulling .sun-track,
