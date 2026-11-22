@@ -353,7 +353,7 @@ note_entity: input_text.weather_note</code></pre>
                     <h2 id="extras-title"><a class="anchor" href="#extras">Extras</a></h2>
 
                     <h3 id="sensors">Your own sensors</h3>
-                    <p>Your sensors take the place of the weather entity's values; indoor readings sit under the condition. A wind speed sensor also sets how fast the weather moves, and a wind direction sensor can report degrees or a compass point like NW. Without a feels-like sensor, the card uses the weather entity's apparent temperature if it has one.</p>
+                    <p>Your sensors take the place of the weather entity's values; indoor readings sit under the condition. Without a feels-like sensor, the card uses the weather entity's apparent temperature if it has one. The readings in the row take their sensors in <code>readings</code>: a wind speed sensor there also sets how fast the weather moves, and a wind direction sensor can report degrees or a compass point like NW.</p>
                     <div class="code" data-lang="yaml">
                         <div class="code-bar"><span class="code-name">Card YAML</span><button type="button" class="copy"><span class="copy-icon" aria-hidden="true"></span><span class="copy-label">Copy</span></button></div>
                         <pre><code>type: custom:animated-weather-card
@@ -362,30 +362,50 @@ name: Garden
 sun_entity: sun.sun
 outdoor_sensor_entity: sensor.garden_temperature
 feels_like_entity: sensor.garden_apparent_temperature
-humidity_sensor_entity: sensor.garden_humidity
-wind_speed_sensor_entity: sensor.garden_wind_speed
-wind_direction_sensor_entity: sensor.garden_wind_direction
-pressure_sensor_entity: sensor.barometer
 indoor_temperature_entity: sensor.living_room_temperature
-indoor_humidity_entity: sensor.living_room_humidity</code></pre>
+indoor_humidity_entity: sensor.living_room_humidity
+readings:
+  - type: humidity
+    entity: sensor.garden_humidity
+  - type: wind
+    entity: sensor.garden_wind_speed
+    direction_entity: sensor.garden_wind_direction
+  - type: pressure
+    entity: sensor.barometer
+  - sun</code></pre>
                     </div>
 
                     <h3 id="readings">The readings</h3>
-                    <p>The row under the temperature holds humidity, wind, pressure and the next sunset or sunrise. <code>metrics</code> picks the readings and their order, from those, <code>uv</code> (the UV index) and <code>rain</code> (a station's rain); four fit best, and the editor's <b>Display</b> section sets them. The UV index comes from <code>uv_entity</code>, such as the <a href="https://www.home-assistant.io/integrations/openuv/">OpenUV integration</a>'s current UV index, or from the weather entity when it reports one. It reads as the number and its level, "6 High", on the WHO's scale, and on the sky palette its icon takes the level's colour; <code>uv_levels</code> moves where the levels start. The view that opens on tap adds today's highest, from <code>uv_max_entity</code>. The rain reading is a weather station's: today's rain from <code>rain_entity</code>, such as an Ecowitt's daily rain, and while it rains, the rate from <code>rain_rate_entity</code>. The view that opens on tap shows both, with the station's totals for the rain event, the week, the month and the year.</p>
+                    <p>The row under the temperature holds humidity, wind, pressure and the next sunset or sunrise. <code>readings</code> lists them and their order, each a type and, where it needs one or you'd rather, an entity; in the editor they're a table under <b>Display → Readings</b>, with <b>Add a reading</b>. Four fit best.</p>
+                    <ul>
+                        <li><b>From the weather entity:</b> humidity, wind, pressure, UV, feels like, dew point, visibility, cloud cover and gusts read its own value unless the row names a sensor. Wind can take a direction sensor too.</li>
+                        <li><b>UV:</b> the number and its WHO level, "6 High", such as from the <a href="https://www.home-assistant.io/integrations/openuv/">OpenUV integration</a>; on the sky palette its icon takes the level's colour, and <code>uv_levels</code> moves where the levels start.</li>
+                        <li><b>Rain:</b> a weather station's today's rain, such as an Ecowitt's, and while it rains, the rate from <code>rate_entity</code>.</li>
+                        <li><b>Air quality:</b> a sensor's index and its US EPA level, "42 Good"; <code>aqi_levels</code> moves the bands for another scale.</li>
+                        <li><b>Any sensor:</b> as Home Assistant words its state, under its <code>name</code> or its own.</li>
+                        <li><b>View only:</b> <code>view: true</code> shows a reading in the view that opens on tap and not in the row. Today's highest UV and a station's rain totals always do.</li>
+                    </ul>
+                    <p>Cards set up with <code>metrics</code>, <code>uv_entity</code>, the <code>rain_*</code> sensors and the other reading sensors keep working; the editor's table replaces them the first time you change it.</p>
                     <div class="code" data-lang="yaml">
                         <div class="code-bar"><span class="code-name">Card YAML</span><button type="button" class="copy"><span class="copy-icon" aria-hidden="true"></span><span class="copy-label">Copy</span></button></div>
                         <pre><code>type: custom:animated-weather-card
 entity: weather.forecast_home
 sun_entity: sun.sun
-metrics: [humidity, wind, uv, rain]
-uv_entity: sensor.current_uv_index
-uv_max_entity: sensor.max_uv_index
-rain_entity: sensor.gw2000_daily_rain
-rain_rate_entity: sensor.gw2000_rain_rate
-rain_event_entity: sensor.gw2000_event_rain
-rain_week_entity: sensor.gw2000_weekly_rain
-rain_month_entity: sensor.gw2000_monthly_rain
-rain_year_entity: sensor.gw2000_yearly_rain</code></pre>
+readings:
+  - humidity
+  - wind
+  - type: uv
+    entity: sensor.current_uv_index
+  - type: rain
+    entity: sensor.gw2000_daily_rain
+    rate_entity: sensor.gw2000_rain_rate
+  - type: aqi
+    entity: sensor.air_quality_index
+  - type: sensor
+    entity: sensor.office_co2
+    name: CO₂
+  - type: rain_week
+    entity: sensor.gw2000_weekly_rain</code></pre>
                     </div>
 
                     <h3 id="tracker">The sun tracker</h3>
@@ -397,7 +417,7 @@ cards:
   - type: custom:animated-weather-card
     entity: weather.forecast_home
     sun_entity: sun.sun
-    show_sun: false
+    readings: [humidity, wind, pressure]
   - type: custom:animated-sun-tracker-card
     sun_entity: sun.sun
     moon_entity: sensor.moon_phase

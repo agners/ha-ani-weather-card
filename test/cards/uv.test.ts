@@ -196,17 +196,6 @@ describe('the editor\'s readings', () => {
     const pick = (ed: HTMLElement, id: string, value: string) =>
         ed.querySelector(`#${id}`)!.dispatchEvent(new CustomEvent('selected', { detail: { value } }));
 
-    it('four slots: a new reading in a slot writes the list; the row as it always was writes nothing', async () => {
-        const { ed, sent } = await editor({});
-        expect(ed.querySelectorAll('.metric-slots ha-select')).toHaveLength(4);
-        pick(ed, 'metric_2', 'uv');
-        expect(sent.at(-1)!.metrics).toEqual(['humidity', 'wind', 'uv', 'sun']);
-        pick(ed, 'metric_2', 'pressure');
-        expect(sent.at(-1)!.metrics).toBeUndefined();
-        pick(ed, 'metric_3', 'none');
-        expect(sent.at(-1)!.metrics).toEqual(['humidity', 'wind', 'pressure']);
-    });
-
     it('UV levels: four rising numbers become a list, nothing goes back to the WHO\'s', async () => {
         const { ed, sent } = await editor({});
         const field = ed.querySelector('#uv_levels') as HTMLInputElement;

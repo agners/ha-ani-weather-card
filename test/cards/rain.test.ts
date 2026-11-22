@@ -126,18 +126,3 @@ describe('a station\'s rain in the view that opens on tap', () => {
     });
 });
 
-describe('the editor\'s rain', () => {
-    if (!customElements.get('ha-select')) customElements.define('ha-select', class extends HTMLElement {});
-    it('offers rain for a reading, and a picker for each rain sensor', async () => {
-        const ed = document.createElement('animated-weather-card-editor') as HTMLElement & { setConfig(c: object): void };
-        ed.setConfig({ type: 'custom:animated-weather-card', entity: 'weather.home' });
-        document.body.append(ed);
-        mounted.push(ed);
-        await new Promise(resolve => setTimeout(resolve, 0));
-        const slot = ed.querySelector('#metric_0') as HTMLElement & { options: Array<{ value: string }> };
-        expect(slot.options.map(o => o.value)).toContain('rain');
-        for (const id of ['rain_entity', 'rain_rate_entity', 'rain_event_entity', 'rain_week_entity', 'rain_month_entity', 'rain_year_entity']) {
-            expect(ed.querySelector(`ha-entity-picker#${id}`), id).not.toBeNull();
-        }
-    });
-});

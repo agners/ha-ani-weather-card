@@ -209,7 +209,7 @@ sun_entity: sun.sun
 
 ### Your own sensors
 
-Your sensors take the place of the weather entity's values, and a wind speed sensor also sets how fast the weather moves. A wind direction sensor can report degrees or a compass point like `NW`. Any sensor that's unavailable falls back to the weather entity. Without `feels_like_entity`, the card uses the entity's apparent temperature if it reports one. Indoor readings sit under the condition.
+Your sensors take the place of the weather entity's values. The temperature and feels like under it come from `outdoor_sensor_entity` and `feels_like_entity`; without `feels_like_entity`, the card uses the entity's apparent temperature if it reports one. Indoor readings sit under the condition. The readings in the row take their sensors in `readings`, below: a wind speed sensor there also sets how fast the weather moves, and a wind direction sensor can report degrees or a compass point like `NW`.
 
 ```yaml
 type: custom:animated-weather-card
@@ -218,40 +218,61 @@ name: Garden
 sun_entity: sun.sun
 outdoor_sensor_entity: sensor.garden_temperature
 feels_like_entity: sensor.garden_apparent_temperature
-humidity_sensor_entity: sensor.garden_humidity
-wind_speed_sensor_entity: sensor.garden_wind_speed
-wind_direction_sensor_entity: sensor.garden_wind_direction
-pressure_sensor_entity: sensor.barometer
 indoor_temperature_entity: sensor.living_room_temperature
 indoor_humidity_entity: sensor.living_room_humidity
+readings:
+  - type: humidity
+    entity: sensor.garden_humidity
+  - type: wind
+    entity: sensor.garden_wind_speed
+    direction_entity: sensor.garden_wind_direction
+  - type: pressure
+    entity: sensor.barometer
+  - sun
 ```
 
 ### The readings
 
-The row under the hero holds humidity, wind, pressure and the next sunset or sunrise. `metrics` picks the readings and their order, from those, `uv` (the UV index) and `rain` (a station's rain). Four fit best: a phone shows them in a row or a 2 × 2 grid, a wide card in two columns.
+The row under the hero holds humidity, wind, pressure and the next sunset or sunrise. `readings` lists the readings and their order, each a type and, where it needs one or you'd rather, an entity. In the editor they're a table under Display → Readings: a row per reading, its type then its entity, and **Add a reading**. Four fit best: a phone shows them in a row or a 2 × 2 grid, a wide card in two columns. More make more rows.
 
-The UV index comes from `uv_entity`, such as OpenUV's current UV index, or else from the weather entity when it reports one. It reads as the number and its level, "6 High", on the WHO's scale: low, moderate, high, very high and extreme. On the sky palette its icon also takes the level's colour, from green to violet. `uv_levels` moves where moderate, high, very high and extreme start. Drag the card through the hours and it shows each hour's UV from the forecast. The view that opens on tap adds today's highest, from `uv_max_entity`.
+- **From the weather entity:** `humidity`, `wind`, `pressure`, `uv`, `feels_like`, `dew_point`, `visibility`, `cloud_cover` and `gust` read the weather entity's own value, in its units, unless the row names a sensor (or another weather entity). Wind can take a `direction_entity` too, and its sensor sets how fast the weather moves.
+- **`sun`:** the next sunset by day and the next sunrise by night, from `sun_entity`.
+- **`uv`:** the number and its level, "6 High", on the WHO's scale: low, moderate, high, very high and extreme. On the sky palette its icon also takes the level's colour, from green to violet. `uv_levels` moves where moderate, high, very high and extreme start. Drag the card through the hours and it shows each hour's UV from the forecast.
+- **`rain`:** a station's own: today's rain from its sensor, such as an Ecowitt's daily rain, and while it rains, the rate from `rate_entity` ("Rain now, 1.2 mm/h"), each in its sensor's unit.
+- **`aqi`:** air quality from a sensor, as the number and its level on the US EPA scale: good, moderate, unhealthy for some, unhealthy, very unhealthy and hazardous, its icon coloured by the level on the sky palette. `aqi_levels` moves where the levels after good start, for a sensor on another scale.
+- **`sensor`:** any entity, as Home Assistant words its state, under its `name` or its own.
+- **In the view that opens on tap:** a row with `view: true` shows there and not in the card's row. `uv_max` (today's highest UV) and a station's `rain_event`, `rain_week`, `rain_month` and `rain_year` always do. The view also shows the card's air quality and sensors.
 
-The rain reading is a station's own: today's rain from `rain_entity`, such as an Ecowitt's daily rain, and while it rains, the rate from `rain_rate_entity` ("Rain now, 1.2 mm/h"), each in its sensor's unit. The view that opens on tap shows both, and the station's totals: the rain event, the week, the month and the year.
+A reading that needs a sensor and names none isn't shown. One whose sensor hasn't reported yet shows "--" until it does. Drag the card through the hours and every reading the forecast reports goes to the hour, in the weather entity's units; the rest stay as they are.
 
 ```yaml
 type: custom:animated-weather-card
 entity: weather.forecast_home
 sun_entity: sun.sun
-metrics: [humidity, wind, uv, rain]
-uv_entity: sensor.current_uv_index
-uv_max_entity: sensor.max_uv_index
-rain_entity: sensor.gw2000_daily_rain
-rain_rate_entity: sensor.gw2000_rain_rate
-rain_event_entity: sensor.gw2000_event_rain
-rain_week_entity: sensor.gw2000_weekly_rain
-rain_month_entity: sensor.gw2000_monthly_rain
-rain_year_entity: sensor.gw2000_yearly_rain
+readings:
+  - humidity
+  - wind
+  - type: uv
+    entity: sensor.current_uv_index
+  - type: rain
+    entity: sensor.gw2000_daily_rain
+    rate_entity: sensor.gw2000_rain_rate
+  - type: aqi
+    entity: sensor.air_quality_index
+  - type: sensor
+    entity: sensor.office_co2
+    name: CO₂
+  - type: uv_max
+    entity: sensor.max_uv_index
+  - type: rain_week
+    entity: sensor.gw2000_weekly_rain
 ```
+
+Cards set up before `readings` keep working: `metrics`, `show_sun`, the reading sensors (`humidity_sensor_entity`, `wind_speed_sensor_entity`, `wind_direction_sensor_entity`, `pressure_sensor_entity`), `uv_entity`, `uv_max_entity` and the `rain_*` sensors make the same list. With `readings`, they're ignored, and the editor's table replaces them the first time you change it.
 
 ### Weather and sun tracker
 
-This is the pairing in the screenshot above. `show_sun: false` leaves the next sunset to the tracker, which frees a slot so the weather card's three remaining metrics can share one row. The tracker takes the sky of the weather card on its sun; `weather_entity` names the weather when the dashboard has more than one, or none. With the forecast on, drag the weather card through the hours and the tracker's sun goes there too.
+This is the pairing in the screenshot above. Readings without `sun` leave the next sunset to the tracker, which frees a slot so the weather card's three remaining metrics can share one row. The tracker takes the sky of the weather card on its sun; `weather_entity` names the weather when the dashboard has more than one, or none. With the forecast on, drag the weather card through the hours and the tracker's sun goes there too.
 
 ```yaml
 type: vertical-stack
@@ -260,7 +281,7 @@ cards:
     entity: weather.forecast_home
     sun_entity: sun.sun
     moon_entity: sensor.moon_phase
-    show_sun: false
+    readings: [humidity, wind, pressure]
   - type: custom:animated-sun-tracker-card
     sun_entity: sun.sun
     moon_entity: sensor.moon_phase
@@ -697,17 +718,8 @@ sunset_hour: 19
 | `name` | entity's name | The location shown above the temperature |
 | `sun_entity` | — | Usually `sun.sun`. Adds the next sunset (by day) or sunrise (by night) to the metric row. The sky follows it, or `sun.sun` without it. With `latitude` and `longitude`, the card follows that place's own sun instead |
 | `moon_entity` | — | A moon phase sensor, such as the Moon integration's `sensor.moon_phase`. A clear night's moon keeps to the phase it names. Without it, the card works the phase out from the date |
-| `uv_entity` | — | A UV index sensor, such as OpenUV's `sensor.current_uv_index`, for the `uv` reading. Without it, the weather entity's UV index, if it reports one |
-| `uv_max_entity` | — | Today's highest UV index, such as OpenUV's `sensor.max_uv_index`, shown in the view that opens on tap |
-| `rain_entity` | — | Today's rain from a weather station, such as an Ecowitt's daily rain, for the `rain` reading |
-| `rain_rate_entity` | — | The station's rain rate. While it's above 0, the `rain` reading shows it instead of today's rain |
-| `rain_event_entity`, `rain_week_entity`, `rain_month_entity`, `rain_year_entity` | — | The station's other rain totals: this rain event, this week, this month and this year, shown in the view that opens on tap |
 | `outdoor_sensor_entity` | — | A temperature sensor to show instead of the weather entity's temperature |
 | `feels_like_entity` | — | An apparent temperature sensor. Without it, the card uses the weather entity's `apparent_temperature` if it has one |
-| `humidity_sensor_entity` | — | A humidity sensor to show instead of the weather entity's humidity |
-| `pressure_sensor_entity` | — | A pressure sensor to show instead of the weather entity's pressure |
-| `wind_speed_sensor_entity` | — | A wind speed sensor to show instead of the weather entity's wind speed, in its own unit. It also sets how fast the weather moves |
-| `wind_direction_sensor_entity` | — | A wind direction sensor for the wind arrow, in degrees or a compass point like `NW` |
 | `indoor_temperature_entity` | — | An indoor temperature, shown under the condition |
 | `indoor_humidity_entity` | — | An indoor humidity, shown beside it |
 | `flights_entity` | — | A Flightradar24 area sensor, usually `sensor.flightradar24_current_in_area` |
@@ -719,12 +731,12 @@ sunset_hour: 19
 | `compact` | `false` | One line about 88 px tall: the temperature and condition, with the location and "feels like" beside them. Two rows in the sections view |
 | `temperature_decimals` | `0` | `1` shows the temperature, "feels like" and the indoor temperature to one decimal, `21.5°`, in your language's format. `0` rounds them to whole degrees |
 | `show_location` | `true` | Show the location name |
-| `show_attributes` | `true` | Show the metric row, with the readings `metrics` names |
-| `metrics` | `[humidity, wind, pressure, sun]` | The readings in the metric row, in order: `humidity`, `wind`, `pressure`, `sun` (the next sunset or sunrise), `uv` (the UV index and its level) and `rain` (today's rain, or the rate while it rains). Four fit best. The editor sets four |
+| `show_attributes` | `true` | Show the readings' row |
+| `readings` | humidity, wind, pressure, sun | The readings, in order: a type, or a type with its `entity`. See [The readings](#the-readings) and [A reading](#a-reading) |
 | `uv_levels` | `[3, 6, 8, 11]` | Where the UV index's moderate, high, very high and extreme levels start, as four rising numbers. The WHO's by default |
+| `aqi_levels` | `[51, 101, 151, 201, 301]` | Where air quality's moderate, unhealthy for some, unhealthy, very unhealthy and hazardous levels start, as five rising numbers. The US EPA's by default |
 | `show_attribute_labels` | `true` | Show the metric labels |
 | `show_attribute_icons` | `true` | Show the metric icons |
-| `show_sun` | `true` | Show the next sunset or sunrise in the metric row. Needs `sun_entity`, or `latitude` and `longitude` |
 | `show_indoor` | `true` | Show the indoor reading |
 | `indoor_style` | `label` | How the indoor reading starts: `label` (the word "Indoors", translated), `icon` (a house) or `both` |
 | `show_flight_labels` | `true` | Show a tag beside each plane. Tags only appear in open sky, never over the temperature |
@@ -826,6 +838,21 @@ Set these under `custom_colors:`. Leave one out to keep the built-in colour.
 | `rain_color` | Same | Raindrops |
 | `snow_color` | Same | Snowflakes |
 | `fog_color` | Same | The fog. Colorized palette only; the theme palette's fog takes your theme's secondary text colour |
+
+#### A reading
+
+Each item in `readings` is a type on its own (`- humidity`), or:
+
+| Option | Description |
+| --- | --- |
+| `type` | `humidity`, `wind`, `pressure`, `sun`, `uv`, `rain`, `aqi`, `feels_like`, `dew_point`, `visibility`, `cloud_cover`, `gust`, `uv_max`, `rain_event`, `rain_week`, `rain_month`, `rain_year` or `sensor` |
+| `entity` | A sensor, or a weather entity to read the value from. Without it, the card's weather entity, for the types it reports. `rain`, `aqi`, `uv_max`, the rain totals and `sensor` need one |
+| `direction_entity` | `wind` only: a wind direction sensor, in degrees or a compass point |
+| `rate_entity` | `rain` only: the rain rate, shown instead of today's rain while it's above 0 |
+| `name` | `sensor` only: the label; else the entity's own name |
+| `view` | `true` shows the reading in the view that opens on tap, not in the card's row. Always so for `uv_max` and the rain totals |
+
+The options `readings` replaces still work without it: `metrics` (`[humidity, wind, pressure, sun]`, also `uv` and `rain`), `show_sun`, `humidity_sensor_entity`, `wind_speed_sensor_entity`, `wind_direction_sensor_entity`, `pressure_sensor_entity`, `uv_entity`, `uv_max_entity`, `rain_entity`, `rain_rate_entity` and `rain_event_entity`, `rain_week_entity`, `rain_month_entity`, `rain_year_entity`.
 
 ### Forecast card
 

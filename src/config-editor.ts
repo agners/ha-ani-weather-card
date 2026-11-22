@@ -5,7 +5,7 @@ import { DEFAULT_ENGINE_SETTINGS } from './constants';
 import { getConfigEditorStyles } from './styles/editor';
 import { skyColors, oklchToSrgb, toHex, SKY_TEXT } from './sky';
 import { escapeHtml, textField } from './utils';
-import { DEFAULT_METRICS, metricKinds } from './metrics';
+import { mountReadingsEditor, type ReadingsEditor } from './readings-editor';
 import { bindPlaceFields, placeFieldsHtml, PLACE_FIELDS_CSS } from './place-editor';
 import { ActionConfig, readActions } from './actions';
 import { mountActionsEditor, updateActionsEditor } from './action-editor';
@@ -27,6 +27,8 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
     private _config?: AnimatedWeatherCardConfig;
     private _hass?: HomeAssistant;
     private _initialized: boolean = false;
+    /** The readings' table (readings-editor.ts) */
+    private readingsEditor?: ReadingsEditor;
     private _suppressHandler?: (e: PromiseRejectionEvent) => void;
     private _suppressTimeout?: ReturnType<typeof setTimeout>;
     
@@ -153,42 +155,6 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
             </div>
             <div class="option">
               <ha-entity-picker
-                id="humidity_sensor_entity"
-                label="Humidity sensor"
-                value="${escapeHtml(this._config.humidity_sensor_entity || '')}"
-                helper="Falls back to the weather entity"
-                allow-custom-entity
-              ></ha-entity-picker>
-            </div>
-            <div class="option">
-              <ha-entity-picker
-                id="wind_speed_sensor_entity"
-                label="Wind speed sensor"
-                value="${escapeHtml(this._config.wind_speed_sensor_entity || '')}"
-                helper="Also sets how fast the weather moves. Falls back to the weather entity"
-                allow-custom-entity
-              ></ha-entity-picker>
-            </div>
-            <div class="option">
-              <ha-entity-picker
-                id="wind_direction_sensor_entity"
-                label="Wind direction sensor"
-                value="${escapeHtml(this._config.wind_direction_sensor_entity || '')}"
-                helper="Points the wind arrow: degrees, or a compass point like NW. Falls back to the weather entity"
-                allow-custom-entity
-              ></ha-entity-picker>
-            </div>
-            <div class="option">
-              <ha-entity-picker
-                id="pressure_sensor_entity"
-                label="Pressure sensor"
-                value="${escapeHtml(this._config.pressure_sensor_entity || '')}"
-                helper="Falls back to the weather entity"
-                allow-custom-entity
-              ></ha-entity-picker>
-            </div>
-            <div class="option">
-              <ha-entity-picker
                 id="indoor_temperature_entity"
                 label="Indoor temperature sensor"
                 value="${escapeHtml(this._config.indoor_temperature_entity || '')}"
@@ -219,78 +185,6 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
                 label="Moon phase sensor (optional)"
                 value="${escapeHtml(this._config.moon_entity || '')}"
                 helper="The Moon integration's sensor.moon_phase. The night's moon shows its phase; without one, the card works it out from the date"
-                allow-custom-entity
-              ></ha-entity-picker>
-            </div>
-            <div class="option">
-              <ha-entity-picker
-                id="uv_entity"
-                label="UV index sensor (optional)"
-                value="${escapeHtml(this._config.uv_entity || '')}"
-                helper="Such as OpenUV's current UV index, for the UV reading. Without one, the weather entity's own"
-                allow-custom-entity
-              ></ha-entity-picker>
-            </div>
-            <div class="option">
-              <ha-entity-picker
-                id="uv_max_entity"
-                label="Today's highest UV sensor (optional)"
-                value="${escapeHtml(this._config.uv_max_entity || '')}"
-                helper="Shown with the readings in the forecast that opens on tap"
-                allow-custom-entity
-              ></ha-entity-picker>
-            </div>
-            <div class="option">
-              <ha-entity-picker
-                id="rain_entity"
-                label="Today's rain sensor (optional)"
-                value="${escapeHtml(this._config.rain_entity || '')}"
-                helper="A station's daily rain, such as an Ecowitt's, for the rain reading"
-                allow-custom-entity
-              ></ha-entity-picker>
-            </div>
-            <div class="option">
-              <ha-entity-picker
-                id="rain_rate_entity"
-                label="Rain rate sensor (optional)"
-                value="${escapeHtml(this._config.rain_rate_entity || '')}"
-                helper="While it rains, the rain reading shows the rate"
-                allow-custom-entity
-              ></ha-entity-picker>
-            </div>
-            <div class="option">
-              <ha-entity-picker
-                id="rain_event_entity"
-                label="Rain event sensor (optional)"
-                value="${escapeHtml(this._config.rain_event_entity || '')}"
-                helper="This rain so far, in the forecast that opens on tap"
-                allow-custom-entity
-              ></ha-entity-picker>
-            </div>
-            <div class="option">
-              <ha-entity-picker
-                id="rain_week_entity"
-                label="This week's rain sensor (optional)"
-                value="${escapeHtml(this._config.rain_week_entity || '')}"
-                helper="In the forecast that opens on tap"
-                allow-custom-entity
-              ></ha-entity-picker>
-            </div>
-            <div class="option">
-              <ha-entity-picker
-                id="rain_month_entity"
-                label="This month's rain sensor (optional)"
-                value="${escapeHtml(this._config.rain_month_entity || '')}"
-                helper="In the forecast that opens on tap"
-                allow-custom-entity
-              ></ha-entity-picker>
-            </div>
-            <div class="option">
-              <ha-entity-picker
-                id="rain_year_entity"
-                label="This year's rain sensor (optional)"
-                value="${escapeHtml(this._config.rain_year_entity || '')}"
-                helper="In the forecast that opens on tap"
                 allow-custom-entity
               ></ha-entity-picker>
             </div>
@@ -345,10 +239,9 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
               </label>
             </div>
             <div class="option sub-option" id="metrics-option" style="display: ${this._config.show_attributes !== false ? 'block' : 'none'}">
-              <div class="metric-slots">
-                ${[0, 1, 2, 3].map(i => `<ha-select id="metric_${i}" label="Reading ${i + 1}"></ha-select>`).join('')}
-              </div>
-              ${textField({ id: 'uv_levels', label: 'UV levels start at', placeholder: '3, 6, 8, 11', value: Array.isArray(this._config.uv_levels) ? this._config.uv_levels.join(', ') : (this._config.uv_levels as string | undefined), hint: 'Moderate, high, very high and extreme. The level\'s word follows the UV index, and its icon takes its colour' })}
+              <div id="readings-table" class="readings-table"></div>
+              <div data-levels-for="uv">${textField({ id: 'uv_levels', label: 'UV levels start at', placeholder: '3, 6, 8, 11', value: Array.isArray(this._config.uv_levels) ? this._config.uv_levels.join(', ') : (this._config.uv_levels as string | undefined), hint: 'Moderate, high, very high and extreme. The level\'s word follows the UV index, and its icon takes its colour' })}</div>
+              <div data-levels-for="aqi">${textField({ id: 'aqi_levels', label: 'AQI levels start at', placeholder: '51, 101, 151, 201, 301', value: Array.isArray(this._config.aqi_levels) ? this._config.aqi_levels.join(', ') : (this._config.aqi_levels as string | undefined), hint: 'Moderate, unhealthy for some, unhealthy, very unhealthy and hazardous: the US EPA\'s unless your sensor uses another scale' })}</div>
             </div>
             <div class="option sub-option" id="attribute-labels-option" style="display: ${this._config.show_attributes !== false ? 'block' : 'none'}">
               <label class="switch-label">
@@ -360,12 +253,6 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
               <label class="switch-label">
                 <ha-switch id="show_attribute_icons" ${this._config.show_attribute_icons !== false ? 'checked' : ''}></ha-switch>
                 <span>Icons</span>
-              </label>
-            </div>
-            <div class="option">
-              <label class="switch-label">
-                <ha-switch id="show_sun" ${this._config.show_sun !== false ? 'checked' : ''}></ha-switch>
-                <span>Next sunrise or sunset</span>
               </label>
             </div>
             <div class="option">
@@ -775,22 +662,6 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
             this._updateConfig('name', (e.target as HTMLInputElement).value);
         });
 
-        this.querySelector('#humidity_sensor_entity')?.addEventListener('value-changed', (e) => {
-            this._updateConfig('humidity_sensor_entity', (e.target as HTMLInputElement).value);
-        });
-
-        this.querySelector('#pressure_sensor_entity')?.addEventListener('value-changed', (e) => {
-            this._updateConfig('pressure_sensor_entity', (e.target as HTMLInputElement).value);
-        });
-
-        this.querySelector('#wind_speed_sensor_entity')?.addEventListener('value-changed', (e) => {
-            this._updateConfig('wind_speed_sensor_entity', (e.target as HTMLInputElement).value);
-        });
-
-        this.querySelector('#wind_direction_sensor_entity')?.addEventListener('value-changed', (e) => {
-            this._updateConfig('wind_direction_sensor_entity', (e.target as HTMLInputElement).value);
-        });
-
         this.querySelector('#indoor_temperature_entity')?.addEventListener('value-changed', (e) => {
             this._updateConfig('indoor_temperature_entity', (e.target as HTMLInputElement).value);
         });
@@ -807,11 +678,6 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
             this._updateConfig('moon_entity', (e.target as HTMLInputElement).value);
         });
 
-        for (const id of ['uv_entity', 'uv_max_entity', 'rain_entity', 'rain_rate_entity', 'rain_event_entity', 'rain_week_entity', 'rain_month_entity', 'rain_year_entity']) {
-            this.querySelector(`#${id}`)?.addEventListener('value-changed', (e) => {
-                this._updateConfig(id, (e.target as HTMLInputElement).value);
-            });
-        }
 
         this.querySelector('#flights_entity')?.addEventListener('value-changed', (e) => {
             this._updateConfig('flights_entity', (e.target as HTMLInputElement).value);
@@ -968,32 +834,23 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
             if (skyNote) skyNote.style.display = value === 'default' ? 'block' : 'none';
             this._syncColorResets();
         });
-        // The four readings, in order. Picking the row as it always was writes no YAML; readings past the fourth,
-        // set in YAML, are kept after them
-        const metricOptions = [
-            { value: 'humidity', label: 'Humidity' },
-            { value: 'wind', label: 'Wind' },
-            { value: 'pressure', label: 'Pressure' },
-            { value: 'sun', label: 'Next sunrise or sunset' },
-            { value: 'uv', label: 'UV index' },
-            { value: 'rain', label: 'Rain today, or the rate while it rains' },
-            { value: 'none', label: 'Nothing' },
-        ];
-        for (let i = 0; i < 4; i++) {
-            this._bindSelect(`metric_${i}`, metricOptions, metricKinds(this._config ?? {})[i] ?? 'none', (value) => {
-                const now = metricKinds(this._config ?? {});
-                const slots = [0, 1, 2, 3].map(j => (j === i ? value : now[j] ?? 'none'));
-                const list = [...slots.filter(k => k !== 'none'), ...now.slice(4)].filter((k, j, all) => all.indexOf(k) === j);
-                const same = list.length === DEFAULT_METRICS.length && list.every((k, j) => k === DEFAULT_METRICS[j]);
-                this._updateConfig('metrics', same ? undefined : list);
-            });
-        }
+        // The readings, as a table of their own (readings-editor.ts): only an edit there writes `readings`
+        const table = this.querySelector('.readings-table') as HTMLElement | null;
+        this.readingsEditor = table ? mountReadingsEditor(table, () => this._config ?? {}, patch => this._patchConfig(patch)) : undefined;
+        this.readingsEditor?.hass(this._hass);
         this.querySelector('#uv_levels')?.addEventListener('change', (e) => {
             const raw = (e.target as HTMLInputElement).value.trim();
             const n = raw.split(',').map(v => parseFloat(v));
             const valid = n.length === 4 && n.every((v, j) => isFinite(v) && (j === 0 || v > n[j - 1]));
             // Four rising numbers are written as a list; anything else as typed, which the card reads as the WHO's levels
             this._updateConfig('uv_levels', !raw ? undefined : valid ? n : raw);
+        });
+        this.querySelector('#aqi_levels')?.addEventListener('change', (e) => {
+            const raw = (e.target as HTMLInputElement).value.trim();
+            const n = raw.split(',').map(v => parseFloat(v));
+            const valid = n.length === 5 && n.every((v, j) => isFinite(v) && (j === 0 || v > n[j - 1]));
+            // Five rising numbers are written as a list; anything else as typed, which the card reads as the EPA's levels
+            this._updateConfig('aqi_levels', !raw ? undefined : valid ? n : raw);
         });
 
         bindPlaceFields(this, patch => { for (const [key, value] of Object.entries(patch)) this._updateConfig(key, value); });
@@ -1046,10 +903,6 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
 
         this.querySelector('#show_indoor')?.addEventListener('change', (e) => {
             this._updateConfig('show_indoor', (e.target as HTMLInputElement).checked);
-        });
-
-        this.querySelector('#show_sun')?.addEventListener('change', (e) => {
-            this._updateConfig('show_sun', (e.target as HTMLInputElement).checked);
         });
 
         this.querySelector('#show_flight_labels')?.addEventListener('change', (e) => {
@@ -1276,6 +1129,17 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
         status.hidden = !text;
     }
 
+    /** Several keys at once (undefined removes one), told to Home Assistant once */
+    _patchConfig(patch: Record<string, unknown>) {
+        if (!this._config) this._config = {};
+        const c = this._config as Record<string, unknown>;
+        for (const [key, value] of Object.entries(patch)) {
+            if (value === '' || value === null || value === undefined) delete c[key];
+            else c[key] = value;
+        }
+        this._fireConfigChanged();
+    }
+
     _updateConfig(key: string, value: any) {
         if (!this._config) {
             this._config = {};
@@ -1415,27 +1279,16 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
         }
         this.syncNoteOptions();
         updateActionsEditor(this.querySelector('#actions-editor'), this._hass);
+        this.readingsEditor?.hass(this._hass);
 
         const pickers = [
             { id: '#entity', domains: ['weather'] },
             { id: '#outdoor_sensor_entity', domains: ['sensor'] },
             { id: '#feels_like_entity', domains: ['sensor'] },
-            { id: '#humidity_sensor_entity', domains: ['sensor'] },
-            { id: '#pressure_sensor_entity', domains: ['sensor'] },
-            { id: '#wind_speed_sensor_entity', domains: ['sensor'] },
-            { id: '#wind_direction_sensor_entity', domains: ['sensor'] },
             { id: '#indoor_temperature_entity', domains: ['sensor'] },
             { id: '#indoor_humidity_entity', domains: ['sensor'] },
             { id: '#sun_entity', domains: ['sun'] },
             { id: '#moon_entity', domains: ['sensor'] },
-            { id: '#uv_entity', domains: ['sensor'] },
-            { id: '#uv_max_entity', domains: ['sensor'] },
-            { id: '#rain_entity', domains: ['sensor'] },
-            { id: '#rain_rate_entity', domains: ['sensor'] },
-            { id: '#rain_event_entity', domains: ['sensor'] },
-            { id: '#rain_week_entity', domains: ['sensor'] },
-            { id: '#rain_month_entity', domains: ['sensor'] },
-            { id: '#rain_year_entity', domains: ['sensor'] },
             { id: '#flights_entity', domains: ['sensor'] },
             { id: '#note_entity', domains: ['sensor', 'input_text'] },
             { id: '#note_ai_task_entity', domains: ['ai_task'] },

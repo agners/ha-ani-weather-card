@@ -120,13 +120,37 @@ ${iconBoxCss('.card-config')}
         }
 
         /* The four readings, two a line */
-        .metric-slots {
+        /* The readings' table (readings-editor.ts): one bordered row per reading, its tools at its foot */
+        .readings-table { display: grid; gap: 10px; margin-bottom: 12px; }
+        .rd-list { display: grid; gap: 8px; }
+        .rd-row {
           display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 8px 12px;
-          margin-bottom: 12px;
+          gap: 8px;
+          padding: 12px;
+          border: 1px solid var(--divider-color, rgba(127, 127, 127, 0.3));
+          border-radius: 12px;
         }
-        .metric-slots ha-select { width: 100%; }
+        .rd-fields { display: grid; gap: 8px; min-width: 0; }
+        .rd-fields ha-select, .rd-fields ha-entity-picker, .rd-fields ha-input, .rd-fields ha-textfield { display: block; width: 100%; }
+        .rd-tools { display: flex; align-items: center; gap: 6px; }
+
+        .rd-btn {
+          display: grid; place-items: center; width: 32px; height: 32px; padding: 0;
+          border: 1px solid var(--divider-color, rgba(127, 127, 127, 0.3)); border-radius: 8px;
+          background: none; color: var(--primary-text-color); font: inherit; font-size: 15px; cursor: pointer;
+        }
+        .rd-btn:disabled { opacity: 0.35; cursor: default; }
+        .rd-add {
+          justify-self: start; padding: 8px 14px;
+          border: 1px dashed var(--divider-color, rgba(127, 127, 127, 0.4)); border-radius: 10px;
+          background: none; color: var(--primary-color); font: inherit; font-weight: 500; cursor: pointer;
+        }
+        .rd-btn:focus-visible, .rd-add:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+        .rd-note, .rd-view-fixed { margin: 0; font-size: 12px; line-height: 16px; color: var(--secondary-text-color); }
+        /* View only leads the tools; the moves and remove keep the row's end */
+        .rd-tools .rd-view, .rd-tools .rd-view-fixed { margin-right: auto; }
+        .rd-warn { margin: 0; font-size: 12px; line-height: 16px; color: var(--warning-color, #b26a00); }
+        [data-levels-for][hidden] { display: none; }
 
         /* ── Weather engine sliders ──────────────────────────────────────── */
         .engine-grid {
