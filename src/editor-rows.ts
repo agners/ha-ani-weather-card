@@ -1,6 +1,7 @@
-// The weather card's editor, as a table of rows (the editor bundle): which options each row holds, whether it's one of
+// The three cards' editors, as tables of rows (the editor bundle): which options each row holds, whether it's one of
 // the basics or shows only with "Show all settings", when it applies, and whether the card's config has changed it.
-// No DOM and no strings shown, so a test can hold every option to a row.
+// No DOM and no strings shown, so a test can hold every option to a row. The weather card's table is ROWS, SECTIONS,
+// DRAWERS and DEFAULTS (WEATHER_TABLE); the forecast card's and the tracker's are FORECAST_TABLE and TRACKER_TABLE.
 //
 // A row shows when it applies and is a basic one, or all settings are on, or the config has changed one of its options
 // from its default: the switch filters defaults, never what you've set. "Changed" means a value other than the
@@ -44,7 +45,7 @@ const empty = (v: unknown) => v === undefined || v === null || (typeof v === 'st
 const nightOf = (v: unknown) => (v === true ? 'on' : v === false ? 'off' : v);
 
 /** One option, other than its default? `engine_settings.rainCount` and `custom_colors.sunny_bg` reach inside */
-export function isChanged(config: Config, key: string): boolean {
+export function isChanged(config: object, key: string, defaults: Readonly<Record<string, unknown>> = DEFAULTS): boolean {
     const c = config as Record<string, unknown>;
     if (key.startsWith('engine_settings.')) {
         const k = key.slice(16) as keyof typeof DEFAULT_ENGINE_SETTINGS;
@@ -55,8 +56,8 @@ export function isChanged(config: Config, key: string): boolean {
     if (key.startsWith('custom_colors.')) return !empty((c.custom_colors as Record<string, unknown> | undefined)?.[key.slice(14)]);
     const v = c[key];
     if (empty(v)) return false;
-    if (!(key in DEFAULTS)) return true;
-    const d = DEFAULTS[key];
+    if (!(key in defaults)) return true;
+    const d = defaults[key];
     if (key === 'night') return nightOf(v) !== d;
     if (key === 'wake_time') return String(v).replace(/^(\d):/, '0$1:') !== d;
     if (typeof d === 'number') return Number(v) !== d;
@@ -68,22 +69,29 @@ export const tapDefault = (c: Config): string => (c.layout === 'nightstand' ? 'n
 
 const action = (v: unknown): string | undefined => (v && typeof v === 'object' && typeof (v as { action?: unknown }).action === 'string' ? (v as { action: string }).action : undefined);
 
+/** The gestures changed: a tap other than the card's own default, or a hold or double tap that does something */
+function actionsChanged(c: { tap_action?: unknown; hold_action?: unknown; double_tap_action?: unknown }, tap: string): boolean {
+    const set = action(c.tap_action);
+    const other = (v: unknown) => { const a = action(v); return a !== undefined && a !== 'none'; };
+    return (set !== undefined && set !== tap) || other(c.hold_action) || other(c.double_tap_action);
+}
+
 export const ENGINE_KEYS = Object.keys(DEFAULT_ENGINE_SETTINGS).map(k => `engine_settings.${k}`);
 export const SKY_COLOR_KEYS = ['sunny_bg', 'cloudy_bg', 'rainy_bg', 'stormy_bg', 'snowy_bg', 'windy_bg', 'fog_color'].map(k => `custom_colors.${k}`);
 export const INK_COLOR_KEYS = ['temperature_color', 'text_color', 'sun_color', 'rain_color', 'snow_color'].map(k => `custom_colors.${k}`);
 
 export type Tier = 'basic' | 'all';
 
-export interface RowSpec {
+export interface RowSpec<C = Config> {
     tier: Tier;
     /** The options it holds */
     keys: readonly string[];
     /** When it applies; a changed row shows even when it doesn't, so nothing set is ever hidden */
-    when?: (c: Config, x: RowContext) => boolean;
+    when?: (c: C, x: RowContext) => boolean;
     /** Changed, when it isn't simply one of its keys differing from its default */
-    changed?: (c: Config) => boolean;
+    changed?: (c: C) => boolean;
     /** A basic row only in this case (the AI Task, with no default) */
-    promote?: (c: Config, x: RowContext) => boolean;
+    promote?: (c: C, x: RowContext) => boolean;
     /** Text that explains why something else doesn't apply: it never counts as changed, nor alone shows its section */
     reason?: true;
 }
@@ -172,14 +180,7 @@ export const ROWS: Readonly<Record<string, RowSpec>> = {
     planes_on_load: { tier: 'all', keys: ['planes_on_load'], when: c => !!c.flights_entity },
 
     // Interactions
-    actions: {
-        tier: 'all', keys: ['tap_action', 'hold_action', 'double_tap_action'],
-        changed: c => {
-            const tap = action(c.tap_action);
-            const other = (v: unknown) => { const a = action(v); return a !== undefined && a !== 'none'; };
-            return (tap !== undefined && tap !== tapDefault(c)) || other(c.hold_action) || other(c.double_tap_action);
-        },
-    },
+    actions: { tier: 'all', keys: ['tap_action', 'hold_action', 'double_tap_action'], changed: c => actionsChanged(c, tapDefault(c)) },
 
     // Simulated weather
     dev_mode: { tier: 'all', keys: ['dev_mode'] },
@@ -206,19 +207,30 @@ export const SECTIONS: Readonly<Record<string, readonly string[]>> = {
 /** The sections that open and close */
 export const DRAWERS: readonly string[] = ['readings', 'sky', 'colors', 'planes', 'interactions'];
 
+/** A card's editor as a table: its rows, its sections in order, the ones that open and close, its options' defaults */
+export interface RowTable<C = Config> {
+    rows: Readonly<Record<string, RowSpec<C>>>;
+    sections: Readonly<Record<string, readonly string[]>>;
+    drawers: readonly string[];
+    defaults: Readonly<Record<string, unknown>>;
+}
+
+/** The weather card's */
+export const WEATHER_TABLE: RowTable = { rows: ROWS, sections: SECTIONS, drawers: DRAWERS, defaults: DEFAULTS };
+
 /** The row changed in this config? */
-export function rowChanged(id: string, config: Config): boolean {
-    const spec = ROWS[id];
+export function rowChanged<C = Config>(id: string, config: C, table: RowTable<C> = WEATHER_TABLE as unknown as RowTable<C>): boolean {
+    const spec = table.rows[id];
     if (!spec || spec.reason) return false;
-    return spec.changed ? spec.changed(config) : spec.keys.some(k => isChanged(config, k));
+    return spec.changed ? spec.changed(config) : spec.keys.some(k => isChanged(config as object, k, table.defaults));
 }
 
 /**
  * Does the row show? `pinned` holds the rows the config has changed this session: they stay, so a value cleared
  * under the finger doesn't take its field with it
  */
-export function rowShown(id: string, config: Config, x: RowContext, pinned: ReadonlySet<string>): boolean {
-    const spec = ROWS[id];
+export function rowShown<C = Config>(id: string, config: C, x: RowContext, pinned: ReadonlySet<string>, table: RowTable<C> = WEATHER_TABLE as unknown as RowTable<C>): boolean {
+    const spec = table.rows[id];
     if (!spec) return false;
     if (pinned.has(id)) return true;
     if (spec.when && !spec.when(config, x)) return false;
@@ -229,6 +241,91 @@ export function rowShown(id: string, config: Config, x: RowContext, pinned: Read
  * Does a section show? When one of its rows does, other than a reason: a reason only explains what's there (the
  * nightstand's own section appears on a regular card only when one of its options is set)
  */
-export function sectionShown(ids: readonly string[], config: Config, x: RowContext, pinned: ReadonlySet<string>): boolean {
-    return ids.some(id => !ROWS[id]?.reason && rowShown(id, config, x, pinned));
+export function sectionShown<C = Config>(ids: readonly string[], config: C, x: RowContext, pinned: ReadonlySet<string>, table: RowTable<C> = WEATHER_TABLE as unknown as RowTable<C>): boolean {
+    return ids.some(id => !table.rows[id]?.reason && rowShown(id, config, x, pinned, table));
 }
+
+// The forecast card's editor: the weather, the card or the strip, and the colours are its basics
+
+/** What the forecast card does when an option is left out */
+export const FORECAST_DEFAULTS: Readonly<Record<string, unknown>> = {
+    compact: false, color_palette: 'default', show_hours: true, forecast_days: 7, forecast_metric: 'temp', forecast_graph: 'line',
+    weather_effects: false, sun_entity: 'sun.sun', dev_mode: false,
+};
+
+const strip = (c: Config) => !!c.compact;
+/** The strip is the hours alone, so it always has them; the card has them unless show_hours is off */
+const hoursShown = (c: Config) => strip(c) || c.show_hours !== false;
+
+export const FORECAST_TABLE: RowTable = {
+    rows: {
+        entity: { tier: 'basic', keys: ['entity'] },
+        layout: { tier: 'basic', keys: ['compact'] },
+        color_palette: { tier: 'basic', keys: ['color_palette'] },
+        show_hours: { tier: 'all', keys: ['show_hours'], when: c => !strip(c) },
+        forecast_days: { tier: 'all', keys: ['forecast_days'], when: c => !strip(c) },
+        forecast_metric: { tier: 'all', keys: ['forecast_metric'], when: hoursShown },
+        forecast_graph: { tier: 'all', keys: ['forecast_graph'], when: hoursShown },
+        weather_effects: { tier: 'all', keys: ['weather_effects'] },
+        sun_entity: { tier: 'all', keys: ['sun_entity'] },
+        another_place: { tier: 'all', keys: ['latitude', 'longitude', 'time_zone'] },
+        place_fields: { tier: 'all', keys: ['latitude', 'longitude', 'time_zone'], when: (_, x) => x.place },
+        // A tap opens the forecast's view by default
+        actions: { tier: 'all', keys: ['tap_action', 'hold_action', 'double_tap_action'], changed: c => actionsChanged(c, 'forecast') },
+        dev_mode: { tier: 'all', keys: ['dev_mode'] },
+    },
+    sections: {
+        forecast: ['entity', 'layout', 'color_palette'],
+        shows: ['show_hours', 'forecast_days', 'forecast_metric', 'forecast_graph', 'weather_effects'],
+        sky: ['sun_entity', 'another_place', 'place_fields'],
+        interactions: ['actions'],
+        dev: ['dev_mode'],
+    },
+    drawers: [],
+    defaults: FORECAST_DEFAULTS,
+};
+
+// The sun tracker's editor: the sun, regular or compact, and the colours are its basics
+
+/** The tracker's options, as its editor reads them */
+export interface TrackerOptions {
+    sun_entity?: string; compact?: boolean; color_palette?: string; title?: string; show_header?: boolean; show_details?: boolean;
+    moon_entity?: string; weather_entity?: string; direction?: string; latitude?: number | string; longitude?: number | string;
+    time_zone?: string; tap_action?: unknown; hold_action?: unknown; double_tap_action?: unknown; dev_mode?: boolean;
+}
+
+/** What the tracker does when an option is left out */
+export const TRACKER_DEFAULTS: Readonly<Record<string, unknown>> = {
+    compact: false, color_palette: 'default', show_header: true, show_details: true, direction: 'auto', dev_mode: false,
+};
+
+/** The compact tracker has no title and no details */
+const full = (c: TrackerOptions) => !c.compact;
+
+export const TRACKER_TABLE: RowTable<TrackerOptions> = {
+    rows: {
+        sun_entity: { tier: 'basic', keys: ['sun_entity'] },
+        layout: { tier: 'basic', keys: ['compact'] },
+        color_palette: { tier: 'basic', keys: ['color_palette'] },
+        title: { tier: 'all', keys: ['title'], when: full },
+        show_header: { tier: 'all', keys: ['show_header'] },
+        show_details: { tier: 'all', keys: ['show_details'], when: full },
+        moon_entity: { tier: 'all', keys: ['moon_entity'], when: c => full(c) && c.show_details !== false },
+        direction: { tier: 'all', keys: ['direction'] },
+        weather_entity: { tier: 'all', keys: ['weather_entity'] },
+        another_place: { tier: 'all', keys: ['latitude', 'longitude', 'time_zone'] },
+        place_fields: { tier: 'all', keys: ['latitude', 'longitude', 'time_zone'], when: (_, x) => x.place },
+        // A tap opens the sun's details by default
+        actions: { tier: 'all', keys: ['tap_action', 'hold_action', 'double_tap_action'], changed: c => actionsChanged(c, 'more-info') },
+        dev_mode: { tier: 'all', keys: ['dev_mode'] },
+    },
+    sections: {
+        sun: ['sun_entity', 'layout', 'color_palette'],
+        shows: ['title', 'show_header', 'show_details', 'moon_entity', 'direction'],
+        sky: ['weather_entity', 'another_place', 'place_fields'],
+        interactions: ['actions'],
+        dev: ['dev_mode'],
+    },
+    drawers: [],
+    defaults: TRACKER_DEFAULTS,
+};

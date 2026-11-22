@@ -172,7 +172,7 @@ To update a manual install, overwrite the files and raise the `?v=` number in th
 1. Edit your dashboard, select **Add card** and search for **Animated Weather Card**. It starts on your weather entity and `sun.sun`.
 2. If you have more than one weather entity, pick the one you want. That's enough to start.
 3. The editor opens on the basics: the place name, the layout (regular, compact or nightstand), the sky's colours or your theme's, the forecast and the weather note.
-4. Everything else is under **Show all settings**, the advanced settings switch at the top. It adds settings inside the same sections, and five more sections that open when you tap them: **Readings**, **Sky and motion**, **Custom colors**, **Planes** and **Interactions**. The editor remembers it in this browser; it's never part of the card's YAML. Any setting you've changed shows with the switch off too.
+4. Everything else is under **Show all settings**, the advanced settings switch at the top. It adds settings inside the same sections, and five more sections that open when you tap them: **Readings**, **Sky and motion**, **Custom colors**, **Planes** and **Interactions**. The editor remembers it in this browser; it's never part of the card's YAML. Any setting you've changed shows with the switch off too. The forecast card's and the sun tracker's editors open on their basics the same way, with the same switch.
 
 For the sun tracker, search for **Animated Sun Tracker**. It starts on `sun.sun`, with your moon sensor if you have one. For the forecast card, search for **Animated Forecast**. It starts on your weather entity.
 
@@ -543,6 +543,7 @@ cards:
 | `forecast_metric` | `temp` | What the row shows first: `temp`, `feels`, `chance` or `amount` |
 | `forecast_graph` | `line` | The hours' graph, the same for every metric: `line`, `area` (the line over a soft fill), `bars`, or `none` (the values alone) |
 | `color_palette` | `default` | `default` for the sky, or `theme` for your dashboard's colours |
+| `dev_mode` | `false` | The card always runs on the [dev card](#the-dev-card)'s simulated weather, and needs no `entity`, as the weather card's `dev_mode` |
 | `tap_action` | `forecast` | What a tap does. By default it opens the view that opens on tap. Takes the same actions as the weather card |
 | `hold_action` | `none` | What a press of half a second or more does |
 | `double_tap_action` | `none` | What a double tap does |
@@ -869,6 +870,7 @@ Its options, with examples, are under [The forecast card](#the-forecast-card).
 | `show_details` | `true` | Show first and last light, solar noon, daylight and the moon phase. The compact tracker has no details |
 | `color_palette` | `default` | `default` for the sky, or `theme` for your dashboard's colours |
 | `direction` | `auto` | Which way the sun crosses the path. `auto` runs it right to left south of the equator, from your Home Assistant location, and left to right north of it. `left_to_right` or `right_to_left` sets it |
+| `dev_mode` | `false` | The tracker always runs on the [dev card](#the-dev-card)'s simulated sun and sky, and needs no `sun_entity` |
 | `tap_action` | `more-info` | What a tap does. By default it opens the sun entity's details. Takes the same actions as the weather card, except `forecast` |
 | `hold_action` | `none` | What a press of half a second or more does |
 | `double_tap_action` | `none` | What a double tap does |

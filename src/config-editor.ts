@@ -1,7 +1,8 @@
 // The weather card's visual editor (the editor bundle). One short page of basics, and "Show all settings" for the
 // rest: the switch adds rows inside the same sections and five drawers after them, and never moves anything above
 // it. Any option the card's config has changed from its default shows in either mode, so nothing set is hidden.
-// Which row shows when is the table in editor-rows.ts; here is how each row looks and what it writes.
+// Which row shows when is the table in editor-rows.ts, and the parts the three editors share are in editor-kit.ts;
+// here is how each row looks and what it writes.
 //
 // The editor draws itself once, and again only when the config's set of keys changes from outside (a YAML edit).
 // Every edit after that writes the config and shows or hides rows by attribute (`sync`), so focus, open drawers and
@@ -16,7 +17,8 @@ import { mountReadingsEditor, readingLabel, type ReadingsEditor } from './readin
 import { bindPlaceFields, placeFieldsHtml, PLACE_FIELDS_CSS } from './place-editor';
 import { ActionConfig, readActions } from './actions';
 import { mountActionsEditor, updateActionsEditor } from './action-editor';
-import { DRAWERS, ROWS, SECTIONS, isChanged, rowChanged, rowShown, sectionShown, tapDefault, type RowContext } from './editor-rows';
+import { DRAWERS, WEATHER_TABLE, isChanged, tapDefault, type RowContext } from './editor-rows';
+import { CHEVRON, INFO, allSaid, allSwitch, picker, raf, reveal, row, section, seg as kitSeg, select, storeAll, storedAll, sw, syncRows, why } from './editor-kit';
 import { readingsOf } from './readings';
 
 type Config = AnimatedWeatherCardConfig;
@@ -35,32 +37,6 @@ export const GRAPH_OPTIONS = [
     { value: 'bars', label: 'Bars' },
     { value: 'none', label: 'No graph, the values alone' },
 ];
-
-/** Where the switch is kept, per browser; the forecast card's and the tracker's editors can share it later */
-const STORE = 'animated-weather-card:editor-all';
-function storedAll(): boolean {
-    try { return localStorage.getItem(STORE) === '1'; } catch { return false; }
-}
-function storeAll(on: boolean): void {
-    try { localStorage.setItem(STORE, on ? '1' : '0'); } catch { /* the switch still works for this visit */ }
-}
-
-const raf = (f: () => void) => (typeof requestAnimationFrame === 'function' ? requestAnimationFrame(f) : setTimeout(f, 16));
-
-/**
- * Open or close a reveal. It clips its content only while it moves: once open (after its 260 ms at most, or at once
- * when nothing animates) it's `data-settled`, so a menu or a focus ring inside isn't cut off; closing clips again first
- */
-export function reveal(el: Element, open: boolean, instant = false): void {
-    if (el.hasAttribute('data-open') === open) return;
-    el.toggleAttribute('data-open', open);
-    if (!open) el.removeAttribute('data-settled');
-    else if (instant) el.setAttribute('data-settled', '');
-    else setTimeout(() => { if (el.hasAttribute('data-open')) el.setAttribute('data-settled', ''); }, 300);
-}
-
-const CHEVRON = '<svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.4 8.6 12 13.2l4.6-4.6L18 10l-6 6-6-6z"/></svg>';
-const INFO = '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16z"/></svg>';
 
 /** The seven engine sliders: their keys, labels and the ranges the editor offers (YAML takes wider ones) */
 const AMOUNTS: Array<[key: keyof typeof DEFAULT_ENGINE_SETTINGS, label: string, input: string]> = [
@@ -82,17 +58,6 @@ const INK_SWATCHES: Array<[string, string]> = [
 ];
 
 let editors = 0;
-
-// The rows' markup. Labels are the editor's own text; anything from the config goes through escapeHtml
-
-/** A row: the reveal that shows and hides it, around its content */
-const row = (id: string, inner: string) => `<div class="rv" data-row="${id}"><div class="rv-in"><div class="row">${inner}</div></div></div>`;
-const sw = (id: string, label: string, checked: boolean, help = '') =>
-    `<label class="sw"><span class="sw-t"><span class="sw-l">${label}</span>${help ? `<span class="sw-h">${help}</span>` : ''}</span><ha-switch id="${id}"${checked ? ' checked' : ''}></ha-switch></label>`;
-const picker = (id: string, label: string, value: unknown, helper = '') =>
-    `<ha-entity-picker id="${id}" label="${escapeHtml(label)}" value="${escapeHtml(String(value ?? ''))}"${helper ? ` helper="${escapeHtml(helper)}"` : ''} allow-custom-entity></ha-entity-picker>`;
-const select = (id: string, label: string, help = '') => `<ha-select id="${id}" label="${escapeHtml(label)}"></ha-select>${help ? `<p class="help">${help}</p>` : ''}`;
-const why = (text: string) => `<p class="why">${INFO}<span>${text}</span></p>`;
 
 export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCardEditor {
     private _config?: Config;
@@ -212,14 +177,10 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
         const colors = (c.custom_colors || {}) as Record<string, string | undefined>;
         const layout = c.layout === 'nightstand' ? 'nightstand' : c.compact ? 'compact' : 'default';
 
-        const seg = (key: string, legend: string, options: Array<[string, string]>, current: string) =>
-            `<fieldset class="seg" id="${key}"><legend class="seg-l">${legend}</legend><div class="seg-track">${options.map(([value, label]) =>
-                `<label><input type="radio" name="awc-${key}-${id}" value="${value}"${value === current ? ' checked' : ''}><span>${label}</span></label>`).join('')}</div><p class="help" data-help="${key}"></p></fieldset>`;
+        const seg = (key: string, legend: string, options: Array<[string, string]>, current: string) => kitSeg(key, legend, options, current, id);
         const swatch = ([key, label]: [string, string], ink: boolean) =>
             `<div class="swc"><span class="chip${ink ? ` ink ink-${key.replace('_color', '')}` : ''}"><input type="color" id="${key}" value="${escapeHtml(colors[key] || AnimatedWeatherCardEditor.DEFAULT_COLORS[key])}"></span>`
             + `<label for="${key}">${label}</label><button type="button" class="tb color-reset" data-target="${key}" aria-label="Reset ${label}"${colors[key] ? '' : ' data-off'}>Reset</button></div>`;
-        const section = (key: string, title: string, body: string) =>
-            `<section class="rv grp" data-sec="${key}"><div class="rv-in"><div class="grp-b">${title ? `<h3 class="grp-h">${title}</h3>` : ''}${body}</div></div></section>`;
         const drawer = (key: string, title: string, body: string, i: number) =>
             `<section class="rv drw" data-sec="${key}" style="--i:${i}"><div class="rv-in"><div class="drw-b">`
             + `<h3 class="drw-h"><button type="button" class="drw-btn" data-drawer="${key}" aria-expanded="false" aria-controls="awc-${key}-${id}">`
@@ -228,10 +189,7 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
 
         this.innerHTML = `
       <div class="card-config" data-instant>
-        <div class="top">
-          ${sw('all_settings', 'Show all settings', this.all, 'Settings you\'ve changed always show')}
-          <span class="vh" aria-live="polite" data-live></span>
-        </div>
+        ${allSwitch(this.all)}
 
         ${section('weather', 'Weather', [
             row('entity', `${picker('entity', 'Weather entity', c.entity)}<p class="status" role="status" data-status="entity" hidden>${INFO}<span>Pick a weather entity to start.</span></p>`),
@@ -351,7 +309,7 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
             storeAll(this.all);
             this.sync();
             const live = this.querySelector('[data-live]');
-            if (live) live.textContent = this.all ? 'All settings shown. More sections at the end.' : 'Showing the basics, and the settings you\'ve changed.';
+            if (live) live.textContent = allSaid(this.all, true);
         });
 
         // Weather
@@ -633,20 +591,10 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
         const c = this._config ?? {};
         const x = this.ctx();
         const instant = root.hasAttribute('data-instant');
-        for (const id of Object.keys(ROWS)) if (rowChanged(id, c)) this.pinned.add(id);
         root.toggleAttribute('data-all', x.all);
-        this.querySelectorAll<HTMLElement>('[data-row]').forEach(el => reveal(el, rowShown(el.dataset.row!, c, x, this.pinned), instant));
-        let drawers = false;
-        for (const [key, ids] of Object.entries(SECTIONS)) {
-            const shown = sectionShown(ids, c, x, this.pinned);
-            const sec = this.querySelector(`[data-sec="${key}"]`);
-            if (sec) reveal(sec, shown, instant);
-            if (shown && DRAWERS.includes(key)) drawers = true;
-        }
+        const drawers = syncRows(root, WEATHER_TABLE, c, x, this.pinned, instant);
         const list = this.querySelector('[data-drawers]');
         if (list) reveal(list, drawers, instant);
-        const allSwitch = this.querySelector('#all_settings') as HTMLInputElement | null;
-        if (allSwitch && allSwitch.checked !== x.all) allSwitch.checked = x.all;
 
         const set = (selector: string, text: string) => { const el = this.querySelector(selector); if (el && el.textContent !== text) el.textContent = text; };
         const layout = c.layout === 'nightstand' ? 'nightstand' : c.compact ? 'compact' : 'default';

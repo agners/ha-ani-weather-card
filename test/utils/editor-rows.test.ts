@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { DEFAULTS, DRAWERS, ROWS, SECTIONS, isChanged, rowChanged, rowShown, sectionShown, type RowContext } from '../../src/editor-rows';
+import { DEFAULTS, DRAWERS, FORECAST_TABLE, ROWS, SECTIONS, TRACKER_TABLE, isChanged, rowChanged, rowShown, sectionShown, type RowContext, type RowTable } from '../../src/editor-rows';
 import { REPLACED_OPTIONS } from '../../src/readings';
 import { DEFAULT_ENGINE_SETTINGS } from '../../src/constants';
 
@@ -141,5 +141,72 @@ describe('the editor\'s rows', () => {
         const ai = { entity: 'weather.home', show_note: true };
         expect(rowShown('note_ai_task_entity', ai as never, { ...basic, note: 'ai' }, new Set())).toBe(false);
         expect(rowShown('note_ai_task_entity', ai as never, { ...basic, note: 'ai', noDefaultAi: true }, new Set())).toBe(true);
+    });
+});
+
+describe('the forecast card\'s and the tracker\'s rows', () => {
+    /** The options a README table documents, from its heading to the next */
+    const documented = (from: string, to: string) => {
+        const readme = read('README.md');
+        const start = readme.indexOf(from);
+        const part = readme.slice(start, readme.indexOf(to, start + from.length));
+        return [...part.matchAll(/^\| ((?:`[\w]+`(?:, )?)+) \|/gm)].flatMap(m => [...m[1].matchAll(/`(\w+)`/g)].map(o => o[1]));
+    };
+    const keysOf = (table: RowTable<never>) => new Set(Object.values(table.rows).flatMap(spec => spec.keys));
+    const cards: Array<[string, RowTable<never>, string[], string[]]> = [
+        ['the forecast card', FORECAST_TABLE as RowTable<never>, documented('### The forecast card', '\n### '), ['entity', 'layout', 'color_palette']],
+        ['the tracker', TRACKER_TABLE as RowTable<never>, documented('### Sun tracker card', '\n### '), ['sun_entity', 'layout', 'color_palette']],
+    ];
+
+    for (const [name, table, options, basics] of cards) {
+        it(`hold every option the README documents for ${name}, each row in exactly one section`, () => {
+            expect(options.length).toBeGreaterThan(12);
+            const keys = keysOf(table);
+            for (const option of options) expect(keys.has(option), option).toBe(true);
+            const placed = Object.values(table.sections).flat();
+            expect(new Set(placed).size).toBe(placed.length);
+            expect([...placed].sort()).toEqual(Object.keys(table.rows).sort());
+        });
+
+        it(`show ${name} three basics, every option with all settings, and an option set away from its default either way`, () => {
+            const fresh = {};
+            const shown = (config: object, x: RowContext, pinned = new Set<string>()) =>
+                Object.keys(table.rows).filter(id => rowShown(id, config as never, x, pinned, table));
+            expect(shown(fresh, basic)).toEqual(basics);
+            expect(Object.keys(table.sections).filter(s => sectionShown(table.sections[s], fresh as never, basic, new Set(), table))).toHaveLength(1);
+            const all = shown(fresh, { ...basic, all: true });
+            for (const id of Object.keys(table.rows)) if (id !== 'place_fields') expect(all, id).toContain(id);
+            // Each option, set to something other than its default, shows its row with the switch off
+            for (const key of keysOf(table)) {
+                const d = table.defaults[key];
+                const value = typeof d === 'boolean' ? !d : typeof d === 'number' ? d + 1 : key.endsWith('_action') ? { action: 'navigate', navigation_path: '/x' }
+                    : key === 'color_palette' ? 'theme' : key === 'direction' ? 'right_to_left' : key === 'forecast_metric' ? 'chance' : key === 'forecast_graph' ? 'bars'
+                    : key === 'latitude' || key === 'longitude' ? 10 : `${key}.x`;
+                const config = { [key]: value };
+                const rows = Object.keys(table.rows).filter(id => table.rows[id].keys.includes(key) && rowChanged(id, config as never, table));
+                expect(rows.length, key).toBeGreaterThan(0);
+                for (const id of rows) expect(rowShown(id, config as never, basic, new Set(rows), table), `${key} → ${id}`).toBe(true);
+            }
+        });
+    }
+
+    it('count no default written out as changed: the tracker\'s header and details on, each card\'s own tap', () => {
+        const tracker = { sun_entity: 'sun.sun', show_header: true, show_details: true, direction: 'auto', compact: false, color_palette: 'default', tap_action: { action: 'more-info' }, hold_action: { action: 'none' } };
+        expect(Object.keys(TRACKER_TABLE.rows).filter(id => rowChanged(id, tracker as never, TRACKER_TABLE as RowTable<never>))).toEqual(['sun_entity']);
+        const forecast = { entity: 'weather.home', sun_entity: 'sun.sun', show_hours: true, forecast_days: 7, tap_action: { action: 'forecast' } };
+        expect(Object.keys(FORECAST_TABLE.rows).filter(id => rowChanged(id, forecast as never, FORECAST_TABLE))).toEqual(['entity']);
+        // The weather card's details are the forecast card's change, and the forecast the tracker's
+        expect(rowChanged('actions', { tap_action: { action: 'more-info' } } as never, FORECAST_TABLE)).toBe(true);
+        expect(rowChanged('actions', { tap_action: { action: 'forecast' } } as never, TRACKER_TABLE as RowTable<never>)).toBe(true);
+    });
+
+    it('leave out what a strip or a compact tracker has no room for, with all settings on', () => {
+        const all = { ...basic, all: true };
+        expect(rowShown('forecast_days', { compact: true } as never, all, new Set(), FORECAST_TABLE)).toBe(false);
+        expect(rowShown('show_hours', { compact: true } as never, all, new Set(), FORECAST_TABLE)).toBe(false);
+        expect(rowShown('forecast_graph', { compact: true } as never, all, new Set(), FORECAST_TABLE)).toBe(true);
+        expect(rowShown('forecast_graph', { show_hours: false } as never, all, new Set(), FORECAST_TABLE)).toBe(false);
+        expect(rowShown('title', { compact: true } as never, all, new Set(), TRACKER_TABLE as RowTable<never>)).toBe(false);
+        expect(rowShown('moon_entity', { show_details: false } as never, all, new Set(), TRACKER_TABLE as RowTable<never>)).toBe(false);
     });
 });
