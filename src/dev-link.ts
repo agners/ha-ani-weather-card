@@ -109,7 +109,11 @@ export class AnimatedWeatherDevCard extends HTMLElement implements DevCardShell 
         if (this.view) { this.view.connected(); return; }
         loadDevWorld()
             .then(() => { if (this.isConnected && !this.view) this.view = window.AnimatedWeatherCardDevCards!.attach(this); })
-            .catch((err: Error) => console.warn(`Animated Weather Card: ${err.message}`));
+            .catch((err: Error) => {
+                console.warn(`Animated Weather Card: ${err.message}`);
+                // A missing file, or one from an older build (the developer panel's), says so instead of drawing nothing
+                if (!this.view) this.innerHTML = '<ha-card style="display:block;padding:16px;line-height:20px">The dev card needs animated-weather-card-dev.js from the same build, beside animated-weather-card.js. Copy it in, change the resource\'s ?v= and reload.</ha-card>';
+            });
     }
 
     disconnectedCallback(): void {

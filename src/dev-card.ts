@@ -135,7 +135,7 @@ class DevPanel implements DevCardView {
           </div>`).join('');
         this.root.innerHTML = `<style>${getDevCardStyles()}</style>
         <ha-card class="dc">
-          <div class="window" aria-live="polite">
+          <div class="window">
             <div class="w-cond"><span class="w-glyph"></span><div class="w-text"><div class="w-name"></div><div class="w-when"></div></div></div>
             <div class="w-temp"></div>
           </div>
@@ -324,7 +324,7 @@ class DevPanel implements DevCardView {
         dot.toggleAttribute('data-down', e < -0.833);
         this.$('.needle').setAttribute('x1', String(x * 10));
         this.$('.needle').setAttribute('x2', String(x * 10));
-        this.$('.t-value').textContent = this.clock(new Date(cardDate().getTime() + (minute - this.minuteNow()) * MINUTE));
+        text(this.$('.t-value'), this.clock(new Date(cardDate().getTime() + (minute - this.minuteNow()) * MINUTE)));
     }
 
     private clock(d: Date): string {
@@ -349,7 +349,7 @@ class DevPanel implements DevCardView {
         this.setSeg('notes', s.notes);
         const driven = w.driving().length;
         const mode = this.shell.devCardConfig?.cards === 'dev_mode' ? ' in dev mode' : '';
-        this.$('.driving').textContent = sim ? `Driving ${driven} card${driven === 1 ? '' : 's'}${mode}` : `${driven ? `${driven} on the dev card's weather, the rest` : 'Every card'} on yours`;
+        text(this.$('.driving'), sim ? `Driving ${driven} card${driven === 1 ? '' : 's'}${mode}` : `${driven ? `${driven} on the dev card's weather, the rest` : 'Every card'} on yours`);
         this.root.querySelectorAll<HTMLElement>('[data-sim]').forEach(el => el.toggleAttribute('data-off', !sim));
         this.root.querySelectorAll<HTMLButtonElement>('[data-sim] button, [data-sim] input').forEach(el => { el.disabled = !sim; });
 
@@ -378,10 +378,11 @@ class DevPanel implements DevCardView {
         const today = cardDate();
         const date = shortDate(today, hass, true);
         // Today is the real one, in the zone the cards show times in
-        this.$('.d-date').textContent = date === shortDate(new Date(), hass, true) ? `Today, ${date}` : date;
+        text(this.$('.d-date'), date === shortDate(new Date(), hass, true) ? `Today, ${date}` : date);
         const moon = moonPhaseName(today);
-        this.$('.d-moon-icon').innerHTML = icon(`moon-${moon.replace('_moon', '').replace(/_/g, '-')}` as IconName, 'moon-ic');
-        this.$('.d-moon-name').textContent = MOON_LABELS[moon] ?? moon;
+        const moonIcon = this.$('.d-moon-icon');
+        if (moonIcon.dataset.for !== moon) { moonIcon.innerHTML = icon(`moon-${moon.replace('_moon', '').replace(/_/g, '-')}` as IconName, 'moon-ic'); moonIcon.dataset.for = moon; }
+        text(this.$('.d-moon-name'), MOON_LABELS[moon] ?? moon);
 
         // Readings, in the units you read them in
         const units = hass ? unitsOf(hass) : null;
@@ -390,7 +391,7 @@ class DevPanel implements DevCardView {
             const row = this.$(`.reading[data-r="${id}"]`);
             const auto = spec.auto && s[id] === null;
             const value = id === 'temp' ? now.reading.temp : id === 'feels' ? now.reading.feels : id === 'uv' ? now.uv : s[id] as number;
-            row.querySelector('.r-value')!.textContent = this.show(id, value, units);
+            text(row.querySelector('.r-value')!, this.show(id, value, units));
             row.toggleAttribute('data-auto', !!auto);
             const a = row.querySelector<HTMLButtonElement>('.r-auto');
             if (a) a.hidden = !!auto;
@@ -400,8 +401,9 @@ class DevPanel implements DevCardView {
         const paused = w.paused();
         const p = this.$('.pause');
         p.setAttribute('aria-pressed', String(paused));
-        this.$('.pause-icon').innerHTML = paused ? ICONS.play : ICONS.pause;
-        this.$('.pause-label').textContent = paused ? 'Resume all' : 'Pause all';
+        const pauseIcon = this.$('.pause-icon');
+        if (pauseIcon.dataset.paused !== String(paused)) { pauseIcon.innerHTML = paused ? ICONS.play : ICONS.pause; pauseIcon.dataset.paused = String(paused); }
+        text(this.$('.pause-label'), paused ? 'Resume all' : 'Pause all');
     }
 
     private setSeg(name: string, value: string): void {
@@ -473,10 +475,10 @@ class DevPanel implements DevCardView {
         const gKey = `${state}|${phase}|${cls}`;
         if (g.dataset.for !== gKey) { g.innerHTML = glyph(state, day, 30, litTints(elevation, rising, lum), 'wg'); g.dataset.for = gKey; }
         const name = hass?.formatEntityState?.({ entity_id: 'weather.awc_dev', state, attributes: {}, last_changed: '', last_updated: '' } as never) ?? state;
-        this.$('.w-name').textContent = name && name !== state ? name : (SKY_LABELS[state as DevSky] ?? state);
+        text(this.$('.w-name'), name && name !== state ? name : (SKY_LABELS[state as DevSky] ?? state));
         const at = cardDate();
-        this.$('.w-when').textContent = `${this.clock(at)} · ${shortDate(at, hass, true)}`;
-        this.$('.w-temp').textContent = temp;
+        text(this.$('.w-when'), `${this.clock(at)} · ${shortDate(at, hass, true)}`);
+        text(this.$('.w-temp'), temp);
         win.style.color = toCss(SKY_TEXT);
     }
 
@@ -509,6 +511,11 @@ class DevPanel implements DevCardView {
         // The clock moves on its own: the time and the window follow it
         if (!this.scrubbing) this.sync();
     }
+}
+
+/** Text written only when it changes, so nothing is announced or laid out again for the same words */
+function text(el: Element, value: string): void {
+    if (el.textContent !== value) el.textContent = value;
 }
 
 function hexRgb(hex: string): [number, number, number] {

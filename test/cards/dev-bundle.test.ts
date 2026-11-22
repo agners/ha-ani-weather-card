@@ -41,6 +41,10 @@ describe('the dev bundle', () => {
         const dev = card;
         await mount('animated-weather-card', { dev_mode: true });
         expect(devScripts()).toHaveLength(1);
+        // Missing, or from an older build: the dev card says so instead of drawing nothing
+        script.dispatchEvent(new Event('error'));
+        await vi.advanceTimersByTimeAsync(0);
+        expect(dev.textContent).toContain('animated-weather-card-dev.js from the same build');
         dev.remove();
     });
 
