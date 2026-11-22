@@ -794,7 +794,7 @@ sunset_hour: 19
 | `spill_particles` | `true` | Let rain, snow, sleet and leaves fall out of the card onto the dashboard, and clouds drift a little above its top edge. Turn it off to keep all weather inside the card |
 | `disable_lightning_shake` | `false` | Turn off the card's small jolt on lightning strikes |
 | `auto_pause` | `false` | Also pause while the browser window is in the background. Cards always pause while the tab is hidden or the card is off-screen |
-| `dev_mode` | `false` | The card always runs on the [dev card](#the-dev-card)'s simulated weather, and needs no `entity`. Without a dev card on the dashboard, it says **Simulated** in its corner and shows the weather the dev card was last set to in this browser (partly cloudy until then) at the real time; set to Live, a card with an `entity` of its own shows it. Needs `animated-weather-card-dev.js` |
+| `dev_mode` | `false` | The card always runs on the [dev card](#the-dev-card)'s simulated weather, and needs no `entity`. It says **Simulated** in its corner. Without a dev card on the dashboard, it shows the weather the dev card was last set to in this browser (partly cloudy until then) at the real time; set to Live, a card with an `entity` of its own shows it. Needs `animated-weather-card-dev.js` |
 
 **Day and night**
 
@@ -1010,7 +1010,7 @@ The dev card drives every Animated Weather card on its dashboard: they read its 
 - **Notes:** sample notes, or your own AI Task. Either way they stay apart from the notes your other screens show.
 - **Live** gives the cards your own weather back. **Fly a plane** and **Pause all** work on both.
 
-Take the dev card off the dashboard and the cards are back on your weather. What it's set to stays in this browser. It's in YAML only, not the card picker, whose live preview would take over the dashboard behind it.
+Every card on its simulated weather says **Simulated** in its corner, so none is taken for your real weather; on Live, the cards are yours and unmarked. Take the dev card off the dashboard and the cards are back on your weather. What it's set to stays in this browser. It's in YAML only, not the card picker, whose live preview would take over the dashboard behind it.
 
 | Option | Default | Description |
 | --- | --- | --- |

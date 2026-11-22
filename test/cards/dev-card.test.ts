@@ -270,26 +270,39 @@ describe('the dev card\'s world', () => {
         expect(values).toEqual([{ value: null }]);
     });
 
-    it('marks a card in dev mode as simulated while no dev card is on the page', async () => {
+    it('marks every card on the simulated weather: the ones the dev card drives, and a card in dev mode', async () => {
         const hass = baseHass();
         const dev = mount({ dev_mode: true }, hass);
         const tracker = mount({ dev_mode: true }, hass, 'animated-sun-tracker-card');
         const plain = mount({ entity: 'weather.home' }, hass);
-        expect(dev.hasAttribute('data-awc-dev')).toBe(true);
-        expect(tracker.hasAttribute('data-awc-dev')).toBe(true);
-        expect(plain.hasAttribute('data-awc-dev')).toBe(false);
+        const plainTracker = mount({ sun_entity: 'sun.sun' }, hass, 'animated-sun-tracker-card');
+        const marked = () => [dev, tracker, plain, plainTracker].map(c => c.hasAttribute('data-awc-dev'));
+        // No dev card: only dev_mode is simulated
+        expect(marked()).toEqual([true, true, false, false]);
+        // A dev card driving only dev_mode cards: the same
         world.drive(onlyDev);
         await frames();
-        expect(dev.hasAttribute('data-awc-dev')).toBe(false);
-        expect(tracker.hasAttribute('data-awc-dev')).toBe(false);
-        // A dev card that leaves: after a moment, which a dashboard's re-render fills, the marker is back
+        expect(marked()).toEqual([true, true, false, false]);
+        // Driving every card, Simulated: every card says so
+        world.drive(all);
+        await frames();
+        expect(marked()).toEqual([true, true, true, true]);
+        // Live: your weather, unmarked, but for a dev_mode card with no weather of its own
+        world.set({ source: 'live' });
+        await frames();
+        expect(marked()).toEqual([true, false, false, false]);
+        world.set({ source: 'sim' });
+        await frames();
+        expect(marked()).toEqual([true, true, true, true]);
+        // The dev card leaves: after a moment, which a dashboard's re-render fills, only dev_mode is marked again
+        world.release(all);
         world.release(onlyDev);
         await frames();
-        expect(dev.hasAttribute('data-awc-dev')).toBe(false);
+        expect(marked()).toEqual([true, true, true, true]);
         await new Promise(r => setTimeout(r, 1100));
         await frames();
-        expect(dev.hasAttribute('data-awc-dev')).toBe(true);
-        // jsdom draws no pseudo-elements: the card's own CSS carries the marker
+        expect(marked()).toEqual([true, true, false, false]);
+        // jsdom draws no pseudo-elements: the cards' own CSS carries the marker
         expect(dev.querySelector('style')?.textContent).toMatch(/\[data-awc-dev\] \.animated-weather-card::after \{[^}]*content: 'Simulated'/);
     });
 
