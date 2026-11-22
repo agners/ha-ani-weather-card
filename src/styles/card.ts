@@ -12,6 +12,9 @@
 import { iconBoxCss } from './icon-box';
 import { generateSkyCss, oklchToSrgb, toHex, SKY_TEXT, SKY_TEXT_SECONDARY_ALPHA, SKY_MID_STOP, SKY_SCRIM_START, SKY_GLOW, SKY_GLOW_WIDE, SKY_GLOW_COMPACT, skyGlowGradient, dissolveTransition, SKY_DISSOLVE_SEC, SKY_DISSOLVE_EASE } from '../sky';
 
+/** The dev_mode marker: light text on a dark pill that holds 4.5:1 over any sky or theme, white included */
+export const DEV_MARKER = { text: '#f4f6fa', fill: 'rgba(12, 16, 24, 0.62)', alpha: 0.62, ink: [12, 16, 24] as const };
+
 const SKY_CSS = generateSkyCss();
 const SKY_TEXT_HEX = toHex(oklchToSrgb(SKY_TEXT));
 const pct = (n: number) => `${Math.round(n * 100)}%`;
@@ -267,6 +270,23 @@ ${iconBoxCss('animated-weather-card')}
         }
         .animated-weather-card.theme-colors .temperature {
           color: var(--awc-hero-color);
+        }
+
+        /* dev_mode with no dev card on the page: a marker says the weather is simulated, on any sky or theme */
+        animated-weather-card[data-awc-dev] .animated-weather-card::after,
+        animated-forecast-card[data-awc-dev] .animated-weather-card::after {
+          content: 'Simulated';
+          position: absolute;
+          top: 8px;
+          right: 8px;
+          z-index: 40;
+          padding: 0 8px;
+          border-radius: 9px;
+          font: 600 11px/18px var(--awc-font);
+          letter-spacing: 0.01em;
+          color: ${DEV_MARKER.text};
+          background: ${DEV_MARKER.fill};
+          pointer-events: none;
         }
 
         /* ── Loading ─────────────────────────────────────────────────────── */

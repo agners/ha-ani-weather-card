@@ -63,7 +63,7 @@ import type { ForecastExtras, ForecastHost, Surface } from './forecast-host';
 import { HOUR_EVENT, type HourLink } from './hour-link';
 import { clearStarsFromWords, drawNight, starCount, wordBoxes } from './stars-animation';
 import { cardNow, cardDate } from './clock';
-import { AnimatedWeatherDevCard, DEV_ENTITY, DEV_EVENT, devBase, devCards, devOffset, devSee, loadDevWorld, type DevCard, type DevConfig } from './dev-link';
+import { AnimatedWeatherDevCard, DEV_ENTITY, DEV_EVENT, devBase, devCards, devMarked, devOffset, devSee, loadDevWorld, type DevCard, type DevConfig } from './dev-link';
 
 registerSkyProperties();
 
@@ -217,6 +217,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard, DevCard {
 
     /** The dev card's world changed (dev-link.ts): read Home Assistant again through it, and the time when it moved */
     private devChanged = (): void => {
+        this.markDev();
         if (this.homeHass && this.isConnected) this.hass = this.homeHass;
         const offset = devOffset();
         if (offset === this.devClock) return;
@@ -225,6 +226,11 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard, DevCard {
         if (this.noteVisible) this.extras?.seen(true);
     };
     private devClock = 0;
+
+    /** dev_mode with no dev card on the page: the marker in the corner says the weather is simulated (not on the view) */
+    private markDev(): void {
+        this.toggleAttribute('data-awc-dev', this.surface !== 'view' && devMarked(this.config as DevConfig | undefined));
+    }
 
     /** What the dev card sees: which card this is, and its options */
     get devKind(): 'weather' | 'forecast' {
@@ -411,6 +417,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard, DevCard {
         // Another weather waits for its own needle
         if (this.config?.entity !== config.entity) this.following = false;
         this.config = config;
+        this.markDev();
         if ((placeChanged || devChanged) && this.homeHass) this._hass = this.see(this.homeHass);
         if (this.isConnected) this.tickPlace();
         this.shareSky();

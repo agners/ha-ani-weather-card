@@ -276,11 +276,21 @@ export class World implements DevWorld {
         this.grace = setTimeout(() => this.recount(), 1000);
     }
 
-    /** A dev card's options changed */
+    /** A dev card's options changed, or one came or went */
     recount(): void {
         const all = [...this.drivers].some(d => d.drivesAll());
-        if (all !== this.all) { this.all = all; this.changed(); }
+        const driven = this.drivers.size > 0;
+        if (all === this.all && driven === this.isDriven) return;
+        this.all = all;
+        this.isDriven = driven;
+        this.changed();
     }
+
+    /** A dev card is on the page (after a moment's grace when one leaves): dev_mode cards drop their marker */
+    driven(): boolean {
+        return this.isDriven;
+    }
+    private isDriven = false;
 
     set(patch: Partial<DevState>): void {
         const before = this.state;

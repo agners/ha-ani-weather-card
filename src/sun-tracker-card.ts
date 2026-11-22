@@ -28,7 +28,8 @@ import { loadEditorBundle } from './bundles';
 import { IconName, icon } from './icons';
 import { HOUR_EVENT, HourLink } from './hour-link';
 import { onSharedWeather, weatherOnSun } from './weather-share';
-import { DEV_EVENT, devBase, devCards, devOffset, devSee, loadDevWorld, type DevCard, type DevConfig } from './dev-link';
+import { DEV_EVENT, devBase, devCards, devMarked, devOffset, devSee, loadDevWorld, type DevCard, type DevConfig } from './dev-link';
+import { DEV_MARKER } from './styles/card';
 import { PlaceView } from './place';
 import { COMPACT_PATH, PathGeometry, REGULAR_PATH, VH, VW, hourFrac, pathElevation, xFor, yFor } from './sun-path';
 
@@ -169,6 +170,24 @@ const SKY_TEXT_HEX = toHex(oklchToSrgb(SKY_TEXT));
 
 // ── Styles ──
 const STYLES = `
+    :host([data-awc-dev]) .st-card::after {
+        content: 'Simulated';
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        z-index: 5;
+        padding: 0 8px;
+        border-radius: 9px;
+        font-size: 11px;
+        line-height: 18px;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+        color: ${DEV_MARKER.text};
+        background: ${DEV_MARKER.fill};
+        pointer-events: none;
+    }
+    /* The compact strip's next event sits in its top right: the marker takes the bottom corner */
+    :host([data-awc-dev]) .st-card.compact::after { top: auto; bottom: 8px; }
     :host {
         display: block;
         height: 100%;
@@ -566,6 +585,7 @@ class AnimatedSunTrackerCard extends HTMLElement implements DevCard {
     readonly devKind = 'tracker' as const;
     /** The dev card's world changed: read Home Assistant again through it, and draw the now line again when the time moved */
     private _onDev = () => {
+        this.toggleAttribute('data-awc-dev', devMarked(this.config as DevConfig));
         if (this._homeHass && this.isConnected) this.hass = this._homeHass;
         const offset = devOffset();
         if (offset !== this._devClock) { this._devClock = offset; this._render(); }
@@ -596,6 +616,8 @@ class AnimatedSunTrackerCard extends HTMLElement implements DevCard {
         // Another place's sun is computed, under a key from its coordinates; they win over sun_entity, your own sun.
         // dev_mode runs on the dev card's world, whose sun is sun.sun
         this.config = { ...config, sun_entity: placeSun || config.sun_entity || 'sun.sun' };
+        // dev_mode with no dev card on the page: the marker says the sky is simulated
+        this.toggleAttribute('data-awc-dev', devMarked(this.config as DevConfig));
         if (config.dev_mode) loadDevWorld().then(this._onDev).catch((err: Error) => console.warn(`Animated Weather Card: ${err.message}`));
         if ((placeChanged || devChanged) && this._homeHass) this._hass = this._see(this._homeHass);
         this._render();

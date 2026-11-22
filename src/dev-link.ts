@@ -31,6 +31,8 @@ export interface DevWorld extends DevClock {
     wants(config: DevConfig): boolean;
     /** Home Assistant as the world shows it to a card with these options */
     lens(hass: HomeAssistant, config: DevConfig): HomeAssistant;
+    /** A dev card on the page is driving the world */
+    driven(): boolean;
 }
 
 /** The dev card itself, the element Home Assistant makes: its options and Home Assistant as they arrive */
@@ -68,6 +70,14 @@ export function devSee(hass: HomeAssistant, config: DevConfig | undefined): Home
         console.warn('Animated Weather Card: the dev card\'s world failed', err);
         return base;
     }
+}
+
+/**
+ * A card in dev_mode with no dev card on the page says its weather is simulated (the marker in its corner), so it's
+ * never taken for the real thing. Before the dev bundle arrives too
+ */
+export function devMarked(config: DevConfig | undefined): boolean {
+    return !!config?.dev_mode && !window.AnimatedWeatherCardDev?.driven();
 }
 
 /** How far the dev card has moved the cards' clock: a card reads the time again when it changes */

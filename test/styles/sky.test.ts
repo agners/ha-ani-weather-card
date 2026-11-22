@@ -4,7 +4,7 @@ import {
     sampleSky, sampleSkyAt, oklchToSrgb, composite, contrastRatio, skyColors, generateSkyCss, toHex,
     DISSOLVING_PROPERTIES, dissolveTransition, SKY_DISSOLVE_SEC, SKY_DISSOLVE_EASE,
 } from '../../src/sky';
-import { getMainCardStyles, CLOUD_OVERHANG_PX, UV_TINTS } from '../../src/styles/card';
+import { getMainCardStyles, CLOUD_OVERHANG_PX, UV_TINTS, DEV_MARKER } from '../../src/styles/card';
 import { GLYPH_CONTRAST } from '../../src/fc-glyphs';
 
 const text = oklchToSrgb(SKY_TEXT);
@@ -252,4 +252,16 @@ describe('the dev card\'s window', () => {
             });
         }
     }
+});
+
+describe('the dev_mode marker', () => {
+    // Light text on a dark pill, over whatever is behind it: the brightest sky's glow, a light theme's white
+    const hex = (h: string): [number, number, number] => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255) as [number, number, number];
+    const ink = DEV_MARKER.ink.map(v => v / 255) as [number, number, number];
+    it('holds 4.5:1 on white, and in every sky where it sits', () => {
+        const behind: [number, number, number][] = [[1, 1, 1]];
+        for (const condition of SKY_CONDITIONS) for (const phase of SKY_PHASES) behind.push(sampleSkyAt(condition, phase, 0.96, 0.05));
+        for (const bg of behind) expect(contrastRatio(hex(DEV_MARKER.text), composite(bg, ink, DEV_MARKER.alpha))).toBeGreaterThanOrEqual(4.5);
+        expect(DEV_MARKER.fill).toBe(`rgba(${DEV_MARKER.ink.join(', ')}, ${DEV_MARKER.alpha})`);
+    });
 });

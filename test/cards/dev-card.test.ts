@@ -256,6 +256,29 @@ describe('the dev card\'s world', () => {
         expect(values).toEqual([{ value: null }]);
     });
 
+    it('marks a card in dev mode as simulated while no dev card is on the page', async () => {
+        const hass = baseHass();
+        const dev = mount({ dev_mode: true }, hass);
+        const tracker = mount({ dev_mode: true }, hass, 'animated-sun-tracker-card');
+        const plain = mount({ entity: 'weather.home' }, hass);
+        expect(dev.hasAttribute('data-awc-dev')).toBe(true);
+        expect(tracker.hasAttribute('data-awc-dev')).toBe(true);
+        expect(plain.hasAttribute('data-awc-dev')).toBe(false);
+        world.drive(onlyDev);
+        await frames();
+        expect(dev.hasAttribute('data-awc-dev')).toBe(false);
+        expect(tracker.hasAttribute('data-awc-dev')).toBe(false);
+        // A dev card that leaves: after a moment, which a dashboard's re-render fills, the marker is back
+        world.release(onlyDev);
+        await frames();
+        expect(dev.hasAttribute('data-awc-dev')).toBe(false);
+        await new Promise(r => setTimeout(r, 1100));
+        await frames();
+        expect(dev.hasAttribute('data-awc-dev')).toBe(true);
+        // jsdom draws no pseudo-elements: the card's own CSS carries the marker
+        expect(dev.querySelector('style')?.textContent).toMatch(/\[data-awc-dev\] \.animated-weather-card::after \{[^}]*content: 'Simulated'/);
+    });
+
     it('survives a stale copy of itself in this browser', () => {
         localStorage.setItem('animated-weather-card-dev', JSON.stringify({ sky: 'volcano', offset: 'soon', humidity: 400, source: 'live' }));
         const W = world.constructor as new () => typeof world;
