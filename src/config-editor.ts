@@ -47,6 +47,18 @@ function storeAll(on: boolean): void {
 
 const raf = (f: () => void) => (typeof requestAnimationFrame === 'function' ? requestAnimationFrame(f) : setTimeout(f, 16));
 
+/**
+ * Open or close a reveal. It clips its content only while it moves: once open (after its 260 ms at most, or at once
+ * when nothing animates) it's `data-settled`, so a menu or a focus ring inside isn't cut off; closing clips again first
+ */
+export function reveal(el: Element, open: boolean, instant = false): void {
+    if (el.hasAttribute('data-open') === open) return;
+    el.toggleAttribute('data-open', open);
+    if (!open) el.removeAttribute('data-settled');
+    else if (instant) el.setAttribute('data-settled', '');
+    else setTimeout(() => { if (el.hasAttribute('data-open')) el.setAttribute('data-settled', ''); }, 300);
+}
+
 const CHEVRON = '<svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.4 8.6 12 13.2l4.6-4.6L18 10l-6 6-6-6z"/></svg>';
 const INFO = '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16z"/></svg>';
 
@@ -450,7 +462,8 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
         });
         on('#note_entity', 'value-changed', el => {
             const value = el.value || undefined;
-            if (value) this.noteChoice = undefined;
+            // Cleared, the choice of an entity stands, so its picker stays for the next one
+            this.noteChoice = value ? undefined : 'entity';
             this._set(value ? { note_entity: value, show_note: undefined } : { note_entity: undefined });
             this.syncNoteStatus();
         });
@@ -593,7 +606,8 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
     private applyDrawer(key: string): void {
         const open = this.openDrawers.has(key);
         this.querySelector(`[data-drawer="${key}"]`)?.setAttribute('aria-expanded', String(open));
-        this.querySelector(`[data-sec="${key}"] .drw-c`)?.toggleAttribute('data-open', open);
+        const body = this.querySelector(`[data-sec="${key}"] .drw-c`);
+        if (body) reveal(body, open, !!this.querySelector('.card-config[data-instant]'));
     }
 
     private timeDateOptions(): Option[] {
@@ -618,16 +632,19 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
         if (!root) return;
         const c = this._config ?? {};
         const x = this.ctx();
+        const instant = root.hasAttribute('data-instant');
         for (const id of Object.keys(ROWS)) if (rowChanged(id, c)) this.pinned.add(id);
         root.toggleAttribute('data-all', x.all);
-        this.querySelectorAll<HTMLElement>('[data-row]').forEach(el => el.toggleAttribute('data-open', rowShown(el.dataset.row!, c, x, this.pinned)));
+        this.querySelectorAll<HTMLElement>('[data-row]').forEach(el => reveal(el, rowShown(el.dataset.row!, c, x, this.pinned), instant));
         let drawers = false;
         for (const [key, ids] of Object.entries(SECTIONS)) {
             const shown = sectionShown(ids, c, x, this.pinned);
-            this.querySelector(`[data-sec="${key}"]`)?.toggleAttribute('data-open', shown);
+            const sec = this.querySelector(`[data-sec="${key}"]`);
+            if (sec) reveal(sec, shown, instant);
             if (shown && DRAWERS.includes(key)) drawers = true;
         }
-        this.querySelector('[data-drawers]')?.toggleAttribute('data-open', drawers);
+        const list = this.querySelector('[data-drawers]');
+        if (list) reveal(list, drawers, instant);
         const allSwitch = this.querySelector('#all_settings') as HTMLInputElement | null;
         if (allSwitch && allSwitch.checked !== x.all) allSwitch.checked = x.all;
 
@@ -762,9 +779,13 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
                 }
             }
         }
-        status.innerHTML = text ? `${INFO}<span></span>` : '';
-        if (text) status.querySelector('span')!.textContent = text;
-        status.hidden = !text;
+        // A live region: written only when what it says changes, or a screen reader would hear it on every update
+        if (status.dataset.text !== text) {
+            status.dataset.text = text;
+            status.innerHTML = text ? `${INFO}<span></span>` : '';
+            if (text) status.querySelector('span')!.textContent = text;
+            status.hidden = !text;
+        }
         if (noDefault !== this.noDefaultAi) {
             this.noDefaultAi = noDefault;
             this.sync();

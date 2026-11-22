@@ -9,6 +9,14 @@ import type { AnimatedWeatherCardConfig, HomeAssistant } from './types';
 import { READING_TYPES, REPLACED_OPTIONS, VIEW_ONLY_TYPES, WEATHER_ATTRIBUTE, isDefaultList, needsSensor, readingsOf, shortForm, type Reading, type ReadingType } from './readings';
 import { escapeHtml, textField } from './utils';
 
+/** The editor's reveal: opens, closes, and stops clipping once open (config-editor.ts has the same) */
+function reveal(el: Element, open: boolean): void {
+    if (el.hasAttribute('data-open') === open) return;
+    el.toggleAttribute('data-open', open);
+    if (!open) el.removeAttribute('data-settled');
+    else setTimeout(() => { if (el.hasAttribute('data-open')) el.setAttribute('data-settled', ''); }, 300);
+}
+
 /** The types as the list names them */
 const TYPE_LABELS: Record<ReadingType, string> = {
     humidity: 'Humidity', wind: 'Wind', pressure: 'Pressure', sun: 'Next sunset or sunrise', uv: 'UV index', rain: 'Rain',
@@ -89,9 +97,9 @@ export function mountReadingsEditor(root: HTMLElement, config: () => AnimatedWea
         const body = `rd-b-${uid}-${i}`;
         return `<div class="rd-row" data-i="${i}" data-type="${r.type}" role="listitem">
             <button type="button" class="rd-head" aria-expanded="${i === open}" aria-controls="${body}">
-              <span class="rd-tx"><span class="rd-t">${label}</span><span class="rd-s${s.warn ? ' warn' : ''}">${s.warn ? WARN : ''}<span>${escapeHtml(s.text)}</span></span></span>${CHEVRON}
+              <span class="rd-tx"><span class="rd-t">${label}</span><span class="rd-s${s.warn ? ' warn' : ''}" data-text="${escapeHtml(s.text)}">${s.warn ? WARN : ''}<span>${escapeHtml(s.text)}</span></span></span>${CHEVRON}
             </button>
-            <div class="rv rd-body" id="${body}"${i === open ? ' data-open' : ''}><div class="rv-in"><div class="rd-fields">
+            <div class="rv rd-body" id="${body}"${i === open ? ' data-open data-settled' : ''}><div class="rv-in"><div class="rd-fields">
               <ha-select class="rd-type" label="Type"></ha-select>
               ${r.type === 'sun' ? '' : picker('rd-entity', needsSensor(r.type) ? 'Entity' : 'Entity (optional)', r.entity, helper(r))}
               ${r.type === 'wind' ? picker('rd-direction', 'Direction sensor (optional)', r.direction_entity) : ''}
@@ -115,7 +123,8 @@ export function mountReadingsEditor(root: HTMLElement, config: () => AnimatedWea
         root.querySelectorAll<HTMLElement>('.rd-row').forEach(row => {
             const on = Number(row.dataset.i) === i;
             row.querySelector('.rd-head')?.setAttribute('aria-expanded', String(on));
-            row.querySelector('.rd-body')?.toggleAttribute('data-open', on);
+            const b = row.querySelector('.rd-body');
+            if (b) reveal(b, on);
         });
     }
 
@@ -141,12 +150,15 @@ export function mountReadingsEditor(root: HTMLElement, config: () => AnimatedWea
     /** One reading's line again, in place: its name and where it comes from */
     function syncHead(row: HTMLElement, r: Reading): void {
         const s = sub(r);
-        const el = row.querySelector('.rd-s');
-        if (!el) return;
+        const el = row.querySelector<HTMLElement>('.rd-s');
+        const title = row.querySelector('.rd-t');
+        if (title && title.textContent !== readingLabel(r)) title.textContent = readingLabel(r);
+        // Only what changed: this runs after every edit anywhere in the editor
+        if (!el || (el.dataset.text === s.text && el.classList.contains('warn') === s.warn)) return;
+        el.dataset.text = s.text;
         el.classList.toggle('warn', s.warn);
         el.innerHTML = `${s.warn ? WARN : ''}<span></span>`;
         el.querySelector('span')!.textContent = s.text;
-        row.querySelector('.rd-t')!.textContent = readingLabel(r);
     }
 
     function bindRow(row: HTMLElement, i: number): void {

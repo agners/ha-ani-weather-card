@@ -59,6 +59,8 @@ ${iconBoxCss('.card-config')}
           opacity: 1;
           transition: opacity 160ms var(--awc-in) 30ms;
         }
+        /* Opened and still: nothing's clipped, so a menu or a focus ring inside shows whole */
+        .rv[data-open][data-settled] > .rv-in { overflow: visible; }
         /* Rows carry their own space, so a closed one takes none */
         .row { padding-top: 8px; }
         .row > ha-select, .row > ha-entity-picker, .row > ha-input, .row > ha-textfield { display: block; width: 100%; }

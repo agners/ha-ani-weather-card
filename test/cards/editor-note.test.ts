@@ -95,6 +95,14 @@ describe('the editor\'s weather note', () => {
         picker.dispatchEvent(new Event('value-changed'));
         expect(config).toMatchObject({ note_entity: 'sensor.summary', note_tone: 'calm' });
         expect(config).not.toHaveProperty('show_note');
+        // Cleared, the entity goes and the choice stays, with its picker, for the next one
+        picker.value = '';
+        picker.dispatchEvent(new Event('value-changed'));
+        expect(config).not.toHaveProperty('note_entity');
+        expect(source.value).toBe('entity');
+        expect(shown('note_entity')).toBe(true);
+        picker.value = 'sensor.summary';
+        picker.dispatchEvent(new Event('value-changed'));
         source.dispatchEvent(new CustomEvent('selected', { detail: { value: 'ai' } }));
         expect(config).toMatchObject({ show_note: true });
         expect(config).not.toHaveProperty('note_entity');
