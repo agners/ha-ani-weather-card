@@ -31,6 +31,20 @@ function noteCalendarList(value: unknown): string[] {
 }
 
 /** forecast_graph: the hours' graph, the same for every metric (the forecast card's editor offers it too) */
+/** The chips the hours can open on, in their order; one the forecast doesn't report opens on the temperature */
+export const METRIC_OPTIONS = [
+    { value: 'temp', label: 'Temperature' },
+    { value: 'feels', label: 'Feels like' },
+    { value: 'chance', label: 'Chance of rain' },
+    { value: 'amount', label: 'Rain amount' },
+    { value: 'uv', label: 'UV index' },
+    { value: 'wind', label: 'Wind' },
+    { value: 'gust', label: 'Wind gusts' },
+    { value: 'humidity', label: 'Humidity' },
+    { value: 'dew', label: 'Dew point' },
+    { value: 'cloud', label: 'Cloud cover' },
+    { value: 'pressure', label: 'Pressure' },
+];
 export const GRAPH_OPTIONS = [
     { value: 'line', label: 'Line' },
     { value: 'area', label: 'Line with a soft fill' },
@@ -222,7 +236,7 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
             row('why_forecast_nightstand', why('The nightstand shows the time, the date and what\'s coming on its own.')),
             row('show_forecast', sw('show_forecast', 'Forecast', !!c.show_forecast, 'Today\'s high and low, the hours ahead, and the week on a tap')),
             row('forecast_days', select('forecast_days', 'Days under the hours')),
-            row('forecast_metric', select('forecast_metric', 'Hours open on', 'The buttons under the hours switch between them')),
+            row('forecast_metric', select('forecast_metric', 'Hours open on', 'Under the hours, a button for each value your forecast reports')),
             row('forecast_graph', select('forecast_graph', 'Graph')),
             row('time_date', select('time_date', 'Time and date', 'Before the place name, in your profile\'s 12- or 24-hour format')),
             row('hero', seg('hero', 'Big number', [['temperature', 'Temperature'], ['clock', 'Time']], c.hero === 'clock' ? 'clock' : 'temperature')),
@@ -382,12 +396,7 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
             // None keeps the count, for when the days come back
             this._set(value === 'none' ? { show_days: undefined } : { show_days: true, forecast_days: value === '7' ? undefined : Number(value) });
         });
-        this._bindSelect('forecast_metric', [
-            { value: 'temp', label: 'Temperature' },
-            { value: 'feels', label: 'Feels like' },
-            { value: 'chance', label: 'Chance of rain' },
-            { value: 'amount', label: 'Rain amount' },
-        ], this._config?.forecast_metric || 'temp', value => this._set({ forecast_metric: value === 'temp' ? undefined : value }));
+        this._bindSelect('forecast_metric', METRIC_OPTIONS, this._config?.forecast_metric || 'temp', value => this._set({ forecast_metric: value === 'temp' ? undefined : value }));
         this._bindSelect('forecast_graph', GRAPH_OPTIONS, this._config?.forecast_graph || 'line', value => this._set({ forecast_graph: value === 'line' ? undefined : value }));
         this._bindSelect('time_date', this.timeDateOptions(), this.timeDateValue(), value => {
             if (this._config?.hero === 'clock') this._set({ show_date: value === 'date' || undefined });

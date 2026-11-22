@@ -5,7 +5,7 @@
 // an 11 px label tier, and nothing smaller.
 
 import { CURVE, css } from './fc-core';
-import { ROW_MOTION } from './fc-row';
+import { CHIP_FADE, ROW_MOTION } from './fc-row';
 
 const OUT = css(CURVE.out), IN = css(CURVE.in), PRESS = css(CURVE.press);
 
@@ -38,6 +38,8 @@ const PARTS = `
 .fc-val { position: absolute; left: 0; top: 0; white-space: nowrap; will-change: transform, opacity; font-size: var(--fc-value, 15px); line-height: var(--fc-value-lh, 20px); font-weight: var(--fc-value-w, 600); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
 .fc-val .fc-pct { font-style: normal; font-size: 0.74em; font-weight: 600; margin-left: 0.04em; }
 .fc-val .fc-u { font-style: normal; font-size: max(11px, 0.7em); font-weight: 500; letter-spacing: 0.02em; margin-left: 0.22em; }
+/* The wind's arrow, before its figure: where it blows */
+.fc-val .fc-dir { display: inline-block; width: 0.6em; height: 0.6em; margin-right: 0.16em; vertical-align: 0.02em; fill: currentColor; }
 /* The needle: a capsule naming the hour under it, on the labels' line; its fill grows behind words that never move */
 .fc-cap {
   position: absolute; top: calc(-1 * var(--fc-cap-py, 3px)); left: 0; z-index: 1; box-sizing: border-box; pointer-events: none;
@@ -57,7 +59,11 @@ const PARTS = `
 .fc-sr, .awc-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; list-style: none; }
 
 /* ── The chips: one white capsule, words beside it. No outline, no track, no glass. ── */
-.fc-chips { position: relative; display: block; height: var(--fc-chip-h, 28px); margin-top: var(--fc-chips-gap, 10px); }
+.fc-chips { position: relative; display: block; height: var(--fc-chip-h, 28px); margin-top: var(--fc-chips-gap, 10px); -webkit-user-select: none; user-select: none; }
+/* The scroller reaches 8 px above and below the pills, for their 44 px targets and focus rings, and 4 px past each end */
+.fc-chips-scroll { position: absolute; inset: -8px -4px; padding: 8px 0; }
+.fc-chips-pad { box-sizing: border-box; height: 100%; width: max-content; min-width: 100%; padding: 0 4px; }
+.fc-chips-track { position: relative; height: 100%; }
 .fc-chips-row, .fc-chips-sel { display: flex; height: 100%; align-items: stretch; white-space: nowrap; }
 /* Centred under the row, by auto margins rather than justify-content: where the words don't fit, they start at the edge, never cut at both */
 .fc-chips-row > .fc-chip:first-child, .fc-chips-sel > .fc-chip:first-child { margin-left: auto; }
@@ -81,6 +87,15 @@ const PARTS = `
 .fc-chips-row .fc-chip::after { content: ''; position: absolute; inset: -8px 0; }
 .fc-chips-row .fc-chip:focus-visible { box-shadow: 0 0 0 2px var(--awc-sky-top, #16283f), 0 0 0 4px currentColor; }
 .fc-chips-sel .fc-chip { color: var(--awc-sky-top, #16283f); cursor: default; text-shadow: none; }
+/* More chips than fit: the short words scroll sideways, each edge fading as far as there are more beyond it */
+.fc-chips[data-scroll] .fc-chips-scroll {
+  overflow-x: auto; overflow-y: hidden; scrollbar-width: none; overscroll-behavior-x: contain; touch-action: pan-x pan-y pinch-zoom;
+  -webkit-mask-image: linear-gradient(90deg, rgba(0, 0, 0, var(--fc-fs, 1)) 0, #000 ${CHIP_FADE}px, #000 calc(100% - ${CHIP_FADE}px), rgba(0, 0, 0, var(--fc-fe, 1)) 100%);
+  mask-image: linear-gradient(90deg, rgba(0, 0, 0, var(--fc-fs, 1)) 0, #000 ${CHIP_FADE}px, #000 calc(100% - ${CHIP_FADE}px), rgba(0, 0, 0, var(--fc-fe, 1)) 100%);
+}
+.fc-chips[data-scroll] .fc-chips-scroll::-webkit-scrollbar { display: none; }
+.fc-chips[data-scroll] .fc-chip { touch-action: pan-x pan-y pinch-zoom; }
+.fc-chips.fc-dragging .fc-chip { cursor: grabbing; }
 
 /* ── The daily list: name, icon and low at their own widths, the bar taking what's left, so the low sits by the icon ── */
 .fc-daily { display: grid; row-gap: 0; }
@@ -99,6 +114,8 @@ const PARTS = `
 .fc-d-g { line-height: 0; }
 .fc-d-lo { text-align: right; font-weight: 400; opacity: var(--fc-quiet, 0.8); }
 .fc-d-hi { text-align: right; font-weight: 600; }
+/* Four figures of pressure need a wider column than two of temperature */
+.fc-daily[data-metric="pressure"] { --fc-d-hi: 2.8em; }
 .fc-d-bar { position: relative; height: var(--fc-bar, 6px); }
 .fc-d-ink { position: absolute; inset: 0; }
 .fc-track { position: absolute; inset: 0; border-radius: 999px; background: currentColor; opacity: 0.2; }

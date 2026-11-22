@@ -11,7 +11,7 @@
 
 import { CURVE, HOUR, clamp, css, ease, esc, num, reducedMotion, spring, whole } from './fc-core';
 import { dayKey } from './localize';
-import { HourRow, METRICS, Metric, Week, dayName } from './fc-data';
+import { HourRow, METRICS, METRIC_FIELD, Metric, Week, dayName } from './fc-data';
 import { FcWords, fill } from './fc-words';
 import { Tints, glyph } from './fc-glyphs';
 import type { HomeAssistant } from './types';
@@ -42,11 +42,55 @@ export function scaleGradient(min: number, max: number, fahrenheit = false): str
 
 export type Noun = 'rain' | 'snow' | 'sleet';
 export function chipLabels(W: FcWords, noun: Noun): Record<Metric, [string, string]> {
-    return { temp: W.temp, feels: W.feels, chance: [W[`chance_${noun}`], W.chance], amount: [W[`amount_${noun}`], W.amount] };
+    return {
+        temp: W.temp, feels: W.feels, chance: [W[`chance_${noun}`], W.chance], amount: [W[`amount_${noun}`], W.amount],
+        uv: W.chip_uv, wind: W.chip_wind, gust: W.chip_gust, humidity: W.chip_humidity, dew: W.chip_dew, cloud: W.chip_cloud, pressure: W.chip_pressure,
+    };
 }
 export function chipName(W: FcWords, m: Metric, noun: Noun): string {
-    return m === 'temp' ? W.name_temp : m === 'feels' ? W.name_feels : W[`name_${m}_${noun}`];
+    const names: Record<Metric, string> = {
+        temp: W.name_temp, feels: W.name_feels, chance: W[`name_chance_${noun}`], amount: W[`name_amount_${noun}`],
+        uv: W.uv, wind: W.wind, gust: W.name_gust, humidity: W.humidity, dew: W.dew_point, cloud: W.cloud_cover, pressure: W.pressure,
+    };
+    return names[m];
 }
+
+// ── The metrics: how each is drawn ─────────────────────────────────────────
+/** The wind's and the pressure's units, as the weather entity gives them */
+export interface Units { wind: string; pressure: string }
+/**
+ * On its own scale: a temperature, the pressure. Every other metric runs from zero, and an hour of nothing has no
+ * value and no bar. Only the temperatures' figures sit on the line: four figures of pressure would leave dashes of
+ * line between them that read as minus signs, so they stand over their points as the rest do.
+ */
+const RANGE: ReadonlySet<Metric> = new Set<Metric>(['temp', 'feels', 'dew', 'pressure']);
+const DEGREES: ReadonlySet<Metric> = new Set<Metric>(['temp', 'feels', 'dew']);
+/** Each wind unit per km/h, for the least the wind's scale shows (20 km/h), so a calm day stays low */
+const WIND_PER_KMH: Record<string, number> = { 'km/h': 1, 'mph': 0.6214, 'm/s': 0.2778, 'kn': 0.54, 'ft/s': 0.9113 };
+/** Each pressure unit per hPa, for the least the pressure's scale shows (10 hPa), so a steady day stays flat */
+const PRESSURE_PER_HPA: Record<string, number> = { 'hpa': 1, 'mbar': 1, 'inhg': 0.02953, 'mmhg': 0.75006, 'kpa': 0.1, 'cbar': 0.1, 'psi': 0.0145, 'pa': 100 };
+const per = (table: Record<string, number>, unit: string) => (Object.prototype.hasOwnProperty.call(table, unit) ? table[unit] : 1);
+export const windLeast = (u: Units) => 20 * per(WIND_PER_KMH, u.wind);
+export const pressureLeast = (u: Units) => 10 * per(PRESSURE_PER_HPA, u.pressure.toLowerCase());
+/** The pressure's decimals in its unit: two in inHg and psi, one in kPa, none in hPa */
+export const pressureDigits = (u: Units) => ({ inhg: 2, psi: 2, kpa: 1, cbar: 1 } as Record<string, number>)[u.pressure.toLowerCase()] ?? 0;
+const DEFAULT_UNITS: Units = { wind: 'km/h', pressure: 'hPa' };
+/** The UV index's scale reaches at least 11, the top of its "very high" */
+const UV_TOP = 11;
+/** A metric's value in a spoken row: degrees, a percentage, or the figure with its unit */
+function spokenValue(W: FcWords, m: Metric, v: number, o: { lang: string; unit?: string; units: Units; digits: number }): string {
+    switch (m) {
+        case 'temp': case 'feels': case 'dew': return fill(W.degrees, { v: whole(v) });
+        case 'chance': case 'humidity': case 'cloud': return fill(W.percent, { v: String(Math.round(v)) });
+        case 'amount': return `${num(v, o.lang, o.digits)} ${o.unit ?? ''}`.trim();
+        case 'uv': return num(Math.round(v), o.lang);
+        case 'wind': case 'gust': return `${num(Math.round(v), o.lang)} ${o.units.wind}`;
+        case 'pressure': return `${num(v, o.lang, pressureDigits(o.units), false)} ${o.units.pressure}`;
+    }
+}
+/** The wind's arrow beside its figure: where it blows, as the card's own arrow points */
+const windArrow = (bearing: number | null) => (bearing === null ? ''
+    : `<svg class="fc-dir" viewBox="0 0 10 10" aria-hidden="true" focusable="false" style="transform:rotate(${Math.round(bearing + 180) % 360}deg)"><path d="M5 .6 8.6 9.2 5 7.1 1.4 9.2Z"/></svg>`);
 
 let uid = 0;
 
@@ -77,6 +121,8 @@ export interface HourlyOptions {
     tints?: (i: number) => Tints | null;
     /** The amount's unit ("mm", "in") */
     unit?: string;
+    /** The wind's and the pressure's units */
+    units?: Units;
     fahrenheit?: boolean;
     /** A label, an icon and a value every n hours (the wall's two-hour columns) */
     every?: number;
@@ -147,11 +193,20 @@ export function createHourly(o: HourlyOptions): Hourly {
     el.dataset.metric = metric;
 
     // ── Scales, computed once for every hour the row can reach, so nothing rescales under a thumb ──
-    const temps = hrs.flatMap(h => [h.temp, h.feels]).filter((v): v is number => v !== null);
-    const tMin = temps.length ? Math.min(...temps) : 0, tMax = temps.length ? Math.max(...temps) : 1;
-    // A flat day never draws a cliff: 8 °C (14.4 °F) is the least the travel shows
-    const tSpan = Math.max(o.fahrenheit ? 14.4 : 8, tMax - tMin);
-    const tMid = (tMin + tMax) / 2;
+    const units = o.units ?? DEFAULT_UNITS;
+    const val = (h: HourRow, m: Metric): number | null => (m === 'feels' ? h.feels ?? h.temp : h[m]);
+    /** A range's middle and span over the hours, never flatter than its least: a flat day never draws a cliff */
+    const rangeOf = (ms: Metric[], least: number) => {
+        const v = hrs.flatMap(h => ms.map(m => h[m])).filter((x): x is number => x !== null);
+        const lo = v.length ? Math.min(...v) : 0, hi = v.length ? Math.max(...v) : 1;
+        return { mid: (lo + hi) / 2, span: Math.max(least, hi - lo) };
+    };
+    // The temperatures share one scale, so Temp and Feels like keep the values where they agree; 8 °C (14.4 °F) at least
+    const degrees = o.fahrenheit ? 14.4 : 8;
+    const temps = rangeOf(['temp', 'feels'], degrees);
+    const ranges: Partial<Record<Metric, { mid: number; span: number }>> = {
+        temp: temps, feels: temps, dew: rangeOf(['dew'], degrees), pressure: rangeOf(['pressure'], pressureLeast(units)),
+    };
     const graph = graphOf(o.graph);
     const bars = graph === 'bars', bare = graph === 'none';
     // On the line: half a figure above and below its travel; above it (the wall), or over a bar: the figure stands over
@@ -162,12 +217,21 @@ export function createHourly(o: HourlyOptions): Hourly {
     const tBottom = bars ? base - Math.max(4, (base - (vh + (o.valueLift ?? 1))) / 6) : o.above ? H - 4 : H - vh / 2;
     const travel = tBottom - tTop;
     const lift = H - 3 - vh;
-    const aMax = Math.max(o.unit === 'in' ? 0.08 : 2, ...hrs.map(h => h.amount ?? 0));
-    const yOf: Record<Metric, (h: HourRow) => number> = {
-        temp: h => tTop + travel / 2 - (((h.temp ?? tMid) - tMid) / tSpan) * travel,
-        feels: h => tTop + travel / 2 - (((h.feels ?? h.temp ?? tMid) - tMid) / tSpan) * travel,
-        chance: h => base - ((h.chance ?? 0) / 100) * lift,
-        amount: h => base - ((h.amount ?? 0) / aMax) * lift,
+    // From zero: each to its top. The wind and its gusts share one, so the gusts stand over the wind
+    const windTop = Math.max(windLeast(units), ...hrs.flatMap(h => [h.wind ?? 0, h.gust ?? 0]));
+    const tops: Partial<Record<Metric, number>> = {
+        chance: 100, humidity: 100, cloud: 100, amount: Math.max(o.unit === 'in' ? 0.08 : 2, ...hrs.map(h => h.amount ?? 0)),
+        uv: Math.max(UV_TOP, ...hrs.map(h => h.uv ?? 0)), wind: windTop, gust: windTop,
+    };
+    // A range whose figures stand over its points (the pressure, on a line) travels below them
+    const overTop = vh + (o.valueLift ?? 1), overTravel = H - 4 - overTop;
+    const yOf = (m: Metric, h: HourRow): number => {
+        const r = ranges[m];
+        if (r) {
+            const [top, tr] = onLine(m) || up || bare ? [tTop, travel] : [overTop, overTravel];
+            return top + tr / 2 - (((val(h, m) ?? r.mid) - r.mid) / r.span) * tr;
+        }
+        return base - clamp(Math.max(0, val(h, m) ?? 0) / tops[m]!) * lift;
     };
     // The amount's number on the wettest hour of each wet run carries the unit
     const peaks = new Set<number>();
@@ -178,22 +242,27 @@ export function createHourly(o: HourlyOptions): Hourly {
         peaks.add(best); i = j;
     }
     const digits = o.unit === 'in' ? 2 : 1;
-    const textOf: Record<Metric, (h: HourRow, i: number) => string> = {
-        temp: h => (h.temp === null ? '' : whole(h.temp)),
-        feels: h => (h.feels ?? h.temp) === null ? '' : whole((h.feels ?? h.temp)!),
-        chance: h => ((h.chance ?? 0) > 0 ? `${num(Math.round(h.chance!), o.lang)}<i class="fc-pct">%</i>` : ''),
-        amount: (h, i) => ((h.amount ?? 0) > 0 ? `${num(h.amount!, o.lang, digits)}${peaks.has(i) && o.unit ? `<i class="fc-u">${esc(o.unit)}</i>` : ''}` : ''),
-    };
     const every = Math.max(1, o.every ?? 1);
     const shown = (i: number) => i % every === 0;
-    for (const m of METRICS) { const f = textOf[m]; textOf[m] = (h, i) => (shown(i) ? f(h, i) : ''); }
-    const onLine = (m: Metric) => graph !== 'bars' && graph !== 'none' && !o.above && (m === 'temp' || m === 'feels');
-    const spoken: Record<Metric, (h: HourRow) => string> = {
-        temp: h => fill(W.degrees, { v: whole(h.temp ?? 0) }),
-        feels: h => fill(W.degrees, { v: whole(h.feels ?? h.temp ?? 0) }),
-        chance: h => fill(W.percent, { v: String(Math.round(h.chance ?? 0)) }),
-        amount: h => `${num(h.amount ?? 0, o.lang, digits)} ${o.unit ?? ''}`.trim(),
-    };
+    const pct = (v: number) => `${num(Math.round(v), o.lang)}<i class="fc-pct">%</i>`;
+    /** An hour's figure for a metric: empty where there's nothing (no value, or none of what runs from zero) */
+    function textOf(m: Metric, h: HourRow, i: number): string {
+        const v = val(h, m);
+        if (!shown(i) || v === null) return '';
+        switch (m) {
+            case 'temp': case 'feels': case 'dew': return whole(v);
+            case 'chance': case 'humidity': case 'cloud': return Math.round(v) > 0 ? pct(v) : '';
+            case 'amount': return v > 0 ? `${num(v, o.lang, digits)}${peaks.has(i) && o.unit ? `<i class="fc-u">${esc(o.unit)}</i>` : ''}` : '';
+            case 'uv': case 'gust': return Math.round(v) > 0 ? num(Math.round(v), o.lang) : '';
+            case 'wind': return Math.round(v) > 0 ? `${windArrow(h.bearing)}${num(Math.round(v), o.lang)}` : '';
+            case 'pressure': return num(v, o.lang, pressureDigits(units), false);
+        }
+    }
+    /** Which hours have a mark for a metric: a bar stands only where a figure does */
+    const marked = new Map<Metric, boolean[]>();
+    const marks = (m: Metric) => { let k = marked.get(m); if (!k) marked.set(m, k = hrs.map((h, i) => !!textOf(m, h, i))); return k; };
+    function onLine(m: Metric) { return graph !== 'bars' && graph !== 'none' && !o.above && DEGREES.has(m); }
+    const spoken = (m: Metric, h: HourRow) => spokenValue(W, m, val(h, m) ?? 0, { lang: o.lang, unit: o.unit, units, digits });
 
     // ── Markup ──
     // Columns every n hours: when midnight itself isn't shown, the day's name goes to its first shown hour
@@ -224,16 +293,14 @@ export function createHourly(o: HourlyOptions): Hourly {
     gapsG.innerHTML = hrs.map(() => '<rect rx="2"/>').join('');
     const gaps = [...gapsG.children] as SVGRectElement[];
     // Bars: one for every hour that shows a value, its top on the hour's point, so it travels on the same spring as the
-    // line; a chance or an amount of nothing has none
+    // line; an hour of nothing has none
     barsG.innerHTML = '<path/>';
     const barsPath = barsG.firstElementChild as SVGPathElement;
     const bw = Math.max(4, Math.min(12, pitch * every * 0.18));
     function barsD(): string {
         let d = '';
         for (let i = 0; i < n; i++) {
-            if (!shown(i)) continue;
-            const h = hrs[i];
-            if (metric === 'temp' ? h.temp === null : metric === 'feels' ? (h.feels ?? h.temp) === null : metric === 'chance' ? !(h.chance ?? 0) : !(h.amount ?? 0)) continue;
+            if (!shown(i) || !marks(metric)[i]) continue;
             const bh = Math.max(2, base + 1 - st.y[i]), r = Math.min(bw / 2, bh);
             const x0 = xs[i] - bw / 2, y0 = base + 1 - bh;
             d += `M${x0.toFixed(2)} ${base + 1}V${(y0 + r).toFixed(2)}a${r} ${r} 0 0 1 ${r} ${-r}h${(bw - 2 * r).toFixed(2)}a${r} ${r} 0 0 1 ${r} ${r}V${base + 1}Z`;
@@ -253,13 +320,13 @@ export function createHourly(o: HourlyOptions): Hourly {
     retint();
 
     function writeSr() {
-        sr.innerHTML = hrs.slice(0, 24).map((h, i) => `<li>${esc(`${i === 0 ? W.now : h.midnight ? `${h.day} ${h.time}` : h.time}: ${o.conditionName(h.condition)}, ${spoken[metric](h)}`)}</li>`).join('');
+        sr.innerHTML = hrs.slice(0, 24).map((h, i) => `<li>${esc(`${i === 0 ? W.now : h.midnight ? `${h.day} ${h.time}` : h.time}: ${o.conditionName(h.condition)}, ${spoken(metric, h)}`)}</li>`).join('');
         sr.setAttribute('aria-label', `${W.hourly}: ${chipName(W, metric, o.noun)}`);
     }
 
     // ── The state the loop draws: every point on one spring, the values' fade, the marks' strengths ──
     const st = {
-        y: hrs.map(h => yOf[metric](h)), v: hrs.map(() => 0), to: hrs.map(h => yOf[metric](h)),
+        y: hrs.map(h => yOf(metric, h)), v: hrs.map(() => 0), to: hrs.map(h => yOf(metric, h)),
         vOp: 1, vPhase: 'idle' as 'idle' | 'out' | 'in', vT: 0, vFrom: 1,
         keep: new Set<number>(),
         gap: onLine(metric) ? 1 : 0,
@@ -271,7 +338,7 @@ export function createHourly(o: HourlyOptions): Hourly {
     let raf = 0, last = 0;
 
     function writeValues(m: Metric) {
-        vals.forEach((s, i) => { const t = textOf[m](hrs[i], i); if (s.dataset.t !== t) { s.innerHTML = t; s.dataset.t = t; } });
+        vals.forEach((s, i) => { const t = textOf(m, hrs[i], i); if (s.dataset.t !== t) { s.innerHTML = t; s.dataset.t = t; } });
         el.dataset.values = onLine(m) ? 'line' : 'above';
         st.widths = vals.map(s => (s.dataset.t ? s.offsetWidth : 0));
     }
@@ -351,7 +418,7 @@ export function createHourly(o: HourlyOptions): Hourly {
         const prev = metric;
         metric = m;
         el.dataset.metric = m;
-        st.to = hrs.map(h => yOf[m](h));
+        st.to = hrs.map(h => yOf(m, h));
         writeSr();
         if (!animate || reducedMotion()) {
             // The keys, reduced motion: the end state, no travel
@@ -365,7 +432,7 @@ export function createHourly(o: HourlyOptions): Hourly {
         }
         // A value whose text and place on the line don't change keeps its light (Temp to Feels like, where they agree)
         st.keep.clear();
-        if (onLine(prev) && onLine(m) && st.vPhase === 'idle') for (let i = 0; i < n; i++) if (textOf[prev](hrs[i], i) === textOf[m](hrs[i], i)) st.keep.add(i);
+        if (onLine(prev) && onLine(m) && st.vPhase === 'idle') for (let i = 0; i < n; i++) if (textOf(prev, hrs[i], i) === textOf(m, hrs[i], i)) st.keep.add(i);
         const now = performance.now();
         if (st.vPhase !== 'out') { st.vFrom = st.vOp; st.vPhase = 'out'; st.vT = now; }
         kick();
@@ -493,12 +560,24 @@ export interface Chips {
     value(): Metric;
     level(): number;
     fit(): void;
+    /** How far the chips are scrolled, px, and to put them there: the view opens with the card's chips where they were */
+    scroll(): number;
+    scrollTo(px: number): void;
     destroy(): void;
 }
+/** px: where the chips scroll, how far their edges fade, and how far a chosen chip is kept from an edge */
+export const CHIP_FADE = 24;
 /**
  * A radiogroup of radio chips with a roving tabindex. The selected capsule is
  * a copy of the row in the selected style behind a clip window, so the ink
  * changes exactly at the capsule's edge.
+ *
+ * Every value the forecast reports has a chip. Where they don't fit, even on
+ * the short words in a tighter pill, they keep the short words in their own
+ * pill and scroll sideways, the edges fading where there are more: under a
+ * finger or a trackpad as any row does, under a mouse by dragging. While
+ * they scroll the slide leaves them alone (awc-noclaim), so a swipe on the
+ * chips moves the chips, and the row above still moves through the hours.
  */
 export function createChips(o: { W: FcWords; metrics: Metric[]; value: Metric; noun: Noun; minLevel?: number; onChange(m: Metric, o: { keys: boolean }): void }): Chips {
     const { W, metrics } = o;
@@ -506,40 +585,78 @@ export function createChips(o: { W: FcWords; metrics: Metric[]; value: Metric; n
     const el = document.createElement('div');
     el.className = 'fc-chips';
     let value: Metric = metrics.includes(o.value) ? o.value : metrics[0];
-    if (metrics.length < 2) { el.hidden = true; return { el, sel: null, empty: true, set() {}, value: () => value, level: () => 0, fit() {}, destroy() { el.remove(); } }; }
+    if (metrics.length < 2) { el.hidden = true; return { el, sel: null, empty: true, set() {}, value: () => value, level: () => 0, fit() {}, scroll: () => 0, scrollTo() {}, destroy() { el.remove(); } }; }
     el.setAttribute('data-fc-chips', '');
     el.setAttribute('role', 'radiogroup');
     el.setAttribute('aria-label', W.show);
-    el.innerHTML = `<div class="fc-chips-row">${metrics.map(m => `<button type="button" class="fc-chip" role="radio" data-metric="${m}" aria-checked="${m === value}" aria-label="${esc(chipName(W, m, o.noun))}" tabindex="${m === value ? 0 : -1}"><span>${esc(labels[m][0])}</span></button>`).join('')}</div>`
-        + `<div class="fc-chips-sel" aria-hidden="true">${metrics.map(m => `<span class="fc-chip" data-metric="${m}"><span>${esc(labels[m][0])}</span></span>`).join('')}</div>`;
+    el.innerHTML = '<div class="fc-chips-scroll"><div class="fc-chips-pad"><div class="fc-chips-track">'
+        + `<div class="fc-chips-row">${metrics.map(m => `<button type="button" class="fc-chip" role="radio" data-metric="${m}" aria-checked="${m === value}" aria-label="${esc(chipName(W, m, o.noun))}" tabindex="${m === value ? 0 : -1}"><span>${esc(labels[m][0])}</span></button>`).join('')}</div>`
+        + `<div class="fc-chips-sel" aria-hidden="true">${metrics.map(m => `<span class="fc-chip" data-metric="${m}"><span>${esc(labels[m][0])}</span></span>`).join('')}</div>`
+        + '</div></div></div>';
+    const scroller = el.querySelector('.fc-chips-scroll') as HTMLElement, track = el.querySelector('.fc-chips-track') as HTMLElement;
     const row = el.querySelector('.fc-chips-row') as HTMLElement, sel = el.querySelector('.fc-chips-sel') as HTMLElement;
     const chips = [...row.children] as HTMLElement[], copies = [...sel.children] as HTMLElement[];
     let level = 0;
+    let scrolls = false;
     function windowTo(travel: boolean) {
         const c = chips[metrics.indexOf(value)];
-        const l = c.offsetLeft, r = el.clientWidth - l - c.offsetWidth;
+        const l = c.offsetLeft, r = track.clientWidth - l - c.offsetWidth;
         sel.style.transition = travel ? '' : 'none';
         const clip = `inset(0 ${r.toFixed(2)}px 0 ${l.toFixed(2)}px round 999px)`;
         sel.style.clipPath = clip;
         sel.style.setProperty('-webkit-clip-path', clip);
         if (!travel) { void sel.offsetWidth; sel.style.transition = ''; }
     }
-    /** Whole or a step down: the full words, then the short ones, measured against this language */
+    /** The edges fade as far as there's more beyond them, so the first pixel of a scroll starts the fade */
+    function edges() {
+        const sl = scroller.scrollLeft, more = scroller.scrollWidth - scroller.clientWidth - sl;
+        scroller.style.setProperty('--fc-fs', scrolls ? (1 - clamp(sl / CHIP_FADE)).toFixed(3) : '1');
+        scroller.style.setProperty('--fc-fe', scrolls ? (1 - clamp(more / CHIP_FADE)).toFixed(3) : '1');
+    }
+    /** Where the chips scroll, a chip (the chosen one) clear of the faded edges */
+    function reveal(smooth: boolean, c = chips[metrics.indexOf(value)]) {
+        if (!scrolls) return;
+        const left = track.offsetLeft + c.offsetLeft, right = left + c.offsetWidth;
+        const sl = scroller.scrollLeft, cw = scroller.clientWidth;
+        let to = left < sl + CHIP_FADE ? left - CHIP_FADE : right > sl + cw - CHIP_FADE ? right - cw + CHIP_FADE : sl;
+        to = clamp(to, 0, Math.max(0, scroller.scrollWidth - cw));
+        if (Math.abs(to - sl) < 0.5) return;
+        if (smooth && typeof scroller.scrollTo === 'function') scroller.scrollTo({ left: to, behavior: 'smooth' });
+        else { scroller.scrollLeft = to; edges(); }
+    }
+    /** Whole or a step down: the full words, then the short ones, then a tighter pill; past that, the short words scroll */
     function fit() {
         const setLevel = (lv: number) => { level = lv; for (const set of [chips, copies]) set.forEach((c, i) => { (c.firstElementChild as HTMLElement).textContent = labels[metrics[i]][lv]; }); el.dataset.level = String(lv); };
+        const over = () => row.scrollWidth > el.clientWidth + 0.5;
+        el.removeAttribute('data-scroll');
         setLevel(Math.min(1, o.minLevel ?? 0));
-        if (level === 0 && row.scrollWidth > el.clientWidth + 0.5) setLevel(1);
-        if (row.scrollWidth > el.clientWidth + 0.5) el.dataset.level = '2';     // short words in a tighter pill
+        if (level === 0 && over()) setLevel(1);
+        if (over()) el.dataset.level = '2';     // short words in a tighter pill
+        scrolls = over();
+        if (scrolls) el.dataset.level = String(level);
+        el.toggleAttribute('data-scroll', scrolls);
+        scroller.classList.toggle('awc-noclaim', scrolls);
+        if (!scrolls) scroller.scrollLeft = 0;
         windowTo(false);
+        reveal(false);
+        edges();
     }
     function set(m: Metric, { travel = true, silent = false, keys = false }: { travel?: boolean; silent?: boolean; keys?: boolean } = {}) {
         if (!metrics.includes(m) || m === value) return;
         value = m;
         chips.forEach(c => { const on = c.dataset.metric === m; c.setAttribute('aria-checked', String(on)); c.tabIndex = on ? 0 : -1; });
-        windowTo(travel && !reducedMotion());
+        const moving = travel && !reducedMotion();
+        windowTo(moving);
+        reveal(moving);
         if (!silent) o.onChange(m, { keys });
     }
-    const onClick = (e: Event) => { const c = (e.target as HTMLElement).closest('.fc-chip') as HTMLElement | null; if (c && row.contains(c)) set(c.dataset.metric as Metric); };
+    // A drag isn't a press: the click it ends in is swallowed here, before the chip or the card hears it
+    let swallow = false;
+    const onClick = (e: Event) => {
+        if (swallow) { e.stopPropagation(); e.preventDefault(); swallow = false; return; }
+        const c = (e.target as HTMLElement).closest('.fc-chip') as HTMLElement | null;
+        if (c && row.contains(c)) set(c.dataset.metric as Metric);
+    };
     const onKey = (e: KeyboardEvent) => {
         const i = metrics.indexOf(value);
         const to = ({ ArrowRight: i + 1, ArrowDown: i + 1, ArrowLeft: i - 1, ArrowUp: i - 1, Home: 0, End: metrics.length - 1 } as Record<string, number>)[e.key];
@@ -547,20 +664,57 @@ export function createChips(o: { W: FcWords; metrics: Metric[]; value: Metric; n
         e.preventDefault(); e.stopPropagation();
         const m = metrics[(to + metrics.length) % metrics.length];
         set(m, { travel: false, keys: true });       // from the keys the capsule doesn't travel
-        chips[metrics.indexOf(m)].focus();
+        chips[metrics.indexOf(m)].focus({ preventScroll: true });
     };
     // The press: the pressed word, and the capsule's copy of it, give 3%
     const pd = (e: PointerEvent) => { const c = (e.target as HTMLElement).closest?.('.fc-chip') as HTMLElement | null; if (!c) return; const i = chips.indexOf(c); c.classList.add('fc-press'); copies[i]?.classList.add('fc-press'); };
     const pu = () => { for (const c of [...chips, ...copies]) c.classList.remove('fc-press'); };
-    row.addEventListener('click', onClick);
+    // Under a mouse, a row that scrolls follows a drag
+    let drag: { x: number; sl: number; moved: boolean } | null = null;
+    const dragMove = (e: PointerEvent) => {
+        if (!drag) return;
+        const dx = e.clientX - drag.x;
+        if (!drag.moved && Math.abs(dx) < 4) return;
+        if (!drag.moved) { drag.moved = true; pu(); el.classList.add('fc-dragging'); }
+        scroller.scrollLeft = drag.sl - dx;
+    };
+    const dragEnd = () => {
+        window.removeEventListener('pointermove', dragMove);
+        window.removeEventListener('pointerup', dragEnd);
+        window.removeEventListener('pointercancel', dragEnd);
+        if (drag?.moved) { swallow = true; window.setTimeout(() => { swallow = false; }, 0); el.classList.remove('fc-dragging'); }
+        drag = null;
+    };
+    const dragStart = (e: PointerEvent) => {
+        if (!scrolls || e.pointerType !== 'mouse' || e.button !== 0) return;
+        drag = { x: e.clientX, sl: scroller.scrollLeft, moved: false };
+        window.addEventListener('pointermove', dragMove);
+        window.addEventListener('pointerup', dragEnd);
+        window.addEventListener('pointercancel', dragEnd);
+    };
+    let scrollRaf = 0;
+    const onScroll = () => { cancelAnimationFrame(scrollRaf); scrollRaf = requestAnimationFrame(edges); };
+    // Tabbing in lands on the chosen chip: clear of the faded edges. Never on a press, which focuses the chip pressed:
+    // the chips would move under the pointer before it lifts
+    const keyed = (c: HTMLElement) => { try { return c.matches(':focus-visible'); } catch { return false; } };
+    const onFocus = (e: FocusEvent) => { const c = e.target as HTMLElement; if (chips.includes(c) && keyed(c)) reveal(false, c); };
+    el.addEventListener('click', onClick, true);
     row.addEventListener('keydown', onKey);
     row.addEventListener('pointerdown', pd);
+    row.addEventListener('focusin', onFocus);
     for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) row.addEventListener(ev, pu);
+    scroller.addEventListener('pointerdown', dragStart);
+    scroller.addEventListener('scroll', onScroll, { passive: true });
     let roRaf = 0, lastW = 0;
     const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => { cancelAnimationFrame(roRaf); roRaf = requestAnimationFrame(() => { const w = el.clientWidth; if (w && w !== lastW) { lastW = w; fit(); } }); }) : null;
     ro?.observe(el);
     document.fonts?.ready.then(() => { if (el.isConnected) fit(); }).catch(() => {});
-    return { el, sel, empty: false, set, value: () => value, fit, level: () => level, destroy() { cancelAnimationFrame(roRaf); ro?.disconnect(); el.remove(); } };
+    return {
+        el, sel, empty: false, set, value: () => value, fit, level: () => level,
+        scroll: () => scroller.scrollLeft,
+        scrollTo(px: number) { if (scrolls) { scroller.scrollLeft = px; edges(); } },
+        destroy() { cancelAnimationFrame(roRaf); cancelAnimationFrame(scrollRaf); ro?.disconnect(); dragEnd(); el.remove(); },
+    };
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -577,8 +731,9 @@ export interface Daily {
      */
     follow(at: { at: number; temperature: number | null } | null): void;
     /**
-     * What the days show, as the chips do for the hours: the temperature's range, the feels-like range, the chance of
-     * rain or the amount, each on one scale for the week. The dot for now is the temperature's only.
+     * What the days show, as the chips do for the hours: the temperature's range, the feels-like range, or the day's own
+     * figure for the rest (a bar from zero, or a mark on the week's scale for the dew point and the pressure), each on
+     * one scale for the week. The dot for now is the temperature's only.
      */
     setMetric(m: Metric, o?: { animate?: boolean }): void;
     draw(): void;
@@ -586,11 +741,13 @@ export interface Daily {
 }
 /** What a day shows for a metric: a span on the week's scale and its two labels */
 interface DayValue { lo?: number; hi?: number; loText: string; hiText: string }
+/** How the days' bars are lit: the temperature's scale, the sky's cold light for what falls, or the text's white */
+type DayLook = 'temp' | 'wet' | 'plain';
 export function createDaily(o: {
     hass?: HomeAssistant; W: FcWords; week: Week; current?: number; glyphSize?: number; tints?: Tints | null; theme: boolean; fahrenheit?: boolean;
     conditionName(c: string): string; ring?: number;
-    /** For the other metrics: the hours (their feels like), the reading's feels like now, what falls, the amount's unit */
-    hours?: Array<{ date: Date; feels: number | null }>; currentFeels?: number; noun?: Noun; unit?: string; lang?: string;
+    /** For the other metrics: the hours (their feels like), the reading's feels like now, what falls, the units */
+    hours?: Array<{ date: Date; feels: number | null }>; currentFeels?: number; noun?: Noun; unit?: string; units?: Units; lang?: string;
 }): Daily {
     const { W, week } = o;
     const el = document.createElement('div');
@@ -632,13 +789,40 @@ export function createDaily(o: {
         if (d.isToday && o.currentFeels !== undefined && isFinite(o.currentFeels)) v.push(o.currentFeels);
         return v;
     };
-    function valuesFor(m: Metric): { vals: DayValue[]; min: number; max: number; wet: boolean } {
-        if (m === 'chance' || m === 'amount') {
-            const raw = days.map(d => (m === 'chance' ? d.chance : d.precipitation));
-            const top = m === 'chance' ? 100 : Math.max(o.unit === 'in' ? 0.2 : 5, ...raw.map(v => v ?? 0));
+    const units = o.units ?? DEFAULT_UNITS;
+    /** The day's own figure for a metric, from its entry */
+    const own = (d: typeof days[number], m: Metric): number | undefined => {
+        const v = d.entry[METRIC_FIELD[m]];
+        return typeof v === 'number' && isFinite(v) ? v : undefined;
+    };
+    const figure = (m: Metric, v: number): string => (m === 'chance' || m === 'humidity' || m === 'cloud' ? `${num(Math.round(v), lang)}%`
+        : m === 'amount' ? amountText(v)
+        : m === 'dew' ? deg(v)
+        : m === 'pressure' ? num(v, lang, pressureDigits(units), false)
+        : num(Math.round(v), lang));
+    function valuesFor(m: Metric): { vals: DayValue[]; min: number; max: number; zero: boolean; look: DayLook } {
+        // From zero, a bar to the day's figure: what falls in the sky's cold light, the rest in the text's white
+        if (m === 'chance' || m === 'amount' || m === 'uv' || m === 'wind' || m === 'gust' || m === 'humidity' || m === 'cloud') {
+            const raw = days.map(d => (m === 'chance' ? d.chance : m === 'amount' ? d.precipitation : own(d, m)));
+            const top = m === 'amount' ? Math.max(o.unit === 'in' ? 0.2 : 5, ...raw.map(v => v ?? 0))
+                : m === 'uv' ? Math.max(UV_TOP, ...raw.map(v => v ?? 0))
+                : m === 'wind' || m === 'gust' ? Math.max(windLeast(units), ...days.flatMap(d => [own(d, 'wind') ?? 0, own(d, 'gust') ?? 0]))
+                : 100;
             return {
-                wet: true, min: 0, max: top,
-                vals: raw.map(v => (v === undefined ? { loText: '', hiText: '–' } : { lo: 0, hi: v, loText: '', hiText: m === 'chance' ? `${num(Math.round(v), lang)}%` : amountText(v) })),
+                zero: true, look: m === 'chance' || m === 'amount' ? 'wet' : 'plain', min: 0, max: top,
+                vals: raw.map(v => (v === undefined ? { loText: '', hiText: '–' } : { lo: 0, hi: v, loText: '', hiText: figure(m, v) })),
+            };
+        }
+        // The dew point and the pressure: the day's one figure, a mark on the week's scale (the dew point's in its degrees' light)
+        if (m === 'dew' || m === 'pressure') {
+            const raw = days.map(d => own(d, m));
+            const all = raw.filter((v): v is number => v !== undefined);
+            const least = m === 'pressure' ? pressureLeast(units) : o.fahrenheit ? 14.4 : 8;
+            const lo = all.length ? Math.min(...all) : 0, hi = all.length ? Math.max(...all) : 1;
+            const mid = (lo + hi) / 2, span = Math.max(least, hi - lo);
+            return {
+                zero: false, look: m === 'dew' ? 'temp' : 'plain', min: mid - span / 2, max: mid + span / 2,
+                vals: raw.map(v => (v === undefined ? { loText: '', hiText: '–' } : { lo: v, hi: v, loText: '', hiText: figure(m, v) })),
             };
         }
         if (m === 'feels') {
@@ -651,9 +835,9 @@ export function createDaily(o: {
             const all = vals.flatMap(v => (v.lo === undefined ? [] : [v.lo, v.hi!]));
             let min = all.length ? Math.min(...all) : week.min, max = all.length ? Math.max(...all) : week.max;
             if (max - min < 1) max = min + 1;
-            return { wet: false, min, max, vals };
+            return { zero: false, look: 'temp', min, max, vals };
         }
-        return { wet: false, min: week.min, max: week.max, vals: days.map(d => ({ lo: d.low, hi: d.high, loText: deg(d.low), hiText: deg(d.high) })) };
+        return { zero: false, look: 'temp', min: week.min, max: week.max, vals: days.map(d => ({ lo: d.low, hi: d.high, loText: deg(d.low), hiText: deg(d.high) })) };
     }
     let metric: Metric = 'temp';
     let cur = valuesFor('temp');
@@ -665,7 +849,8 @@ export function createDaily(o: {
         const day = d.isToday ? `${long}, ${W.today.toLowerCase()}` : long;
         const cond = o.conditionName(d.condition ?? '');
         if (m === 'feels') return v.lo === undefined ? `${day}: ${cond}` : fill(W.day_row, { day, cond: `${cond}, ${W.name_feels}`, lo: fill(W.degrees, { v: whole(v.lo) }), hi: fill(W.degrees, { v: whole(v.hi!) }) });
-        const what = v.hi === undefined ? '–' : m === 'chance' ? fill(W.percent, { v: String(Math.round(v.hi)) }) : `${amountText(v.hi)} ${o.unit ?? ''}`.trim();
+        const what = v.hi === undefined ? '–' : m === 'amount' ? `${amountText(v.hi)} ${o.unit ?? ''}`.trim()
+            : spokenValue(W, m, v.hi, { lang, unit: o.unit, units, digits: 1 });
         return `${day}: ${cond}, ${chipName(W, m, noun)} ${what}`;
     }
     const inks = rows.map(r => r.querySelector('.fc-d-ink') as HTMLElement);
@@ -684,15 +869,15 @@ export function createDaily(o: {
     };
     let from: Array<[number, number] | null> = [];
     function draw() {
-        const g = o.theme || cur.wet ? '' : scaleGradient(st.min, st.max, o.fahrenheit);
+        const g = o.theme || cur.look !== 'temp' ? '' : scaleGradient(st.min, st.max, o.fahrenheit);
         const bw = fills[0]?.parentElement?.clientWidth || 150;
         days.forEach((d, i) => {
             const f = fills[i];
             f.style.backgroundImage = g;
-            f.classList.toggle('fc-wet', cur.wet);
-            // Nothing falls, nothing to draw: a dry day's chance or amount is its figure alone
+            f.classList.toggle('fc-wet', cur.look === 'wet');
+            // Nothing to draw where there's nothing: a dry day's chance, a still day's wind, is its figure alone
             const v = cur.vals[i];
-            const to = cur.wet && !((v.hi ?? 0) > 0) ? null : spanOf(v, st.min, st.max);
+            const to = cur.zero && !((v.hi ?? 0) > 0) ? null : spanOf(v, st.min, st.max);
             // Mid-change, a bar glides from the last metric's span to this one's; a day with nothing to show fades
             const was = st.mix < 1 ? from[i] : to;
             const span = to && was ? [was[0] + (to[0] - was[0]) * st.mix, was[1] + (to[1] - was[1]) * st.mix] : to ?? was;
@@ -828,7 +1013,7 @@ export function createDaily(o: {
         // Re-express where the bars were on the new scale, so the glide is the bars', not the scale's
         from = from.map(f => (f ? [old.min + f[0] * (old.max - old.min), old.min + f[1] * (old.max - old.min)] : null))
             .map(v => (v ? [(v[0] - cur.min) / Math.max(1e-6, cur.max - cur.min), (v[1] - cur.min) / Math.max(1e-6, cur.max - cur.min)] as [number, number] : null));
-        if (old.wet !== cur.wet) from = from.map(() => null);
+        if (old.look !== cur.look || old.zero !== cur.zero) from = from.map(() => null);
         st.min = cur.min; st.max = cur.max;
         el.dataset.metric = m;
         rows.forEach((r, i) => {

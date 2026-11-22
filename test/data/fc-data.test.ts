@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Timeline, sunModel, phaseWeights, classOf, isWet, wetNoun, num, whole } from '../../src/fc-core';
-import { turningLine, timeParts, timeText, highLow, week, hours, available, relative, dateText, conditionNoun } from '../../src/fc-data';
+import { turningLine, timeParts, timeText, highLow, week, hours, available, bearingOf, METRICS, relative, dateText, conditionNoun } from '../../src/fc-data';
 import { FC_WORDS, fill, fcWords } from '../../src/fc-words';
 import { nextAlarm, alertBefore, nightMode, parseHm } from '../../src/fc-night';
 import type { ForecastEntry } from '../../src/forecast-data';
@@ -95,8 +95,22 @@ describe('the forecast as slots', () => {
     it('the hours, with which metrics the integration reports', () => {
         const entries = hourly(['sunny', 'rainy']).map(e => ({ ...e, apparent_temperature: 19 }));
         const rows = hours(new Timeline(entries, 'hourly', now).slots, hass());
-        expect(rows[0]).toMatchObject({ hour: '13', midnight: false, temp: 20, feels: 19, chance: 10, amount: null });
-        expect(available(entries)).toEqual({ temp: true, feels: true, chance: true, amount: false });
+        expect(rows[0]).toMatchObject({ hour: '13', midnight: false, temp: 20, feels: 19, chance: 10, amount: null, uv: null, wind: null, bearing: null });
+        expect(available(entries)).toEqual({ temp: true, feels: true, chance: true, amount: false, uv: false, wind: false, gust: false, humidity: false, dew: false, cloud: false, pressure: false });
+    });
+    it('every other value an hour carries, each with a chip when the forecast reports it', () => {
+        const entries = hourly(['sunny', 'rainy']).map((e, i) => ({
+            ...e, uv_index: 4, wind_speed: 18, wind_gust_speed: 31, wind_bearing: i ? 'NW' : 225, humidity: 70, dew_point: 11, cloud_coverage: 40, pressure: 1013.2,
+        }));
+        const rows = hours(new Timeline(entries, 'hourly', now).slots, hass());
+        expect(rows[0]).toMatchObject({ uv: 4, wind: 18, gust: 31, bearing: 225, humidity: 70, dew: 11, cloud: 40, pressure: 1013.2 });
+        // A bearing given as a compass point
+        expect(rows[1].bearing).toBe(315);
+        expect(available(entries)).toEqual({ temp: true, feels: false, chance: true, amount: false, uv: true, wind: true, gust: true, humidity: true, dew: true, cloud: true, pressure: true });
+        expect(METRICS).toEqual(['temp', 'feels', 'chance', 'amount', 'uv', 'wind', 'gust', 'humidity', 'dew', 'cloud', 'pressure']);
+        // A value that isn't a number is no value
+        expect(available([{ datetime: '', uv_index: NaN, humidity: '70' as never }])).toMatchObject({ uv: false, humidity: false });
+        expect([bearingOf('n'), bearingOf('ese'), bearingOf('90'), bearingOf('nowhere'), bearingOf(undefined)]).toEqual([0, 112.5, 90, null, null]);
     });
     it('rain, snow or sleet: the chips\' noun follows what falls', () => {
         expect(wetNoun(hourly(['snowy', 'cloudy']))).toBe('snow');

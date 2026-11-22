@@ -86,6 +86,15 @@ export interface HourRow {
     feels: number | null;
     chance: number | null;
     amount: number | null;
+    uv: number | null;
+    wind: number | null;
+    gust: number | null;
+    humidity: number | null;
+    dew: number | null;
+    cloud: number | null;
+    pressure: number | null;
+    /** Where the wind comes from, in degrees */
+    bearing: number | null;
     entry: ForecastEntry;
 }
 const n = (v: unknown): number | null => (typeof v === 'number' && isFinite(v) ? v : null);
@@ -106,18 +115,41 @@ export function hours(slots: Slot[], hass?: HomeAssistant, count = 48): HourRow[
             isDay: s.is_daytime ?? sun(mid).elevation > -0.833,
             temp: n(s.temperature), feels: n(s.apparent_temperature),
             chance: n(s.precipitation_probability), amount: n(s.precipitation),
+            uv: n(s.uv_index), wind: n(s.wind_speed), gust: n(s.wind_gust_speed), humidity: n(s.humidity),
+            dew: n(s.dew_point), cloud: n(s.cloud_coverage), pressure: n(s.pressure),
+            bearing: bearingOf(s.wind_bearing),
             entry: s,
         };
     });
 }
 
-/** Which of the four metrics a forecast can show */
-export const METRICS = ['temp', 'feels', 'chance', 'amount'] as const;
+/** The sixteen points of the compass, for a bearing given as one ("NW") */
+const COMPASS = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+/** A wind bearing in degrees, from degrees or a compass point; null when it's neither */
+export function bearingOf(v: unknown): number | null {
+    if (typeof v === 'number') return isFinite(v) ? v : null;
+    if (typeof v !== 'string') return null;
+    const i = COMPASS.indexOf(v.trim().toUpperCase());
+    if (i >= 0) return i * 22.5;
+    const d = parseFloat(v);
+    return isFinite(d) ? d : null;
+}
+
+/**
+ * What the chips can show, in their order: the four the row began with, then every other value an hourly forecast
+ * can carry. A forecast gets a chip for each one it reports.
+ */
+export const METRICS = ['temp', 'feels', 'chance', 'amount', 'uv', 'wind', 'gust', 'humidity', 'dew', 'cloud', 'pressure'] as const;
 export type Metric = typeof METRICS[number];
+/** Each metric's field in a forecast entry */
+export const METRIC_FIELD: Record<Metric, keyof ForecastEntry> = {
+    temp: 'temperature', feels: 'apparent_temperature', chance: 'precipitation_probability', amount: 'precipitation',
+    uv: 'uv_index', wind: 'wind_speed', gust: 'wind_gust_speed', humidity: 'humidity', dew: 'dew_point', cloud: 'cloud_coverage', pressure: 'pressure',
+};
 export function available(hourly: ForecastEntry[] | null): Record<Metric, boolean> {
     const h = hourly ?? [];
-    const has = (key: keyof ForecastEntry) => h.some(e => typeof e[key] === 'number');
-    return { temp: has('temperature'), feels: has('apparent_temperature'), chance: has('precipitation_probability'), amount: has('precipitation') };
+    const has = (key: keyof ForecastEntry) => h.some(e => typeof e[key] === 'number' && isFinite(e[key] as number));
+    return Object.fromEntries(METRICS.map(m => [m, has(METRIC_FIELD[m])])) as Record<Metric, boolean>;
 }
 
 // ── The days ───────────────────────────────────────────────────────────────

@@ -7,17 +7,11 @@ import { bindPlaceFields, placeFieldsHtml, PLACE_FIELDS_CSS } from './place-edit
 import type { HomeAssistant, AnimatedWeatherCardConfig as ForecastCardConfig } from './types';
 import { readActions } from './actions';
 import { mountActionsEditor, updateActionsEditor } from './action-editor';
-import { GRAPH_OPTIONS } from './config-editor';
+import { GRAPH_OPTIONS, METRIC_OPTIONS } from './config-editor';
 import { getConfigEditorStyles } from './styles/editor';
 import { FORECAST_TABLE, type RowContext } from './editor-rows';
 import { allSaid, allSwitch, bindSeg, bindSelect, picker, raf, row, section, select, seg, storeAll, storedAll, sw, syncRows } from './editor-kit';
 
-const METRICS = [
-    { value: 'temp', label: 'Temperature' },
-    { value: 'feels', label: 'Feels like' },
-    { value: 'chance', label: 'Chance of rain' },
-    { value: 'amount', label: 'Rain amount' },
-];
 const DAYS = ['0', '3', '5', '7', '10'].map(v => ({ value: v, label: v === '0' ? 'No days' : `${v} days` }));
 
 let editors = 0;
@@ -96,7 +90,7 @@ export class AnimatedForecastCardEditor extends HTMLElement {
               ${section('shows', 'What it shows', [
                   row('show_hours', sw('show_hours', 'The hours', c.show_hours !== false, 'The hourly row and its chips: drag it, and the sky goes there')),
                   row('forecast_days', select('forecast_days', 'Days')),
-                  row('forecast_metric', select('forecast_metric', 'Hours open on', 'The buttons under the hours switch between them')),
+                  row('forecast_metric', select('forecast_metric', 'Hours open on', 'Under the hours, a button for each value your forecast reports')),
                   row('forecast_graph', select('forecast_graph', 'Graph')),
                   row('weather_effects', sw('weather_effects', 'Weather', !!c.weather_effects, 'Rain, snow, fog, wind and lightning behind the forecast, going to the hour you drag to')),
               ].join(''))}
@@ -140,7 +134,7 @@ export class AnimatedForecastCardEditor extends HTMLElement {
         onSwitch('show_hours', checked => ({ show_hours: checked ? undefined : false }));
         onSwitch('weather_effects', checked => ({ weather_effects: checked || undefined }));
         onSwitch('dev_mode', checked => ({ dev_mode: checked || undefined }));
-        bindSelect(this, 'forecast_metric', METRICS, c.forecast_metric ?? 'temp', v => this._update({ forecast_metric: v === 'temp' ? undefined : v as ForecastCardConfig['forecast_metric'] }));
+        bindSelect(this, 'forecast_metric', METRIC_OPTIONS, c.forecast_metric ?? 'temp', v => this._update({ forecast_metric: v === 'temp' ? undefined : v as ForecastCardConfig['forecast_metric'] }));
         bindSelect(this, 'forecast_graph', GRAPH_OPTIONS, c.forecast_graph ?? 'line', v => this._update({ forecast_graph: v === 'line' ? undefined : v as ForecastCardConfig['forecast_graph'] }));
         // The usual counts, and any other YAML set (0 to 10), so the select shows what the card does
         const days = String(c.forecast_days ?? 7);

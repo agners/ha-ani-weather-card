@@ -254,6 +254,7 @@ export function devForecast({ sky, state, reading, dayTemp, now, latitude, longi
         at.setDate(at.getDate() + d);
         const noon = own[12] ?? own[own.length - 1];
         const max = (k: keyof ForecastEntry) => Math.max(...own.map(h => Number(h[k] ?? 0)));
+        const mean = (k: keyof ForecastEntry) => own.reduce((s, h) => s + Number(h[k] ?? 0), 0) / own.length;
         return {
             datetime: at.toISOString(),
             condition: weather === 'clear-night' ? 'sunny' : weather,
@@ -267,7 +268,11 @@ export function devForecast({ sky, state, reading, dayTemp, now, latitude, longi
             wind_gust_speed: round1(max('wind_gust_speed')),
             wind_bearing: noon.wind_bearing,
             uv_index: max('uv_index'),
-            humidity: Math.round(own.reduce((s, h) => s + Number(h.humidity ?? 0), 0) / own.length),
+            humidity: Math.round(mean('humidity')),
+            // The day's means, as integrations that report them give them
+            dew_point: round1(mean('dew_point')),
+            pressure: round1(mean('pressure')),
+            cloud_coverage: Math.round(mean('cloud_coverage')),
         };
     });
     return { hourly: hours.slice(first, first + 48), daily };

@@ -714,6 +714,8 @@ export function attachSlide(o: SlideOptions): Slide {
     let wheelTimer = 0;
     on(gesture, 'wheel', ((e: WheelEvent) => {
         if (Math.abs(e.deltaX) <= Math.abs(e.deltaY) || o.followOnly || o.disabled?.()) return;
+        // A control of its own scrolls itself: the chips, where they're more than fit
+        if (e.composedPath().some(n => n instanceof Element && n.matches('.awc-noclaim'))) return;
         e.preventDefault();
         if (!state.dragging) claim(state.active ? state.offset : 0);
         setRaw(clamp((state.raw || 0) + clamp(e.deltaX, -SLIDE.wheelClamp, SLIDE.wheelClamp), -40, maxPx() + 40));

@@ -35,7 +35,11 @@ import { cardNow, cardDate } from './clock';
 export const VIEW = { grow: 420, shrink: 300, restFrom: 160, restStep: 28, restDur: 220, restRise: 6, restOut: 100, closeVelocity: 0.5, closeShare: 0.3 };
 const IN = css(CURVE.in), OUT = css(CURVE.out);
 
-export interface ViewState { model: Model; metric: Metric; slots: number; chipsLevel: number; small: HTMLElement }
+export interface ViewState {
+    model: Model; metric: Metric; slots: number; chipsLevel: number; small: HTMLElement;
+    /** px: how far the card's chips are scrolled, so the view's start there */
+    chipsScroll?: number;
+}
 
 /** What the grown card's view hands the opener */
 interface ViewApi {
@@ -148,7 +152,7 @@ export function attachView(host: ForecastHost): ForecastExtras {
         const pitch = tablet() ? w / 10 : spec?.pitch ?? w / 6;
         hourly = createHourly({
             hass: host.hass(), W, lang: model.lang, hours: model.hours, current: host.current(), metric, has: model.has, noun: model.noun,
-            pitch, plot: 44, glyphSize: 22, unit: model.unit, fahrenheit: model.fahrenheit,
+            pitch, plot: 44, glyphSize: 22, unit: model.unit, units: model.units, fahrenheit: model.fahrenheit,
             graph: graphOf(host.config().forecast_graph),
             tints: iconTints(host, model, { y0: 0.3, y1: 0.45, glow: tablet() ? SKY_GLOW_WIDE : SKY_GLOW, reach: 8 }),
             conditionName: c => conditionNoun(c, host.hass(), s => host.conditionName(s)),
@@ -163,7 +167,7 @@ export function attachView(host: ForecastHost): ForecastExtras {
     const st = host.hass()?.states[host.config().entity ?? '']?.state ?? 'sunny';
     for (const x of [0.12, 0.5, 0.88]) for (const y of [0.5, 0.7, 0.9]) lum = Math.max(lum, relativeLuminance(sampleSkyAt(classOf(st) as SkyCondition, host.phase(), x, y, SKY_GLOW)));
     const wk = week(f.daily, f.dailyType === 'twice_daily' ? 'twice_daily' : 'daily', cardNow(), host.hass(), { count: tablet() ? 8 : 7, current: host.current() });
-    daily = createDaily({ hass: host.hass(), W, week: wk, current: host.current(), theme, fahrenheit: model.fahrenheit, tints: theme ? null : litTints(45, false, lum), hours: model.hours, currentFeels: feelsNow(host), noun: model.noun, unit: model.unit, lang: model.lang, conditionName: c => conditionNoun(c, host.hass(), s => host.conditionName(s)) });
+    daily = createDaily({ hass: host.hass(), W, week: wk, current: host.current(), theme, fahrenheit: model.fahrenheit, tints: theme ? null : litTints(45, false, lum), hours: model.hours, currentFeels: feelsNow(host), noun: model.noun, unit: model.unit, units: model.units, lang: model.lang, conditionName: c => conditionNoun(c, host.hass(), s => host.conditionName(s)) });
     if (metric !== 'temp') daily.setMetric(metric, { animate: false });
     list.append(daily.el);
     list.insertAdjacentHTML('beforeend', `<section class="fv-now" lang="${esc(fcWordsLang(host.hass()))}"><h3 class="fv-head"></h3><div class="fv-readings"></div></section>`
@@ -411,6 +415,7 @@ async function grow(host: ForecastHost, o: Overlay, state: ViewState): Promise<v
     o.sheet.setAttribute('aria-label', fill(W.view, { place: host.hass()?.states[host.config().entity ?? '']?.attributes?.friendly_name ?? '' }));
     // Carry the card's state: the metric and the hour it's left at
     v.setMetric(state.metric);
+    if (state.chipsScroll) v.chips?.scrollTo(state.chipsScroll);
     if (state.slots) v.park(state.slots);
     // Reduced motion, animate: false, or a browser without Web Animations: the view is simply there
     const still = reducedMotion() || host.still() || typeof o.sheet.animate !== 'function';

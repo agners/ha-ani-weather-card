@@ -45,6 +45,16 @@ export interface FcWords {
     name_amount_rain: string;
     name_amount_snow: string;
     name_amount_sleet: string;
+    /** The other chips, full and short: the UV index, wind, gusts, humidity, dew point, cloud cover, pressure */
+    chip_uv: [string, string];
+    chip_wind: [string, string];
+    chip_gust: [string, string];
+    chip_humidity: [string, string];
+    chip_dew: [string, string];
+    chip_cloud: [string, string];
+    chip_pressure: [string, string];
+    /** The gusts chip's spoken name (the others are the readings' labels) */
+    name_gust: string;
     /** A chip's spoken values: "{v} degrees", "{v} percent" */
     degrees: string;
     percent: string;
@@ -134,6 +144,7 @@ const EN: FcWords = {
     name_temp: 'Temperature', name_feels: 'Feels like',
     name_chance_rain: 'Chance of rain', name_chance_snow: 'Chance of snow', name_chance_sleet: 'Chance of sleet',
     name_amount_rain: 'Rain amount', name_amount_snow: 'Snow amount', name_amount_sleet: 'Sleet amount',
+    chip_uv: ['UV index', 'UV'], chip_wind: ['Wind', 'Wind'], chip_gust: ['Gusts', 'Gusts'], chip_humidity: ['Humidity', 'Humidity'], chip_dew: ['Dew point', 'Dew'], chip_cloud: ['Cloud cover', 'Clouds'], chip_pressure: ['Pressure', 'Pressure'], name_gust: 'Wind gusts',
     degrees: '{v} degrees', percent: '{v} percent',
     day_row: '{day}: {cond}, low {lo}, high {hi}', day_now: ', {v} now',
     h: 'H', l: 'L', high_low: 'High {h}, low {l}',
@@ -163,6 +174,7 @@ const DE: FcWords = {
     name_temp: 'Temperatur', name_feels: 'Gefühlte Temperatur',
     name_chance_rain: 'Regenwahrscheinlichkeit', name_chance_snow: 'Schneewahrscheinlichkeit', name_chance_sleet: 'Schneeregenwahrscheinlichkeit',
     name_amount_rain: 'Regenmenge', name_amount_snow: 'Schneemenge', name_amount_sleet: 'Schneeregenmenge',
+    chip_uv: ['UV-Index', 'UV'], chip_wind: ['Wind', 'Wind'], chip_gust: ['Böen', 'Böen'], chip_humidity: ['Luftfeuchte', 'Feuchte'], chip_dew: ['Taupunkt', 'Taupunkt'], chip_cloud: ['Bewölkung', 'Wolken'], chip_pressure: ['Luftdruck', 'Druck'], name_gust: 'Windböen',
     degrees: '{v} Grad', percent: '{v} Prozent',
     day_row: '{day}: {cond}, Tiefstwert {lo}, Höchstwert {hi}', day_now: ', jetzt {v}',
     h: 'H', l: 'T', high_low: 'Höchstwert {h}, Tiefstwert {l}',

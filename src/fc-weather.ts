@@ -27,7 +27,7 @@ import { SKY_GLOW, SKY_GLOW_WIDE, sampleSkyAt, relativeLuminance, type SkyCondit
 import { HOUR, Slot, Timeline, classOf, clamp, esc, num, ownControl, sunModel, wetNoun, phaseWeights } from './fc-core';
 import { HourRow, METRICS, Metric, TurningLine, available, conditionNoun, dateText, highLow, hours, relative, timeHtml, timeParts, timeText, turningLine, dayName, week } from './fc-data';
 import { FcWords, fcWords, fill } from './fc-words';
-import { Chips, Daily, Hourly, Noun, createChips, createDaily, createHourly, hourCols, graphOf } from './fc-row';
+import { Chips, Daily, Hourly, Noun, Units, createChips, createDaily, createHourly, hourCols, graphOf } from './fc-row';
 import { Tints, litTints } from './fc-glyphs';
 import { Slide, attachSlide } from './fc-slide';
 import { TimeText, fitHeroTime, layoutLeft, minuteTicker } from './fc-clock';
@@ -57,6 +57,8 @@ export interface Model {
     noun: Noun;
     fahrenheit: boolean;
     unit: string;
+    /** The wind's and the pressure's units, the weather entity's */
+    units: Units;
     lineAt(k: number): TurningLine | null;
     hl: [number, number] | null;
     current?: number;
@@ -85,6 +87,7 @@ export function buildModel(host: ForecastHost, current?: number): Model {
     return {
         W, lang, tl, entries: tl?.slots ?? [], hours: hrs, has, metrics, noun: wetNoun(fine),
         fahrenheit: /F/.test(unitT), unit: precipitationUnit(entity?.attributes, hass?.config?.unit_system),
+        units: { wind: String(entity?.attributes?.wind_speed_unit ?? 'km/h'), pressure: String(entity?.attributes?.pressure_unit ?? 'hPa') },
         lineAt, hl: tl ? highLow(f.daily, f.dailyType === 'twice_daily' ? 'twice_daily' : f.dailyType ? 'daily' : null, tl.slots, now, current, hass) : null,
         current,
     };
@@ -349,7 +352,7 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
             tintsFor = iconTints(host, m, { y0: 0.5, y1: 0.66, glow: wide() ? SKY_GLOW_WIDE : SKY_GLOW, reach: cols });
             hourly = createHourly({
                 hass: host.hass(), W, lang: m.lang, hours: m.hours, current: current(), metric, has: m.has, noun: m.noun,
-                pitch: w / cols, plot: 44, glyphSize: 22, tints: i => tintsFor?.(i) ?? null, unit: m.unit, fahrenheit: m.fahrenheit,
+                pitch: w / cols, plot: 44, glyphSize: 22, tints: i => tintsFor?.(i) ?? null, unit: m.unit, units: m.units, fahrenheit: m.fahrenheit,
                 graph: graphOf(host.config().forecast_graph),
                 conditionName: c => conditionNoun(c, host.hass(), s => host.conditionName(s)),
             });
@@ -363,7 +366,7 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
             const st = host.hass()?.states[cfg().entity ?? '']?.state ?? 'sunny';
             let lum = 0;
             for (const x of wide() ? [0.05, 0.3, 0.55] : [0.12, 0.5, 0.88]) for (const y of [0.6, 0.8, 0.98]) lum = Math.max(lum, relativeLuminance(sampleSkyAt(classOf(st) as SkyCondition, host.phase(), x, y, wide() ? SKY_GLOW_WIDE : SKY_GLOW)));
-            daily = createDaily({ hass: host.hass(), W, week: wk, current: current(), theme, fahrenheit: m.fahrenheit, tints: theme ? null : litTints(45, false, lum), hours: m.hours, currentFeels: feelsNow(host), noun: m.noun, unit: m.unit, lang: m.lang, conditionName: c => conditionNoun(c, host.hass(), s => host.conditionName(s)) });
+            daily = createDaily({ hass: host.hass(), W, week: wk, current: current(), theme, fahrenheit: m.fahrenheit, tints: theme ? null : litTints(45, false, lum), hours: m.hours, currentFeels: feelsNow(host), noun: m.noun, unit: m.unit, units: m.units, lang: m.lang, conditionName: c => conditionNoun(c, host.hass(), s => host.conditionName(s)) });
             sec.append(daily.el);
             if (metric !== 'temp') daily.setMetric(metric, { animate: false });
             daily.draw();
@@ -744,7 +747,7 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
         conditionText: (state: string) => (forecastOn() ? conditionNoun(state, host.hass(), s => host.conditionName(s)) : null),
         open() {
             if (!model?.tl || !forecastOn()) { host.moreInfo(); return; }
-            openView(host, { model, metric, slots: slide?.slots() ?? 0, chipsLevel: chips?.level() ?? 0, small: root });
+            openView(host, { model, metric, slots: slide?.slots() ?? 0, chipsLevel: chips?.level() ?? 0, chipsScroll: chips?.scroll() ?? 0, small: root });
         },
         destroy() {
             info.removeEventListener('pointerdown', prepare);

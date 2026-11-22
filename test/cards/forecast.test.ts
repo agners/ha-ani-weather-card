@@ -129,7 +129,8 @@ describe('the forecast on the weather card', () => {
         expect(row.querySelector('.fc-col .fc-hr')?.textContent).toBe('Now');
         const chips = card.querySelector('[data-fc-chips]') as HTMLElement;
         expect(chips.getAttribute('role')).toBe('radiogroup');
-        expect([...chips.querySelectorAll('[role="radio"]')].map(c => c.getAttribute('data-metric'))).toEqual(['temp', 'feels', 'chance', 'amount']);
+        // A chip for every value the forecast reports: the sample's humidity, wind and pressure after the four
+        expect([...chips.querySelectorAll('[role="radio"]')].map(c => c.getAttribute('data-metric'))).toEqual(['temp', 'feels', 'chance', 'amount', 'wind', 'humidity', 'pressure']);
         const slider = card.querySelector('[role="slider"]') as HTMLElement;
         expect(slider.getAttribute('aria-valuenow')).toBe('0');
         expect(slider.getAttribute('aria-valuetext')).toMatch(/^Now: Partly cloudy, 21°/);

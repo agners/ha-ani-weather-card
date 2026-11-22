@@ -296,8 +296,8 @@ export interface AnimatedWeatherCardConfig {
     hero?: 'temperature' | 'clock';
     /** The forecast on the card: today's high and low, the turning line, the hourly row and its chips, and the slide through the hours */
     show_forecast?: boolean;
-    /** The metric the row shows first: temp, feels, chance or amount */
-    forecast_metric?: 'temp' | 'feels' | 'chance' | 'amount';
+    /** The chip the row opens on: one the hourly forecast reports, else the temperature */
+    forecast_metric?: 'temp' | 'feels' | 'chance' | 'amount' | 'uv' | 'wind' | 'gust' | 'humidity' | 'dew' | 'cloud' | 'pressure';
     /** The hours' graph, the same for every metric: a line (default), the line with a soft fill under it, bars, or none */
     forecast_graph?: 'line' | 'area' | 'bars' | 'none';
     /** With show_forecast, the days under the hourly row (default false) */
