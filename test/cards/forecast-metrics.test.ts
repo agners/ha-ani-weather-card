@@ -148,6 +148,32 @@ describe('the chips, more than fit', () => {
         expect(c.value()).toBe('humidity');
         void scroller;
     });
+    it('a new fit keeps them where they are, and a scroll handed over before the first fit is where they start', () => {
+        const scrolled = (sc: HTMLElement) => {
+            let left = 0;
+            Object.defineProperty(sc, 'scrollLeft', { configurable: true, get: () => left, set: v => { left = Math.max(0, Math.min(v, 425)); } });
+            Object.defineProperty(sc, 'scrollWidth', { configurable: true, get: () => 744 });
+            Object.defineProperty(sc, 'clientWidth', { configurable: true, get: () => 319 });
+            return sc;
+        };
+        const { c, scroller } = chips();
+        scrolled(scroller);
+        scroller.scrollLeft = 300;
+        c.fit();
+        expect(scroller.scrollLeft).toBe(300);
+        // The view: built hidden, handed the card's scroll, then laid out
+        const v = createChips({ W, metrics: [...METRICS], value: 'temp', noun: 'rain', onChange: () => {} });
+        document.body.append(v.el);
+        mounted.push(v.el);
+        const vs = scrolled(v.el.querySelector('.fc-chips-scroll') as HTMLElement);
+        v.scrollTo(417);
+        Object.defineProperty(v.el, 'clientWidth', { configurable: true, get: () => 311 });
+        Object.defineProperty(v.el.querySelector('.fc-chips-row'), 'scrollWidth', { configurable: true, get: () => 736 });
+        v.fit();
+        expect(vs.scrollLeft).toBe(417);
+        v.fit();
+        expect(vs.scrollLeft).toBe(417);
+    });
     it('every chip has its words, full and short, and a name, in every language', () => {
         for (const [lang, words] of Object.entries(FC_WORDS)) {
             const labels = chipLabels(words, 'rain');

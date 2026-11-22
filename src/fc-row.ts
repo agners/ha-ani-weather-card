@@ -624,11 +624,16 @@ export function createChips(o: { W: FcWords; metrics: Metric[]; value: Metric; n
         if (smooth && typeof scroller.scrollTo === 'function') scroller.scrollTo({ left: to, behavior: 'smooth' });
         else { scroller.scrollLeft = to; edges(); }
     }
+    /** Laid out at a width once: from then on a new fit keeps the chips where they are */
+    let fitted = false;
+    /** A scroll handed over before the first fit (the view's, from the card's chips) */
+    let carried: number | null = null;
     /** Whole or a step down: the full words, then the short ones, then a tighter pill; past that, the short words scroll */
     function fit() {
         const setLevel = (lv: number) => { level = lv; for (const set of [chips, copies]) set.forEach((c, i) => { (c.firstElementChild as HTMLElement).textContent = labels[metrics[i]][lv]; }); el.dataset.level = String(lv); };
         const over = () => row.scrollWidth > el.clientWidth + 0.5;
-        el.removeAttribute('data-scroll');
+        // Trying the words narrows the row, which the browser clamps the scroll to: where it was comes back after
+        const kept = carried ?? scroller.scrollLeft;
         setLevel(Math.min(1, o.minLevel ?? 0));
         if (level === 0 && over()) setLevel(1);
         if (over()) el.dataset.level = '2';     // short words in a tighter pill
@@ -636,9 +641,13 @@ export function createChips(o: { W: FcWords; metrics: Metric[]; value: Metric; n
         if (scrolls) el.dataset.level = String(level);
         el.toggleAttribute('data-scroll', scrolls);
         scroller.classList.toggle('awc-noclaim', scrolls);
-        if (!scrolls) scroller.scrollLeft = 0;
         windowTo(false);
-        reveal(false);
+        // The first fit shows the chosen chip, unless a scroll was handed over; after that, a new width keeps the chips
+        // where they were, and the view's own fits never undo the scroll it opened with
+        if (!scrolls) scroller.scrollLeft = 0;
+        else if (fitted || carried !== null) scroller.scrollLeft = kept;
+        else reveal(false);
+        if (el.clientWidth > 0) { fitted = true; carried = null; }
         edges();
     }
     function set(m: Metric, { travel = true, silent = false, keys = false }: { travel?: boolean; silent?: boolean; keys?: boolean } = {}) {
@@ -712,7 +721,7 @@ export function createChips(o: { W: FcWords; metrics: Metric[]; value: Metric; n
     return {
         el, sel, empty: false, set, value: () => value, fit, level: () => level,
         scroll: () => scroller.scrollLeft,
-        scrollTo(px: number) { if (scrolls) { scroller.scrollLeft = px; edges(); } },
+        scrollTo(px: number) { if (fitted) { if (scrolls) { scroller.scrollLeft = px; edges(); } } else carried = px; },
         destroy() { cancelAnimationFrame(roRaf); cancelAnimationFrame(scrollRaf); ro?.disconnect(); dragEnd(); el.remove(); },
     };
 }
