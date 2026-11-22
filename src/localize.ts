@@ -15,7 +15,9 @@ export type CardString =
     | 'in_duration'
     | 'note_reading' | 'note_writing'
     | 'uv_index' | 'uv_low' | 'uv_moderate' | 'uv_high' | 'uv_very_high' | 'uv_extreme'
-    | 'rain_today' | 'rain_now';
+    | 'rain_today' | 'rain_now'
+    | 'dew_point' | 'visibility' | 'cloud_cover' | 'gusts'
+    | 'aqi' | 'aqi_good' | 'aqi_moderate' | 'aqi_sensitive' | 'aqi_unhealthy' | 'aqi_very_unhealthy' | 'aqi_hazardous';
 
 /** Norwegian, Bokmål */
 const NB: Partial<Record<CardString, string>> = {
@@ -27,6 +29,8 @@ const NB: Partial<Record<CardString, string>> = {
     uv_index: 'UV-indeks',
     uv_low: 'Lav', uv_moderate: 'Moderat', uv_high: 'Høy', uv_very_high: 'Svært høy', uv_extreme: 'Ekstrem',
     rain_today: 'Regn i dag', rain_now: 'Regn nå',
+    dew_point: 'Duggpunkt', visibility: 'Sikt', cloud_cover: 'Skydekke', gusts: 'Vindkast',
+    aqi: 'Luftkvalitet', aqi_good: 'God', aqi_moderate: 'Moderat', aqi_sensitive: 'Usunn for følsomme', aqi_unhealthy: 'Usunn', aqi_very_unhealthy: 'Svært usunn', aqi_hazardous: 'Farlig',
 };
 
 // One object literal, with no statement after it, so a bundle that never asks for a card string leaves the table out
@@ -40,6 +44,8 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         uv_index: 'UV index',
         uv_low: 'Low', uv_moderate: 'Moderate', uv_high: 'High', uv_very_high: 'Very high', uv_extreme: 'Extreme',
         rain_today: 'Rain today', rain_now: 'Rain now',
+        dew_point: 'Dew point', visibility: 'Visibility', cloud_cover: 'Cloud cover', gusts: 'Gusts',
+        aqi: 'Air quality', aqi_good: 'Good', aqi_moderate: 'Moderate', aqi_sensitive: 'Unhealthy for some', aqi_unhealthy: 'Unhealthy', aqi_very_unhealthy: 'Very unhealthy', aqi_hazardous: 'Hazardous',
     },
     de: {
         feels_like: 'Gefühlt', indoors: 'Innen',
@@ -50,6 +56,8 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         uv_index: 'UV-Index',
         uv_low: 'Niedrig', uv_moderate: 'Mäßig', uv_high: 'Hoch', uv_very_high: 'Sehr hoch', uv_extreme: 'Extrem',
         rain_today: 'Regen heute', rain_now: 'Regen jetzt',
+        dew_point: 'Taupunkt', visibility: 'Sichtweite', cloud_cover: 'Bewölkung', gusts: 'Böen',
+        aqi: 'Luftqualität', aqi_good: 'Gut', aqi_moderate: 'Mäßig', aqi_sensitive: 'Ungesund für Empfindliche', aqi_unhealthy: 'Ungesund', aqi_very_unhealthy: 'Sehr ungesund', aqi_hazardous: 'Gefährlich',
     },
     es: {
         feels_like: 'Sensación térmica', indoors: 'Interior',
@@ -60,6 +68,8 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         uv_index: 'Índice UV',
         uv_low: 'Bajo', uv_moderate: 'Moderado', uv_high: 'Alto', uv_very_high: 'Muy alto', uv_extreme: 'Extremo',
         rain_today: 'Lluvia hoy', rain_now: 'Lluvia ahora',
+        dew_point: 'Punto de rocío', visibility: 'Visibilidad', cloud_cover: 'Nubosidad', gusts: 'Ráfagas',
+        aqi: 'Calidad del aire', aqi_good: 'Buena', aqi_moderate: 'Moderada', aqi_sensitive: 'Dañina para sensibles', aqi_unhealthy: 'Dañina', aqi_very_unhealthy: 'Muy dañina', aqi_hazardous: 'Peligrosa',
     },
     fr: {
         feels_like: 'Ressenti', indoors: 'Intérieur',
@@ -70,6 +80,8 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         uv_index: 'Indice UV',
         uv_low: 'Faible', uv_moderate: 'Modéré', uv_high: 'Élevé', uv_very_high: 'Très élevé', uv_extreme: 'Extrême',
         rain_today: 'Pluie aujourd’hui', rain_now: 'Pluie en cours',
+        dew_point: 'Point de rosée', visibility: 'Visibilité', cloud_cover: 'Couverture nuageuse', gusts: 'Rafales',
+        aqi: 'Qualité de l\'air', aqi_good: 'Bonne', aqi_moderate: 'Modérée', aqi_sensitive: 'Mauvaise pour les sensibles', aqi_unhealthy: 'Mauvaise', aqi_very_unhealthy: 'Très mauvaise', aqi_hazardous: 'Dangereuse',
     },
     it: {
         feels_like: 'Percepita', indoors: 'Interno',
@@ -80,6 +92,8 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         uv_index: 'Indice UV',
         uv_low: 'Basso', uv_moderate: 'Moderato', uv_high: 'Alto', uv_very_high: 'Molto alto', uv_extreme: 'Estremo',
         rain_today: 'Pioggia oggi', rain_now: 'Pioggia ora',
+        dew_point: 'Punto di rugiada', visibility: 'Visibilità', cloud_cover: 'Copertura nuvolosa', gusts: 'Raffiche',
+        aqi: 'Qualità dell\'aria', aqi_good: 'Buona', aqi_moderate: 'Moderata', aqi_sensitive: 'Nociva per i sensibili', aqi_unhealthy: 'Nociva', aqi_very_unhealthy: 'Molto nociva', aqi_hazardous: 'Pericolosa',
     },
     nl: {
         feels_like: 'Voelt als', indoors: 'Binnen',
@@ -90,6 +104,8 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         uv_index: 'UV-index',
         uv_low: 'Laag', uv_moderate: 'Matig', uv_high: 'Hoog', uv_very_high: 'Zeer hoog', uv_extreme: 'Extreem',
         rain_today: 'Regen vandaag', rain_now: 'Regen nu',
+        dew_point: 'Dauwpunt', visibility: 'Zicht', cloud_cover: 'Bewolking', gusts: 'Windstoten',
+        aqi: 'Luchtkwaliteit', aqi_good: 'Goed', aqi_moderate: 'Matig', aqi_sensitive: 'Ongezond voor gevoeligen', aqi_unhealthy: 'Ongezond', aqi_very_unhealthy: 'Zeer ongezond', aqi_hazardous: 'Gevaarlijk',
     },
     pl: {
         feels_like: 'Odczuwalna', indoors: 'Wewnątrz',
@@ -100,6 +116,8 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         uv_index: 'Indeks UV',
         uv_low: 'Niski', uv_moderate: 'Umiarkowany', uv_high: 'Wysoki', uv_very_high: 'Bardzo wysoki', uv_extreme: 'Ekstremalny',
         rain_today: 'Deszcz dziś', rain_now: 'Deszcz teraz',
+        dew_point: 'Punkt rosy', visibility: 'Widoczność', cloud_cover: 'Zachmurzenie', gusts: 'Porywy',
+        aqi: 'Jakość powietrza', aqi_good: 'Dobra', aqi_moderate: 'Umiarkowana', aqi_sensitive: 'Szkodliwa dla wrażliwych', aqi_unhealthy: 'Szkodliwa', aqi_very_unhealthy: 'Bardzo szkodliwa', aqi_hazardous: 'Niebezpieczna',
     },
     pt: {
         feels_like: 'Sensação térmica', indoors: 'Interior',
@@ -110,6 +128,8 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         uv_index: 'Índice UV',
         uv_low: 'Baixo', uv_moderate: 'Moderado', uv_high: 'Alto', uv_very_high: 'Muito alto', uv_extreme: 'Extremo',
         rain_today: 'Chuva hoje', rain_now: 'Chuva agora',
+        dew_point: 'Ponto de orvalho', visibility: 'Visibilidade', cloud_cover: 'Nebulosidade', gusts: 'Rajadas',
+        aqi: 'Qualidade do ar', aqi_good: 'Boa', aqi_moderate: 'Moderada', aqi_sensitive: 'Má para sensíveis', aqi_unhealthy: 'Má', aqi_very_unhealthy: 'Muito má', aqi_hazardous: 'Perigosa',
     },
     ro: {
         feels_like: 'Resimțită', indoors: 'Interior',
@@ -120,6 +140,8 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         uv_index: 'Indice UV',
         uv_low: 'Scăzut', uv_moderate: 'Moderat', uv_high: 'Ridicat', uv_very_high: 'Foarte ridicat', uv_extreme: 'Extrem',
         rain_today: 'Ploaie azi', rain_now: 'Ploaie acum',
+        dew_point: 'Punct de rouă', visibility: 'Vizibilitate', cloud_cover: 'Nebulozitate', gusts: 'Rafale',
+        aqi: 'Calitatea aerului', aqi_good: 'Bună', aqi_moderate: 'Moderată', aqi_sensitive: 'Nocivă pentru sensibili', aqi_unhealthy: 'Nocivă', aqi_very_unhealthy: 'Foarte nocivă', aqi_hazardous: 'Periculoasă',
     },
     nb: NB,
     // Home Assistant's Norwegian is Bokmål (`nb`); `no` and Nynorsk (`nn`) get the same words
@@ -134,6 +156,8 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         uv_index: 'УФ-індекс',
         uv_low: 'Низький', uv_moderate: 'Помірний', uv_high: 'Високий', uv_very_high: 'Дуже високий', uv_extreme: 'Екстремальний',
         rain_today: 'Дощ сьогодні', rain_now: 'Дощ зараз',
+        dew_point: 'Точка роси', visibility: 'Видимість', cloud_cover: 'Хмарність', gusts: 'Пориви',
+        aqi: 'Якість повітря', aqi_good: 'Добра', aqi_moderate: 'Помірна', aqi_sensitive: 'Шкідлива для чутливих', aqi_unhealthy: 'Шкідлива', aqi_very_unhealthy: 'Дуже шкідлива', aqi_hazardous: 'Небезпечна',
     },
 };
 

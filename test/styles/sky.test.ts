@@ -4,7 +4,7 @@ import {
     sampleSky, sampleSkyAt, oklchToSrgb, composite, contrastRatio, skyColors, generateSkyCss, toHex,
     DISSOLVING_PROPERTIES, dissolveTransition, SKY_DISSOLVE_SEC, SKY_DISSOLVE_EASE,
 } from '../../src/sky';
-import { getMainCardStyles, CLOUD_OVERHANG_PX, UV_TINTS, DEV_MARKER } from '../../src/styles/card';
+import { getMainCardStyles, CLOUD_OVERHANG_PX, UV_TINTS, AQI_TINTS, DEV_MARKER } from '../../src/styles/card';
 import { GLYPH_CONTRAST } from '../../src/fc-glyphs';
 
 const text = oklchToSrgb(SKY_TEXT);
@@ -88,8 +88,8 @@ describe('sky palettes', () => {
         ['wide', grid(range(0.58, 0.85, 0.025), range(0.45, 0.9, 0.03)), SKY_GLOW_WIDE],
         ['wide over the forecast', grid(range(0.02, 0.9, 0.02), range(0.55, 0.65, 0.02)), SKY_GLOW_WIDE],
     ] as const;
-    for (const [level, tint] of Object.entries(UV_TINTS)) {
-        it(`the UV icon at ${level} holds ${GLYPH_CONTRAST}:1 in every sky, wherever the readings sit`, () => {
+    for (const [level, tint] of [...Object.entries(UV_TINTS).map(([l, t]) => [`UV ${l}`, t] as const), ...Object.entries(AQI_TINTS).map(([l, t]) => [`air quality ${l}`, t] as const)]) {
+        it(`the icon at ${level} holds ${GLYPH_CONTRAST}:1 in every sky, wherever the readings sit`, () => {
             const rgb = [1, 3, 5].map(i => parseInt(tint.slice(i, i + 2), 16) / 255) as [number, number, number];
             let worst = Infinity, where = '';
             for (const condition of SKY_CONDITIONS) for (const phase of SKY_PHASES) {

@@ -108,6 +108,8 @@ function readingsHtml(host: ForecastHost, W: FcWords, slot: Slot | null): string
     }
     const vis = n(a.visibility);
     if (vis !== null && !slot) out.push({ label: W.visibility, value: `${num(vis, lang)} ${a.visibility_unit ?? 'km'}` });
+    // The card's own readings at now: air quality and any sensor
+    if (!slot) for (const r of host.readings?.() ?? []) out.push({ label: r.label, value: r.value, sub: r.word });
     const pr = n(pick('pressure'));
     if (pr !== null) out.push({ label: W.pressure, value: `${num(Math.round(pr), lang)} ${a.pressure_unit ?? 'hPa'}` });
     return out.map(r => `<div class="fv-rd"><span class="fv-rd-l">${esc(r.label)}</span><strong>${esc(r.value)}</strong><em${r.sub ? '' : ' aria-hidden="true"'}>${esc(r.sub || ' ')}</em></div>`).join('');

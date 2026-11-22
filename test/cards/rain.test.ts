@@ -81,15 +81,20 @@ describe('the rain reading', () => {
         expect([label(), value()]).toEqual(['Rain today', '6.8 mm']);
     });
 
-    it('says "--" with no number, and writes a sensor\'s unit as text, never as markup', async () => {
+    it('says "--" until its sensor reports, leaves out a row with none, and writes a sensor\'s unit as text, never as markup', async () => {
         const card = mount({ ...cfg, metrics: ['rain'] }, makeHass(sensor('sensor.rain_today', '1', '<img src=x onerror="alert(1)">')));
         await settle();
         expect(card.querySelector('img')).toBeNull();
         expect(rainOf(card).querySelector('.attribute-text')?.textContent).toBe('1.0 <img src=x onerror="alert(1)">');
+        // A rain row with no sensor set says nothing the weather entity could: it isn't drawn
         const none = mount({ metrics: ['rain'] }, makeHass());
         await settle();
-        expect(rainOf(none).querySelector('.attribute-text')?.textContent).toBe('--');
-        expect(rainOf(none).querySelector('.attribute-label span')?.textContent).toBe('Rain today');
+        expect(rainOf(none)).toBeNull();
+        // One whose sensor hasn't reported yet is, with "--", and its label
+        const waiting = mount({ metrics: ['rain'], rain_entity: 'sensor.rain_soon' }, makeHass());
+        await settle();
+        expect(rainOf(waiting).querySelector('.attribute-text')?.textContent).toBe('--');
+        expect(rainOf(waiting).querySelector('.attribute-label span')?.textContent).toBe('Rain today');
     });
 });
 

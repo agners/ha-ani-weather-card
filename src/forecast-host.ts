@@ -64,6 +64,11 @@ export interface ForecastHost {
      * Null when there's none. Optional: an older main bundle has none
      */
     reading?(kind: 'uv' | 'rain_today' | 'rain_now', value?: number): Reading | null;
+    /**
+     * The readings of the card's own that the view adds to its tiles at now: air quality and any sensor, in the row
+     * or view only. Optional: an older main bundle has none
+     */
+    readings?(): Reading[];
 }
 
 /** One reading in the card's words */

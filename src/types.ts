@@ -186,6 +186,21 @@ export interface CustomColorConfig {
 /**
  * Main configuration interface with comprehensive typing
  */
+/** One row of the weather card's readings, as YAML holds it (readings.ts normalizes it) */
+export interface ReadingEntry {
+    type: string;
+    /** A sensor, or a weather entity whose attribute it reads; none reads the card's own weather entity */
+    entity?: string;
+    /** wind: the direction's sensor */
+    direction_entity?: string;
+    /** rain: the rate's sensor, shown while it rains */
+    rate_entity?: string;
+    /** sensor: the label; else the entity's own name */
+    name?: string;
+    /** Only in the view that opens on tap */
+    view?: boolean;
+}
+
 export interface AnimatedWeatherCardConfig {
     type?: 'custom:animated-weather-card';
     entity?: string;
@@ -210,6 +225,13 @@ export interface AnimatedWeatherCardConfig {
     time_zone?: string;
     /** The readings in the metric row, in order: humidity, wind, pressure, sun (the default) and uv */
     metrics?: string[] | string;
+    /**
+     * The readings, in order (readings.ts): a type, or a type with its entity. With it, metrics, the reading sensors,
+     * show_sun, uv_entity, uv_max_entity and rain_* are ignored; without it, they build the list
+     */
+    readings?: Array<ReadingEntry | string>;
+    /** Where AQI's levels after good start, five rising numbers (default the US EPA's 51, 101, 151, 201, 301) */
+    aqi_levels?: number[] | string;
     /** A UV index sensor, such as OpenUV's current UV index. Without it, the weather entity's uv_index */
     uv_entity?: string;
     /** Today's highest UV index, for the view that opens on tap */

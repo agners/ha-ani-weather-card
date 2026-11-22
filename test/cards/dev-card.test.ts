@@ -97,6 +97,20 @@ describe('the dev card\'s world', () => {
         expect(card.hass!.states['sensor.rain'].attributes.unit_of_measurement).toBe('in');
     });
 
+    it('fills the readings\' own sensors too: air quality, dew point, gusts; any sensor stays yours', async () => {
+        const hass = baseHass();
+        (hass.states as Record<string, unknown>)['sensor.co2'] = { entity_id: 'sensor.co2', state: '612', attributes: { unit_of_measurement: 'ppm' } };
+        const card = mount({ entity: 'weather.home', readings: [{ type: 'aqi', entity: 'sensor.aqi' }, { type: 'dew_point', entity: 'sensor.dew' }, { type: 'gust', entity: 'sensor.gust' }, { type: 'sensor', entity: 'sensor.co2' }] }, hass);
+        world.drive(all);
+        world.set({ sky: 'fog' });
+        await frames();
+        const st = card.hass!.states;
+        expect(Number(st['sensor.aqi'].state)).toBe(92);
+        expect(st['sensor.dew'].attributes.unit_of_measurement).toBe('°C');
+        expect(st['sensor.gust'].attributes.unit_of_measurement).toBe('km/h');
+        expect(st['sensor.co2'].state).toBe('612');
+    });
+
     it('offers the forecast it\'s set to, and sends a new one to the subscriptions already open', async () => {
         const card = mount({ entity: 'weather.home' }, baseHass());
         world.drive(all);

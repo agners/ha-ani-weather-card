@@ -434,17 +434,23 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
     }
 
     // ── The readout: the hour under the needle, in the card's own places ──
-    const metricEls = (): Record<string, HTMLElement> => {
-        const out: Record<string, HTMLElement> = {};
-        for (const kind of ['humidity', 'wind', 'pressure', 'uv']) { const e = root.querySelector(`.attribute[data-kind="${kind}"] .attribute-text`) as HTMLElement | null; if (e) out[kind] = e; }
-        return out;
+    /** The readings the hour reports, each by the forecast's own field: every row of those types, in order */
+    const HOUR_FIELD: Record<string, string> = {
+        humidity: 'humidity', wind: 'wind_speed', pressure: 'pressure', uv: 'uv_index', feels_like: 'apparent_temperature',
+        dew_point: 'dew_point', cloud_cover: 'cloud_coverage', gust: 'wind_gust_speed',
     };
+    const rowEls = (): Array<{ kind: string; el: HTMLElement }> =>
+        [...root.querySelectorAll<HTMLElement>('.weather-attributes .attribute[data-kind]')]
+            .filter(a => Object.prototype.hasOwnProperty.call(HOUR_FIELD, a.dataset.kind ?? ''))
+            .map(a => ({ kind: a.dataset.kind!, el: a.querySelector('.attribute-text') as HTMLElement }))
+            .filter(x => !!x.el);
+    const metricEls = (): HTMLElement[] => rowEls().map(x => x.el);
     let saved: Map<HTMLElement, string> | null = null;
     let savedArrow: string | null = null;
     function save() {
         saved = new Map();
         const temp = root.querySelector('.temperature-value') as HTMLElement | null;
-        for (const e of [temp, desc, ...Object.values(metricEls())]) if (e) saved.set(e, e.innerHTML);
+        for (const e of [temp, desc, ...metricEls()]) if (e) saved.set(e, e.innerHTML);
         const arrow = root.querySelector('.wind-bearing-arrow') as HTMLElement | null;
         savedArrow = arrow ? arrow.style.transform : null;
     }
@@ -515,13 +521,14 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
         }
         writeCompanionAway();
         writeLine(k);
-        // The readings read the hour too: the card stays whole when pulled
-        const els = metricEls();
-        const vals: Record<string, unknown> = { humidity: slot.humidity, wind: slot.wind_speed, pressure: slot.pressure, uv: slot.uv_index };
-        for (const [kind, e] of Object.entries(els)) {
-            const v = vals[kind];
-            const home = saved?.get(e);
-            if (typeof v !== 'number' || home === undefined) continue;
+        // The readings read the hour too: the card stays whole when pulled. Each is the hour's value whole, in the
+        // weather entity's units, whatever sensor it shows at now
+        const a = host.hass()?.states[cfg().entity ?? '']?.attributes ?? {};
+        const wu = String(a.wind_speed_unit ?? 'km/h'), pu = String(a.pressure_unit ?? 'hPa');
+        const hour = slot as unknown as Record<string, unknown>;
+        for (const { kind, el: e } of rowEls()) {
+            const v = hour[HOUR_FIELD[kind]];
+            if (typeof v !== 'number' || saved?.get(e) === undefined) continue;
             // The UV's level goes with its number: the card words both, and colours the icon by the hour's level
             if (kind === 'uv') {
                 const r = host.reading?.('uv', v);
@@ -532,8 +539,11 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
                 if (r.level) box.dataset.level = r.level;
                 continue;
             }
-            const t = home.replace(/^[\d.,\s  ]+/, `${nf(v)}${/^[\d.,]+[\s ]/.test(home) ? ' ' : ''}`);
-            if (e.innerHTML !== t) e.innerHTML = t;
+            const t = kind === 'humidity' || kind === 'cloud_cover' ? `${nf(v)}%`
+                : kind === 'wind' || kind === 'gust' ? `${nf(v)} ${wu}`
+                : kind === 'pressure' ? `${num(v, model?.lang ?? 'en', pu.toLowerCase() === 'inhg' ? 2 : 0)} ${pu}`
+                : `${host.temperature(v)}°`;
+            if (e.textContent !== t) e.textContent = t;
         }
         const arrow = root.querySelector('.wind-bearing-arrow') as HTMLElement | null;
         if (arrow && typeof slot.wind_bearing === 'number') arrow.style.transform = `rotate(${slot.wind_bearing + 180}deg)`;
@@ -562,7 +572,7 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
             onAway: a => { hourly?.el.classList.toggle('fc-away', a); },
             onNeedle: (at, t) => daily?.follow(at === null ? null : { at, temperature: t }),
             onHome: () => { if (pendingRebuild) { pendingRebuild = false; setTimeout(() => { dataKey = keyOf(); rebuild(); }, 0); } },
-            group: () => [loc, root.querySelector('.temperature'), descRow ?? desc, lineEl, ...Object.values(metricEls())].filter((e): e is HTMLElement => !!e),
+            group: () => [loc, root.querySelector('.temperature'), descRow ?? desc, lineEl, ...metricEls()].filter((e): e is HTMLElement => !!e),
             mirror: () => (chips?.sel ? [chips.sel] : []),
         });
     }

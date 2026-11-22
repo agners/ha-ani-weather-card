@@ -35,6 +35,12 @@ export const CLOUD_OVERHANG_PX = 48;
  * says it too: the colour only repeats it. On a theme, the icon keeps the theme's one colour
  */
 export const UV_TINTS = { low: '#84ef8a', moderate: '#f2db49', high: '#ffd1a9', very_high: '#ffcdc8', extreme: '#e5d0ff' } as const;
+/**
+ * Air quality's icon by its level on the sky palette, the US EPA's colours (green, yellow, orange, red, purple, maroon)
+ * each as light as it must be to hold 3.2:1 through the label's quiet tint where the readings sit, as UV_TINTS are.
+ * The level's word says it too
+ */
+export const AQI_TINTS = { good: '#84ef8a', moderate: '#f2db49', sensitive: '#ffd1a9', unhealthy: '#ffcdc8', very_unhealthy: '#e5d0ff', hazardous: '#fcd5e3' } as const;
 
 export const getMainCardStyles = () => `
 ${iconBoxCss('animated-weather-card')}
@@ -636,6 +642,7 @@ ${iconBoxCss('animated-weather-card')}
         .weather-attributes.values-only .attribute { flex-direction: row; align-items: center; gap: 6px; }
         .weather-attributes.values-only .attribute-icon { --mdc-icon-size: 16px; opacity: var(--awc-secondary); }
         ${Object.entries(UV_TINTS).map(([level, tint]) => `.animated-weather-card:not(.theme-colors) .attribute[data-kind="uv"][data-level="${level}"] .attribute-icon { color: ${tint}; }`).join('\n        ')}
+        ${Object.entries(AQI_TINTS).map(([level, tint]) => `.animated-weather-card:not(.theme-colors) .attribute[data-kind="aqi"][data-level="${level}"] .attribute-icon { color: ${tint}; }`).join('\n        ')}
 
         /* ── Adaptive layout: width ──────────────────────────────────────── */
         @container awc (max-width: 319px) {

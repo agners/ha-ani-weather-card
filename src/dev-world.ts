@@ -19,6 +19,8 @@ import { moonPhaseName } from './moon';
 import { normalizeFlight } from './flight-tracker';
 import type { ForecastEntry } from './forecast-data';
 import { cardDate, cardNow } from './clock';
+import { readingsOf } from './readings';
+import { lookup } from './utils';
 
 export type DevSource = 'sim' | 'live';
 /** The forecast the world's weather entities offer: hours and days, days alone, or none */
@@ -150,6 +152,21 @@ const SENSORS: Record<string, { kind?: Kind; unit?: string; device?: string; rea
     rain_month_entity: { kind: 'precipitation', device: 'precipitation', read: (_, s) => s.rainToday + TOTALS.rain_month_entity },
     rain_year_entity: { kind: 'precipitation', device: 'precipitation', read: (_, s) => s.rainToday + TOTALS.rain_year_entity },
     moon_entity: { read: () => moonPhaseName(cardDate()) },
+};
+
+/** The readings' types the world fills when a row names a sensor for them (readings.ts), beyond the options above */
+const READING_SENSORS: Record<string, typeof SENSORS[string]> = {
+    feels_like: SENSORS.feels_like_entity,
+    dew_point: { kind: 'temperature', device: 'temperature', read: n => dewPoint(n.reading.temp, n.reading.humidity) },
+    visibility: { kind: 'visibility', device: 'distance', read: n => VISIBILITY[n.sky] ?? 16 },
+    cloud_cover: { unit: '%', read: n => CLOUD[n.sky] ?? 80 },
+    gust: { kind: 'wind', device: 'wind_speed', read: n => Number(n.forecast.hourly[0]?.wind_gust_speed ?? n.reading.wind * 1.5) },
+    // Air quality on the US EPA scale: clean after rain and wind, worst in still fog
+    aqi: { device: 'aqi', read: n => AQI[n.sky] ?? 40 },
+};
+const AQI: Record<string, number> = {
+    clear: 38, partlycloudy: 34, cloudy: 46, fog: 92, windy: 18, 'windy-variant': 22, rainy: 14, pouring: 9, lightning: 55,
+    'lightning-rainy': 20, snowy: 24, 'snowy-rainy': 21, hail: 17, exceptional: 168,
 };
 
 /** The world's starting point: partly cloudy, now */
@@ -481,8 +498,7 @@ export class World implements DevWorld {
         return this.stateObject(id, s.state, { ...(hass.states[id]?.attributes ?? {}), ...s.attributes, friendly_name: hass.states[id]?.attributes?.friendly_name ?? 'Sun' });
     }
 
-    private sensor(hass: HomeAssistant, option: string, id: string): HassEntity {
-        const spec = SENSORS[option];
+    private sensor(hass: HomeAssistant, option: string, id: string, spec = SENSORS[option]): HassEntity {
         const real = hass.states[id];
         const n = this.nowAt(hass);
         const value = spec.read(n, this.state);
@@ -517,6 +533,13 @@ export class World implements DevWorld {
         for (const option of Object.keys(SENSORS)) {
             const id = config[option];
             if (typeof id === 'string' && id) states[id] = this.entity(`${option}:${id}`, () => this.sensor(hass, option, id));
+        }
+        // The readings' other sensors: air quality, dew point, visibility, cloud cover, gusts (any sensor stays yours)
+        for (const r of readingsOf(config as never)) {
+            const spec = lookup(READING_SENSORS, r.type);
+            if (!spec || !r.entity || r.entity.startsWith('weather.') || states[r.entity] !== hass.states[r.entity]) continue;
+            const id = r.entity;
+            states[id] = this.entity(`${r.type}:${id}`, () => this.sensor(hass, r.type, id, spec));
         }
         if (typeof config.flights_entity === 'string' && config.flights_entity) {
             const id = config.flights_entity;
