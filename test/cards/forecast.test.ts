@@ -14,6 +14,7 @@ import { FC_WORDS } from '../../src/fc-words';
 import type { ForecastExtras, ForecastHost } from '../../src/forecast-host';
 import type { ForecastEntry } from '../../src/forecast-data';
 import { HOUR_EVENT, sendHour, type HourLink } from '../../src/hour-link';
+import { FORECAST_CSS } from '../../src/fc-css';
 
 const HOUR = 3600_000;
 const today = (h: number, m = 0) => { const d = new Date(); d.setHours(h, m, 0, 0); return d; };
@@ -147,7 +148,7 @@ describe('the forecast on the weather card', () => {
         // The divider moves with it: between the readings and the row while the row shows, above the readings (the rail's) where it gives way
         const css = card.querySelector('style.awc-fc-css')?.textContent ?? '';
         expect(css).toMatch(/\.weather-attributes ~ \.fc-section::before \{[^}]*height: 1px;[^}]*opacity: 0\.2;/);
-        expect(css).toMatch(/:is\(\[data-fc="full"\], \[data-fc="glyphs"\], \[data-fc="row"\]\) \.weather-attributes:has\(~ \.fc-section\)::before \{ content: none; \}/);
+        expect(css).toMatch(/:is\(\[data-fc="days"\], \[data-fc="full"\], \[data-fc="glyphs"\], \[data-fc="row"\]\) \.weather-attributes:has\(~ \.fc-section\)::before \{ content: none; \}/);
         expect(css).toMatch(/\.weather-attributes ~ \.fc-section \{[^}]*padding-top: calc\(14px \+ var\(--fc-sec-top, 0px\)\)/);
     });
 
@@ -1610,5 +1611,52 @@ describe('a weather card without the forecast follows a card dragged on its weat
         await settle();
         expect(rootOf(night)?.hasAttribute('data-awc-away') ?? false).toBe(false);
         needle(null);
+    });
+});
+
+describe('the days on the weather card (show_days)', () => {
+    const extrasOf = (card: Card) => (card as unknown as { extras?: ForecastExtras }).extras;
+    const rootOf = (card: Card) => card.querySelector('.animated-weather-card') as HTMLElement;
+    const other = document.createElement('div');
+
+    it('come under the row and its chips, as many as forecast_days, and give way first: one at a time to three, then all', async () => {
+        const card = mount({ show_forecast: true, show_days: true, forecast_days: 5 });
+        await until(() => !!rootOf(card)?.querySelector('.fc-section .fc-daily'));
+        const sec = rootOf(card).querySelector('.fc-section') as HTMLElement;
+        expect([...sec.children].map(e => e.className.split(' ')[0])).toEqual(['fc-hourly', 'fc-chips', 'fc-daily']);
+        expect(sec.querySelectorAll('.fc-day')).toHaveLength(5);
+        const x = extrasOf(card)!;
+        expect(x.levels()).toEqual(['days:5', 'days:4', 'days:3', 'full', 'glyphs', 'row', 'none', 'bare']);
+        x.setLevel('days:4');
+        expect(rootOf(card).dataset.fc).toBe('days');
+        expect([...sec.querySelectorAll<HTMLElement>('.fc-day')].map(r => r.hidden)).toEqual([false, false, false, false, true]);
+        // Any other level hides them, by CSS on data-fc
+        x.setLevel('full');
+        expect(rootOf(card).dataset.fc).toBe('full');
+        expect(FORECAST_CSS).toMatch(/\.animated-weather-card:not\(\[data-fc="days"\]\) \.fc-section \.fc-daily \{ display: none; \}/);
+    });
+
+    it('ask for their rows in the sections view, and add to the card\'s size', () => {
+        expect(mount({ show_forecast: true, show_days: true }).getGridOptions().rows).toBe(12);
+        expect(mount({ show_forecast: true, show_days: true, forecast_days: 3 }).getGridOptions().rows).toBe(10);
+        expect(mount({ show_forecast: true }).getGridOptions().rows).toBe(8);
+        // Not without the forecast, nor on the compact strip
+        expect(mount({ show_days: true }).getGridOptions().rows).toBe(4);
+        expect(mount({ show_forecast: true, show_days: true }).getCardSize()).toBe(mount({ show_forecast: true }).getCardSize() + 4);
+    });
+
+    it('follow the needle as the forecast card\'s do, and stay off the compact strip', async () => {
+        const card = mount({ show_forecast: true, show_days: true });
+        await until(() => !!rootOf(card)?.querySelector('.fc-daily'));
+        const list = rootOf(card).querySelector('.fc-daily') as HTMLElement;
+        sendHour({ source: other, entity: 'weather.home', sun: 'sun.sun', at: Date.now() + 26 * HOUR, temperature: 15, sky: null });
+        await until(() => list.hasAttribute('data-fc-follow'));
+        expect(list.hasAttribute('data-fc-follow')).toBe(true);
+        sendHour({ source: other, entity: 'weather.home', sun: 'sun.sun', at: null, temperature: null, sky: null });
+        await until(() => !list.hasAttribute('data-fc-follow'));
+        const strip = mount({ show_forecast: true, show_days: true, compact: true });
+        await settle();
+        await settle();
+        expect(rootOf(strip).querySelector('.fc-daily')).toBeNull();
     });
 });

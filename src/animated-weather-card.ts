@@ -1980,16 +1980,24 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard, DevCard {
      * The rows each option asks for, so everything turned on shows on a
      * phone: four, a note one more; the forecast eight with an hourly
      * forecast (the row, its icons and its chips), five without one (the
-     * turning line and the rail); the nightstand six. The clock asks for none.
+     * turning line and the rail), and the days a row for every two (32 px each); the nightstand six. The clock asks
+     * for none.
      */
     gridRows(): number {
         const note = this.noteEnabled() ? 1 : 0;
         if (this.config?.layout === 'nightstand') return 6;
         if (this.config?.show_forecast) {
             const hourly = forecastTypes(this.config.entity ? this._hass?.states[this.config.entity] : undefined).includes('hourly');
-            return (hourly ? 8 : 5) + note;
+            return (hourly ? 8 : 5) + this.dayRows() + note;
         }
         return 4 + note;
+    }
+
+    /** show_days: the rows the days ask for, 32 px each and 12 px above them, in 64 px rows */
+    private dayRows(): number {
+        if (!this.config?.show_days || this.config.compact) return 0;
+        const days = Math.max(0, Math.min(10, Math.round(Number(this.config.forecast_days ?? 7)) || 0));
+        return days ? Math.ceil((days * 32 + 12) / 64) : 0;
     }
 
     getCardSize(): number {
@@ -2001,7 +2009,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard, DevCard {
         if (this.config?.show_indoor !== false) size += 1;
         if (this.config?.show_attributes !== false) size += 1;
         if (this.noteEnabled()) size += 1;
-        if (this.config?.show_forecast) size += 3;
+        if (this.config?.show_forecast) size += 3 + this.dayRows();
         return size;
     }
 

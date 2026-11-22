@@ -441,12 +441,21 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
                 <span>The forecast: what turns, the hours ahead, and the slide through them</span>
               </label>
             </div>
-            <p class="section-note">Drag the card sideways and its sky, weather and readings go to the hour you stop at. It stays there until you tap Now, or until nobody has touched it for half a minute. Asks for eight rows in a sections view (five without an hourly forecast); a shorter frame gives up the chips, then the icons, then the row, before the temperature ever shrinks. A tap opens the whole forecast unless you choose something else under Interactions.</p>
+            <p class="section-note">Drag the card sideways and its sky, weather and readings go to the hour you stop at. It stays there until you tap Now, or until nobody has touched it for half a minute. Asks for eight rows in a sections view (five without an hourly forecast), and with the days one more for every two; a shorter frame gives up the days from the end, then the chips, then the icons, then the row, before the temperature ever shrinks. A tap opens the whole forecast unless you choose something else under Interactions.</p>
             <div class="option forecast-only">
               <ha-select id="forecast_metric" label="The hours first show"></ha-select>
             </div>
             <div class="option forecast-only">
               <ha-select id="forecast_graph" label="The hours' graph"></ha-select>
+            </div>
+            <div class="option forecast-only">
+              <label class="switch-label">
+                <ha-switch id="show_days" ${this._config.show_days ? 'checked' : ''}></ha-switch>
+                <span>The days, under the hours</span>
+              </label>
+            </div>
+            <div class="option forecast-only days-only">
+              <ha-select id="forecast_days" label="Days"></ha-select>
             </div>
             <div class="option">
               <ha-select id="layout" label="Layout"></ha-select>
@@ -851,6 +860,13 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
         this._bindSelect('forecast_graph', GRAPH_OPTIONS, this._config?.forecast_graph || 'line', (value) => {
             this._updateConfig('forecast_graph', value === 'line' ? undefined : value);
         });
+        this.querySelector('#show_days')?.addEventListener('change', (e) => {
+            this._updateConfig('show_days', (e.target as HTMLInputElement).checked || undefined);
+            this.syncForecastOptions();
+        });
+        this._bindSelect('forecast_days', Array.from({ length: 10 }, (_, i) => ({ value: String(i + 1), label: String(i + 1) })), String(this._config?.forecast_days ?? 7), (value) => {
+            this._updateConfig('forecast_days', value === '7' ? undefined : Number(value));
+        });
         this._bindSelect('layout', [
             { value: 'default', label: 'The weather card' },
             { value: 'nightstand', label: 'Nightstand: the time as the hero' },
@@ -1223,6 +1239,7 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
     private syncForecastOptions(): void {
         const dim = (sel: string, on: boolean) => this.querySelectorAll<HTMLElement>(sel).forEach(o => { o.style.cssText = on ? '' : 'opacity: 0.5; pointer-events: none;'; });
         dim('.forecast-only', !!this._config?.show_forecast);
+        dim('.days-only', !!this._config?.show_forecast && !!this._config?.show_days);
         dim('.small-clock', this._config?.hero !== 'clock');
         this.querySelectorAll<HTMLElement>('.nightstand-only').forEach(o => { o.hidden = this._config?.layout !== 'nightstand'; });
         this.querySelectorAll<HTMLElement>('.card-only').forEach(o => { o.hidden = this._config?.layout === 'nightstand'; });

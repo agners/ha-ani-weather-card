@@ -10,7 +10,12 @@
 // the forecast is drawn, and a slide that only follows takes the card's sky,
 // weather and words to that hour, naming it on the location line.
 //
+// With show_days, the days come under the row and its chips (in the hero's
+// column on a wide card), and follow the needle and the chips as the
+// forecast card's do.
+//
 // The fit gives way in this order, before the temperature ever shrinks:
+// the days, one at a time from the end down to three and then all of them,
 // the chips, then the icons, then the row (it folds back to the turning
 // line and the rail), then the turning line's own line. A level is kept
 // only while the card stays at its regular or compact step and the row's
@@ -20,9 +25,9 @@
 import type { ForecastExtras, ForecastHost } from './forecast-host';
 import { SKY_GLOW, SKY_GLOW_WIDE, sampleSkyAt, relativeLuminance, type SkyCondition, type SkyPhase } from './sky';
 import { HOUR, Slot, Timeline, classOf, clamp, esc, num, ownControl, sunModel, wetNoun, phaseWeights } from './fc-core';
-import { HourRow, METRICS, Metric, TurningLine, available, conditionNoun, dateText, highLow, hours, relative, timeHtml, timeParts, timeText, turningLine, dayName } from './fc-data';
+import { HourRow, METRICS, Metric, TurningLine, available, conditionNoun, dateText, highLow, hours, relative, timeHtml, timeParts, timeText, turningLine, dayName, week } from './fc-data';
 import { FcWords, fcWords, fill } from './fc-words';
-import { Chips, Hourly, Noun, createChips, createHourly, hourCols, graphOf } from './fc-row';
+import { Chips, Daily, Hourly, Noun, createChips, createDaily, createHourly, hourCols, graphOf } from './fc-row';
 import { Tints, litTints } from './fc-glyphs';
 import { Slide, attachSlide } from './fc-slide';
 import { TimeText, fitHeroTime, layoutLeft, minuteTicker } from './fc-clock';
@@ -35,6 +40,10 @@ import { cardNow, cardDate } from './clock';
 /** The share of a narrow card's height above which the row's first line can't sit (the light law) */
 const ROW_TOP_MIN = 0.43;
 const LEVELS = ['full', 'glyphs', 'row', 'none', 'bare'];
+/** The levels where the row shows; 'days' is full with the days under it */
+const ROW_LEVELS = ['days', 'full', 'glyphs', 'row'];
+/** The fewest days that are still a week's look: under that, the days go whole */
+const MIN_DAYS = 3;
 
 /** What the forecast says, worked out once per forecast and hour */
 export interface Model {
@@ -213,6 +222,9 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
     const hero = root.querySelector('.main-weather-info') as HTMLElement;
     const compact = root.dataset.variant === 'compact';
     const forecastOn = () => !!cfg().show_forecast;
+    /** show_days: the days under the row, as many as forecast_days (7 by default); not on the compact strip */
+    const dayCount = () => Math.max(0, Math.min(10, Math.round(Number(cfg().forecast_days ?? 7)) || 0));
+    const daysOn = () => forecastOn() && !compact && !!cfg().show_days && dayCount() > 0;
     /** The hours are read: the forecast is drawn, or the card follows another card's needle */
     const hoursOn = () => forecastOn() || !!host.following?.();
     const theme = () => cfg().color_palette === 'theme';
@@ -237,7 +249,8 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
     // ── The forecast's own parts ──
     let model: Model | null = null;
     let dataKey = '';
-    let sec: HTMLElement | null = null, hourly: Hourly | null = null, chips: Chips | null = null;
+    let sec: HTMLElement | null = null, hourly: Hourly | null = null, chips: Chips | null = null, daily: Daily | null = null;
+    let arrived = false;
     let descRow: HTMLElement | null = null, companion: HTMLElement | null = null, lineEl: HTMLElement | null = null;
     let away: HTMLElement | null = null;
     let slide: Slide | null = null, rulerKind = '';
@@ -317,15 +330,21 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
             meta.prepend(lineEl);
             writeLine(0);
         }
-        // The section: the hourly row and its chips. Narrow: at the card's foot, under the readings; wide: in the hero's column.
+        // The section: the hourly row and its chips, and with show_days the days. Narrow: at the card's foot, under the
+        // readings; wide: in the hero's column.
         metric = m.metrics.includes(metric) ? metric : (m.metrics[0] ?? 'temp');
-        if (m.hours.length && !compact) {
+        const f = host.forecast();
+        const wk = daysOn() ? week(f.daily, f.dailyType === 'twice_daily' ? 'twice_daily' : 'daily', cardNow(), host.hass(), { count: dayCount(), current: current() }) : null;
+        if ((m.hours.length || wk?.days.length) && !compact) {
             sec = document.createElement('div');
             sec.className = 'fc-section';
             if (wide()) hero.append(sec); else info.append(sec);
             const w = rowWidth();
             builtFor = { wide: wide(), w };
             if (wide()) sec.style.width = `${w}px`;
+        }
+        if (sec && m.hours.length) {
+            const w = rowWidth();
             const cols = hourCols(w, wide() ? 8 : 6);
             tintsFor = iconTints(host, m, { y0: 0.5, y1: 0.66, glow: wide() ? SKY_GLOW_WIDE : SKY_GLOW, reach: cols });
             hourly = createHourly({
@@ -335,8 +354,21 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
                 conditionName: c => conditionNoun(c, host.hass(), s => host.conditionName(s)),
             });
             sec.append(hourly.el);
-            chips = createChips({ W, metrics: m.metrics, value: metric, noun: m.noun, onChange: (k, { keys }) => { metric = k; hourly?.setMetric(k, { animate: !keys }); writeCompanionAway(); } });
+            chips = createChips({ W, metrics: m.metrics, value: metric, noun: m.noun, onChange: (k, { keys }) => { metric = k; hourly?.setMetric(k, { animate: !keys }); daily?.setMetric(k, { animate: !keys }); writeCompanionAway(); } });
             sec.append(chips.el);
+        }
+        // The days, as the forecast card draws them, lit by the sky where they sit: low in a narrow card, the hero's column on a wide one
+        if (sec && wk?.days.length) {
+            const theme = cfg().color_palette === 'theme';
+            const st = host.hass()?.states[cfg().entity ?? '']?.state ?? 'sunny';
+            let lum = 0;
+            for (const x of wide() ? [0.05, 0.3, 0.55] : [0.12, 0.5, 0.88]) for (const y of [0.6, 0.8, 0.98]) lum = Math.max(lum, relativeLuminance(sampleSkyAt(classOf(st) as SkyCondition, host.phase(), x, y, wide() ? SKY_GLOW_WIDE : SKY_GLOW)));
+            daily = createDaily({ hass: host.hass(), W, week: wk, current: current(), theme, fahrenheit: m.fahrenheit, tints: theme ? null : litTints(45, false, lum), hours: m.hours, currentFeels: feelsNow(host), noun: m.noun, unit: m.unit, lang: m.lang, conditionName: c => conditionNoun(c, host.hass(), s => host.conditionName(s)) });
+            sec.append(daily.el);
+            if (metric !== 'temp') daily.setMetric(metric, { animate: false });
+            daily.draw();
+            if (!arrived && host.seen() && !host.still()) daily.arrive();
+            arrived = true;
         }
         restDesc();
         measureCondition();
@@ -346,6 +378,7 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
         slide?.destroy(); slide = null; rulerKind = '';
         hourly?.destroy(); hourly = null;
         chips?.destroy(); chips = null;
+        daily?.destroy(); daily = null;
         sec?.remove(); sec = null; builtFor = null;
         away?.remove(); away = null;
         lineEl?.remove(); lineEl = null;
@@ -380,7 +413,7 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
     function chanceHtml(s: Slot): string {
         const p = s.precipitation_probability;
         if (typeof p !== 'number' || (p < 20 && !s.condition?.match(/rain|pour|snow|hail|lightning/))) return '';
-        if (sec && ['full', 'glyphs', 'row'].includes(level) && metric === 'chance') return '';
+        if (sec && ROW_LEVELS.includes(level) && metric === 'chance') return '';
         return `<span class="awc-hl-pair"><b>${esc(model!.W[model!.noun])}</b> ${esc(num(Math.round(p), model!.lang))}%</span>`;
     }
     let awaySlot: Slot | null = null;
@@ -510,7 +543,7 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
         if (!model?.tl || !hoursOn()) return;
         // Without the forecast, a slide that only follows: no ruler or rail, since the card takes no drag of its own
         const follower = !forecastOn();
-        const useRow = !!hourly && !hourly.empty && ['full', 'glyphs', 'row'].includes(level);
+        const useRow = !!hourly && !hourly.empty && ROW_LEVELS.includes(level);
         const kind = follower ? 'follow' : useRow ? 'row' : compact ? 'strip' : wide() ? 'info' : 'divider';
         if (slide && kind === rulerKind) return;
         if (slide?.active()) return;
@@ -527,6 +560,7 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
             valueText: s => valueText(m, host, s),
             onSlot: readout,
             onAway: a => { hourly?.el.classList.toggle('fc-away', a); },
+            onNeedle: (at, t) => daily?.follow(at === null ? null : { at, temperature: t }),
             onHome: () => { if (pendingRebuild) { pendingRebuild = false; setTimeout(() => { dataKey = keyOf(); rebuild(); }, 0); } },
             group: () => [loc, root.querySelector('.temperature'), descRow ?? desc, lineEl, ...Object.values(metricEls())].filter((e): e is HTMLElement => !!e),
             mirror: () => (chips?.sel ? [chips.sel] : []),
@@ -534,13 +568,16 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
     }
 
     // ── The fit's levels ──
+    /** "days:5" shows the row with five days under it; any other level, no days */
     function setLevel(l: string) {
-        level = l;
-        root.dataset.fc = l;
+        const n = l.startsWith('days:') ? Number(l.slice(5)) : 0;
+        level = n ? 'days' : l;
+        root.dataset.fc = level;
+        daily?.el.querySelectorAll<HTMLElement>('.fc-day').forEach((r, i) => { r.hidden = i >= n; });
         sec?.style.setProperty('--fc-sec-top', '0px');
     }
     function levelOk(overflows: () => boolean): boolean {
-        if (!sec || wide() || !['full', 'glyphs', 'row'].includes(level)) return true;
+        if (!sec || wide() || !ROW_LEVELS.includes(level) || !hourly) return true;
         const r = root.getBoundingClientRect(), s = sec.getBoundingClientRect();
         if (!r.height) return true;
         const need = r.height * ROW_TOP_MIN - (s.top - r.top);
@@ -569,7 +606,7 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
      * beside the hero and the floor is the row's top. With no row, today's sky
      */
     function floor() {
-        if (compact || !forecastOn() || !sec || !['full', 'glyphs', 'row'].includes(level) || !sec.getClientRects().length) { cloudFloor(root, null); return; }
+        if (compact || !forecastOn() || !sec || !ROW_LEVELS.includes(level) || !sec.getClientRects().length) { cloudFloor(root, null); return; }
         const readings = wide() ? null : root.querySelector('.weather-attributes') as HTMLElement | null;
         const top = readings?.getClientRects().length
             ? readings.getBoundingClientRect().top
@@ -668,8 +705,11 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
     return {
         levels: () => {
             if (!forecastOn() || compact) return [];
-            if (model?.tl && hourly && !hourly.empty) return LEVELS;
-            return model?.tl ? ['none', 'bare'] : [];
+            // The days first: all of them, then one fewer at a time to three, then none
+            const n = daily && !daily.empty ? daily.el.querySelectorAll('.fc-day').length : 0;
+            const days = Array.from({ length: n ? Math.max(1, n - Math.min(n, MIN_DAYS) + 1) : 0 }, (_, i) => `days:${n - i}`);
+            if (model?.tl && hourly && !hourly.empty) return [...days, ...LEVELS];
+            return model?.tl ? [...days, 'none', 'bare'] : [];
         },
         setLevel,
         levelOk,

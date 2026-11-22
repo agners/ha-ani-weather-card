@@ -66,6 +66,13 @@ describe('the forecast on the weather card', () => {
     it('the wide card\'s row and lines in the hero\'s column, full strength', () => {
         check('wide hero column', grid(range(0.02, 0.6, 0.04), range(0.4, 0.95, 0.05)), at(SKY_GLOW_WIDE));
     });
+    it('the days under the row (show_days): names and highs full strength, lows tinted, down to the card\'s foot', () => {
+        // They come after the row and its chips, so they start below the chips' 0.57; wide, in the hero's column
+        check('days', grid(range(0.02, 0.98, 0.04), range(0.55, 0.99, 0.04)), at(SKY_GLOW));
+        check('days, lows', grid(range(0.02, 0.98, 0.04), range(0.57, 0.99, 0.04)), at(SKY_GLOW), 0.8);
+        check('days, wide', grid(range(0.02, 0.6, 0.04), range(0.45, 0.99, 0.04)), at(SKY_GLOW_WIDE));
+        check('days, wide, lows', grid(range(0.02, 0.6, 0.04), range(0.45, 0.99, 0.04)), at(SKY_GLOW_WIDE), 0.8);
+    });
 });
 
 describe('the forecast card', () => {

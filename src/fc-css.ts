@@ -266,8 +266,12 @@ const CARD_CSS = `
 .weather-attributes ~ .fc-section { margin-top: 0; padding-top: calc(14px + var(--fc-sec-top, 0px)); }
 .weather-attributes ~ .fc-section::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: currentColor; opacity: 0.2; }
 .animated-weather-card[data-height="close"] .weather-attributes ~ .fc-section { padding-top: calc(10px + var(--fc-sec-top, 0px)); }
-.animated-weather-card:is([data-fc="full"], [data-fc="glyphs"], [data-fc="row"]) .weather-attributes:has(~ .fc-section) { padding-top: 0; }
-.animated-weather-card:is([data-fc="full"], [data-fc="glyphs"], [data-fc="row"]) .weather-attributes:has(~ .fc-section)::before { content: none; }
+.animated-weather-card:is([data-fc="days"], [data-fc="full"], [data-fc="glyphs"], [data-fc="row"]) .weather-attributes:has(~ .fc-section) { padding-top: 0; }
+.animated-weather-card:is([data-fc="days"], [data-fc="full"], [data-fc="glyphs"], [data-fc="row"]) .weather-attributes:has(~ .fc-section)::before { content: none; }
+/* show_days: the days under the row and its chips, only while the fit keeps them (data-fc="days") */
+.animated-weather-card:not([data-fc="days"]) .fc-section .fc-daily { display: none; }
+.fc-section .fc-daily { margin-top: 8px; }
+.fc-section .fc-hourly + .fc-chips + .fc-daily, .fc-section .fc-chips + .fc-daily { margin-top: 12px; }
 .theme-colors .weather-attributes ~ .fc-section::before { background: var(--divider-color, rgba(0, 0, 0, 0.12)); opacity: 1; }
 @container awc (min-width: 640px) { .fc-section { margin-top: 16px; align-self: flex-start; --fc-bleed: 20px; } }
 .animated-weather-card:is([data-fc="none"], [data-fc="bare"]) .fc-section { display: none; }

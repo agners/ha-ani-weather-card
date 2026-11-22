@@ -278,7 +278,9 @@ export interface AnimatedWeatherCardConfig {
     forecast_metric?: 'temp' | 'feels' | 'chance' | 'amount';
     /** The hours' graph, the same for every metric: a line (default), the line with a soft fill under it, bars, or none */
     forecast_graph?: 'line' | 'area' | 'bars' | 'none';
-    /** The forecast card: how many days its list shows (0 to 10, default 7) */
+    /** With show_forecast, the days under the hourly row (default false) */
+    show_days?: boolean;
+    /** How many days the list shows, on the forecast card and with show_days (0 to 10, default 7) */
     forecast_days?: number;
     /** The forecast card: the hourly row (default true) */
     show_hours?: boolean;
