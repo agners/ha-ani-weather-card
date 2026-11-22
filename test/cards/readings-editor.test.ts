@@ -51,6 +51,9 @@ describe('the readings\' table', () => {
         expect((rain.querySelector('.rd-entity') as Picker).includeDomains).toEqual(['sensor']);
         expect((rain.querySelector('.rd-rate') as Picker).hass).toBe(hass);
         expect(sun.querySelector('.rd-entity')).toBeNull();
+        // Any sensor takes any entity
+        const any = await editor({ readings: [{ type: 'sensor', entity: 'binary_sensor.door' }] }, hass);
+        expect((rows(any.ed)[0].querySelector('.rd-entity') as Picker).includeDomains).toBeUndefined();
     });
 
     it('adds a reading, its type first, then its entity; writes the short form and drops the options it replaces', async () => {

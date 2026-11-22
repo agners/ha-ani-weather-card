@@ -1374,8 +1374,14 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard, DevCard {
         if (!info || this.config?.compact) return;
         const old = info.querySelector(':scope > .weather-attributes');
         const html = this.rowHtml(this._pressureTrend ?? null).trim();
-        if (old) {
-            if (html) old.outerHTML = html; else old.remove();
+        if (old && html) {
+            // Only the readings: the slide's rail and slider may live in the row where the hours have given way
+            const fresh = document.createRange().createContextualFragment(html).firstElementChild as HTMLElement;
+            old.querySelectorAll(':scope > .attribute').forEach(e => e.remove());
+            old.prepend(...Array.from(fresh.querySelectorAll(':scope > .attribute')));
+            old.classList.toggle('values-only', fresh.classList.contains('values-only'));
+        } else if (old) {
+            old.remove();
         } else if (html) {
             const sec = info.querySelector(':scope > .fc-section');
             if (sec) sec.insertAdjacentHTML('beforebegin', html); else info.insertAdjacentHTML('beforeend', html);

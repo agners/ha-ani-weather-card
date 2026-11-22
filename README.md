@@ -87,7 +87,7 @@ Prefer your dashboard's own look? The theme palette drops the sky and draws the 
 - **Rests when unseen.** Motion pauses while the tab is hidden or the card is scrolled out of view. It can also pause while the window is in the background.
 - **Respects reduced motion.** If reduced motion is on in your system settings, the sky stays still: the same colour and light, with no moving weather. The sun stays, and so do a clear night's moon and stars, which don't twinkle.
 - **Readable in every sky.** Text sits above the weather, and every built-in sky is tested to meet WCAG AA contrast for the card's text. Screen readers hear temperature and condition changes, and decorative layers are hidden from them.
-- **Light to load.** The card is about 89 KB gzipped, with GSAP, its animation library, inside, so it moves without internet access. The visual editor, the forecast, the note writer, the planes and the dev card load only when they're needed.
+- **Light to load.** The card is about 95 KB gzipped, with GSAP, its animation library, inside, so it moves without internet access. The visual editor, the forecast, the note writer, the planes and the dev card load only when they're needed.
 - **Set up visually.** Every weather card option is in the visual editor. YAML is there when you want it.
 
 ## Built with AI.
@@ -235,7 +235,7 @@ readings:
 
 The row under the hero holds humidity, wind, pressure and the next sunset or sunrise. `readings` lists the readings and their order, each a type and, where it needs one or you'd rather, an entity. In the editor they're a table under Display → Readings: a row per reading, its type then its entity, and **Add a reading**. Four fit best: a phone shows them in a row or a 2 × 2 grid, a wide card in two columns. More make more rows.
 
-- **From the weather entity:** `humidity`, `wind`, `pressure`, `uv`, `feels_like`, `dew_point`, `visibility`, `cloud_cover` and `gust` read the weather entity's own value, in its units, unless the row names a sensor (or another weather entity). Wind can take a `direction_entity` too, and its sensor sets how fast the weather moves.
+- **From the weather entity:** `humidity`, `wind`, `pressure`, `uv`, `feels_like`, `dew_point`, `visibility`, `cloud_cover` and `gust` read the weather entity's own value, in its units, unless the row names a sensor (or another weather entity). A sensor that's unavailable falls back to the weather entity. Wind can take a `direction_entity` too, and its sensor sets how fast the weather moves.
 - **`sun`:** the next sunset by day and the next sunrise by night, from `sun_entity`.
 - **`uv`:** the number and its level, "6 High", on the WHO's scale: low, moderate, high, very high and extreme. On the sky palette its icon also takes the level's colour, from green to violet. `uv_levels` moves where moderate, high, very high and extreme start. Drag the card through the hours and it shows each hour's UV from the forecast.
 - **`rain`:** a station's own: today's rain from its sensor, such as an Ecowitt's daily rain, and while it rains, the rate from `rate_entity` ("Rain now, 1.2 mm/h"), each in its sensor's unit.

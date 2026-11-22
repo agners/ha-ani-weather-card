@@ -168,14 +168,15 @@ export function mountReadingsEditor(root: HTMLElement, config: () => AnimatedWea
         root.querySelectorAll<HTMLElement>('.rd-row').forEach(row => {
             const r = list[Number(row.dataset.i)];
             if (!r) return;
-            const set = (cls: string, value: string | undefined, domains: string[]) => {
+            const set = (cls: string, value: string | undefined, domains: string[] | undefined) => {
                 const p = row.querySelector(cls) as Picker | null;
                 if (!p) return;
                 if (hass) p.hass = hass;
                 p.includeDomains = domains;
                 p.value = value ?? '';
             };
-            set('.rd-entity', r.entity, reports(r.type) ? ['sensor', 'weather'] : ['sensor']);
+            // Any sensor takes any entity
+            set('.rd-entity', r.entity, r.type === 'sensor' ? undefined : reports(r.type) ? ['sensor', 'weather'] : ['sensor']);
             set('.rd-direction', r.direction_entity, ['sensor']);
             set('.rd-rate', r.rate_entity, ['sensor']);
         });

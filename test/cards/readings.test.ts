@@ -132,6 +132,25 @@ describe('the row', () => {
         await settle();
         expect(rows(card)[1]).toMatchObject({ value: '42 Good', level: 'good' });
     });
+    it('falls back to the weather entity when a sensor for what it reports isn\'t reporting, as it always has', async () => {
+        const card = mount({ humidity_sensor_entity: 'sensor.h', pressure_sensor_entity: 'sensor.p' }, makeHass({ 'sensor.h': state('sensor.h', 'unavailable'), 'sensor.p': state('sensor.p', '1001.4', { unit_of_measurement: 'hPa' }) }));
+        await settle();
+        expect(rows(card).slice(0, 3).map(r => r.value)).toEqual(['71%', '12 km/h', '1,001 hPa']);
+    });
+
+    it('draws the readings again in their row, leaving the slide\'s rail and slider where they live', async () => {
+        const card = mount({});
+        await settle();
+        const row = card.querySelector('.weather-attributes') as HTMLElement;
+        const slider = Object.assign(document.createElement('div'), { className: 'awc-slider' });
+        row.append(slider);
+        card.setConfig({ entity: 'weather.home', sun_entity: 'sun.sun', readings: ['pressure'], show_attribute_labels: false });
+        expect(card.querySelector('.weather-attributes')).toBe(row);
+        expect(row.contains(slider)).toBe(true);
+        expect(rows(card).map(r => r.kind)).toEqual(['pressure']);
+        expect(row.classList.contains('values-only')).toBe(true);
+    });
+
     it('updates each row in place, two of a kind at once', async () => {
         const a = state('sensor.a', '10', { unit_of_measurement: 'ppm' }), b = state('sensor.b', '20', { unit_of_measurement: 'ppm' });
         const card = mount({ readings: [{ type: 'sensor', entity: 'sensor.a', name: 'A' }, { type: 'sensor', entity: 'sensor.b', name: 'B' }] }, makeHass({ 'sensor.a': a, 'sensor.b': b }));

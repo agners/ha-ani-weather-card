@@ -47,12 +47,13 @@ function source(hass: HomeAssistant | undefined, config: AnimatedWeatherCardConf
     const s = sensorOf(hass, r);
     const sv = num(s?.state);
     if (sv !== null) return { value: sv, unit: typeof s?.attributes?.unit_of_measurement === 'string' ? s.attributes.unit_of_measurement : fallbackUnit };
-    // A sensor named but not reporting yet shows "--", not the weather's own value under the sensor's name
-    if (r.entity && !r.entity.startsWith('weather.')) return { value: null, unit: '' };
-    const w = weatherOf(hass, config, r);
+    // A sensor that isn't reporting falls back to the weather entity for what it reports, as it always has; a type
+    // only a sensor can tell (air quality) shows "--" until it does
     const attr = lookup(WEATHER_ATTRIBUTE as Record<string, string>, r.type);
+    if (!attr) return { value: null, unit: '' };
+    const w = weatherOf(hass, config, r);
     const unit = unitAttr ? w?.attributes?.[unitAttr] : undefined;
-    return { value: num(attr ? w?.attributes?.[attr] : undefined), unit: typeof unit === 'string' ? unit : fallbackUnit };
+    return { value: num(w?.attributes?.[attr]), unit: typeof unit === 'string' ? unit : fallbackUnit };
 }
 
 const withUnit = (text: string, unit: string) => (unit ? `${text} ${unit}` : text);
