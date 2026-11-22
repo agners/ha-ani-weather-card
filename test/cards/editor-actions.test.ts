@@ -34,7 +34,7 @@ describe('the weather editor\'s interactions, before Home Assistant\'s form is t
             expect(select(key).options.map(o => o.value)).toEqual(['default', 'more-info', 'navigate', 'url', 'none', 'forecast']);
             expect(select(key).value).toBe('default');
         }
-        expect(editor.querySelector('[data-section="interactions"]')).not.toBeNull();
+        expect(editor.querySelector('[data-drawer="interactions"]')).not.toBeNull();
     });
 
     it('asks where to go for a navigate action, and writes it', async () => {

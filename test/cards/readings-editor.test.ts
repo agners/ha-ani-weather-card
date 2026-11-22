@@ -46,7 +46,7 @@ describe('the readings\' table', () => {
         const { ed } = await editor({ readings: ['humidity', { type: 'wind', entity: 'sensor.ws', direction_entity: 'sensor.wd' }, { type: 'rain', entity: 'sensor.r' }, 'sun'] }, hass);
         const [hum, wind, rain, sun] = rows(ed);
         expect((hum.querySelector('.rd-entity') as Picker).includeDomains).toEqual(['sensor', 'weather']);
-        expect(hum.querySelector('.rd-entity')!.getAttribute('helper')).toBe('Empty: weather.home\'s own');
+        expect(hum.querySelector('.rd-entity')!.getAttribute('helper')).toBe('Leave empty to use weather.home');
         expect((wind.querySelector('.rd-direction') as Picker).value).toBe('sensor.wd');
         expect((rain.querySelector('.rd-entity') as Picker).includeDomains).toEqual(['sensor']);
         expect((rain.querySelector('.rd-rate') as Picker).hass).toBe(hass);

@@ -168,7 +168,7 @@ entity: weather.forecast_home</code></pre>
                     <h2 id="first-card-title"><a class="anchor" href="#first-card">Your first card</a></h2>
 
                     <h3 id="editor">In the editor</h3>
-                    <p>Add the card and it's working: it starts on your weather entity. If you have more than one, pick the one you want. Everything else is in the editor's sections: <b>Entities</b>, <b>Display</b>, <b>Forecast and clock</b>, <b>Interactions</b>, <b>Weather note</b>, <b>Day and night</b>, <b>Advanced</b>, <b>Weather engine</b> and <b>Colors</b>.</p>
+                    <p>Add the card and it's working: it starts on your weather entity. If you have more than one, pick the one you want. The editor opens on the basics: the place name, the layout (regular, compact or nightstand), the colours, the forecast and the weather note. Everything else is under <b>Show all settings</b>, the switch at the top: more settings in the same sections, and <b>Readings</b>, <b>Sky and motion</b>, <b>Custom colors</b>, <b>Planes</b> and <b>Interactions</b> after them. A setting you've changed shows either way.</p>
                     <p>In Home Assistant 2026.6 and later, the <b>By entity</b> tab suggests the card too. Pick your weather entity, and it's under <b>Community</b>, regular and compact, with the forecast card and its strip beside it.</p>
 
                     <h3 id="yaml">In YAML</h3>
@@ -209,7 +209,7 @@ cards:
 
                 <section class="chapter" id="forecast" aria-labelledby="forecast-title">
                     <h2 id="forecast-title"><a class="anchor" href="#forecast">The forecast</a></h2>
-                    <p>Two switches in the editor's <b>Forecast and clock</b> section. The clock puts the time at the start of the location line. The forecast adds today's high and low beside the condition, a line on what turns (<i>Rain from 17:00 to 19:00</i>, <i>Dry all day</i>), and the next hours in a row at the card's foot, under the readings. Both read the forecast your weather integration already provides; there's nothing else to set up.</p>
+                    <p>In the editor's <b>Forecast and clock</b> section: the <b>Forecast</b> switch, and with <b>Show all settings</b> on, <b>Time and date</b>. The clock puts the time at the start of the location line. The forecast adds today's high and low beside the condition, a line on what turns (<i>Rain from 17:00 to 19:00</i>, <i>Dry all day</i>), and the next hours in a row at the card's foot, under the readings. Both read the forecast your weather integration already provides; there's nothing else to set up.</p>
 
                     <h3 id="forecast-on">Turn it on</h3>
                     <p>The clock follows your profile's 12- or 24-hour setting and its time zone, and adds no rows. <code>show_date</code> puts the date after it, and <code>hero: clock</code> makes the time the big value, in the temperature's place, with the temperature leading the condition's line. The row shows the temperature first; <code>forecast_metric</code> picks something else. <code>forecast_graph</code> draws it as a line, the line over a soft fill (<code>area</code>), bars, or the values alone (<code>none</code>), the same for every metric.</p>
@@ -314,7 +314,7 @@ wake_time: "07:00"                         # without an alarm</code></pre>
                     </div>
 
                     <h3 id="note-on">Turn it on</h3>
-                    <p>In the editor's <b>Weather note</b> section, switch on <b>Write it with your AI</b>. It's snarky by default; pick another voice if you like, and your calendar, so it can say what to wear when you're out.</p>
+                    <p>In the editor's <b>Weather note</b> section, set <b>Note</b> to <b>Written by your AI</b>. It's snarky by default; pick another voice if you like, and, with <b>Show all settings</b> on, your calendar, so it can say what to wear when you're out.</p>
                     <div class="code" data-lang="yaml">
                         <div class="code-bar"><span class="code-name">Card YAML</span><button type="button" class="copy"><span class="copy-icon" aria-hidden="true"></span><span class="copy-label">Copy</span></button></div>
                         <pre><code>type: custom:animated-weather-card
@@ -376,7 +376,7 @@ readings:
                     </div>
 
                     <h3 id="readings">The readings</h3>
-                    <p>The row under the temperature holds humidity, wind, pressure and the next sunset or sunrise. <code>readings</code> lists them and their order, each a type and, where it needs one or you'd rather, an entity; in the editor they're a table under <b>Display → Readings</b>, with <b>Add a reading</b>. Four fit best.</p>
+                    <p>The row under the temperature holds humidity, wind, pressure and the next sunset or sunrise. <code>readings</code> lists them and their order, each a type and, where it needs one or you'd rather, an entity; in the editor they're a list under <b>Readings</b>, with <b>Show all settings</b> on, and <b>Add a reading</b>. Four fit best.</p>
                     <ul>
                         <li><b>From the weather entity:</b> humidity, wind, pressure, UV, feels like, dew point, visibility, cloud cover and gusts read its own value unless the row names a sensor. Wind can take a direction sensor too.</li>
                         <li><b>UV:</b> the number and its WHO level, "6 High", such as from the <a href="https://www.home-assistant.io/integrations/openuv/">OpenUV integration</a>; on the sky palette its icon takes the level's colour, and <code>uv_levels</code> moves where the levels start.</li>
@@ -385,7 +385,7 @@ readings:
                         <li><b>Any sensor:</b> as Home Assistant words its state, under its <code>name</code> or its own.</li>
                         <li><b>View only:</b> <code>view: true</code> shows a reading in the view that opens on tap and not in the row. Today's highest UV and a station's rain totals always do.</li>
                     </ul>
-                    <p>Cards set up with <code>metrics</code>, <code>uv_entity</code>, the <code>rain_*</code> sensors and the other reading sensors keep working; the editor's table replaces them the first time you change it.</p>
+                    <p>Cards set up with <code>metrics</code>, <code>uv_entity</code>, the <code>rain_*</code> sensors and the other reading sensors keep working; the editor's list replaces them the first time you change it.</p>
                     <div class="code" data-lang="yaml">
                         <div class="code-bar"><span class="code-name">Card YAML</span><button type="button" class="copy"><span class="copy-icon" aria-hidden="true"></span><span class="copy-label">Copy</span></button></div>
                         <pre><code>type: custom:animated-weather-card
@@ -426,7 +426,7 @@ cards:
                     </div>
 
                     <h3 id="place">Weather in another place</h3>
-                    <p>A card can show the weather where your family lives. Give it a weather entity for that place, such as a second Met.no location added under <b>Settings → Devices &amp; services</b>, and the place's <code>latitude</code>, <code>longitude</code> and <code>time_zone</code>; the editor has them under <b>Day and night</b>. The card works out that place's sun from its coordinates, so its sky, sunset reading and moon are that place's, a clear sky is sunny or a clear night by that sun, and every time it shows is in the place's time zone. The sun tracker takes the same three options instead of <code>sun_entity</code>, and pairs with the weather card on the same coordinates.</p>
+                    <p>A card can show the weather where your family lives. Give it a weather entity for that place, such as a second Met.no location added under <b>Settings → Devices &amp; services</b>, and the place's <code>latitude</code>, <code>longitude</code> and <code>time_zone</code>; the editor has them under <b>Weather</b>, as <b>Weather for another place</b>, with <b>Show all settings</b> on. The card works out that place's sun from its coordinates, so its sky, sunset reading and moon are that place's, a clear sky is sunny or a clear night by that sun, and every time it shows is in the place's time zone. The sun tracker takes the same three options instead of <code>sun_entity</code>, and pairs with the weather card on the same coordinates.</p>
                     <div class="code" data-lang="yaml">
                         <div class="code-bar"><span class="code-name">A vertical stack</span><button type="button" class="copy"><span class="copy-icon" aria-hidden="true"></span><span class="copy-label">Copy</span></button></div>
                         <pre><code>type: vertical-stack

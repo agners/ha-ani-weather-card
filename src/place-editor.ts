@@ -1,5 +1,6 @@
 // The three editors' fields for another place (issues #34 and #35): its latitude and longitude, which give the card
-// that place's sun, and its time zone, which its times are shown in.
+// that place's sun, and its time zone, which its times are shown in. No placeholders: a sample place in the fields
+// read as if it were set, so the example is in the help.
 
 import { textField } from './utils';
 
@@ -14,9 +15,9 @@ const shown = (v: unknown) => (v === undefined || v === null ? undefined : Strin
 /** The fields, filled from the config */
 export function placeFieldsHtml(config: PlaceFields): string {
     return `<div class="place-fields">
-        ${textField({ id: 'latitude', label: 'Latitude', type: 'number', min: -90, max: 90, step: 'any', placeholder: '-33.87', value: shown(config.latitude) })}
-        ${textField({ id: 'longitude', label: 'Longitude', type: 'number', min: -180, max: 180, step: 'any', placeholder: '151.21', value: shown(config.longitude) })}
-        ${textField({ id: 'time_zone', label: 'Time zone', placeholder: 'Australia/Sydney', value: config.time_zone, hint: 'For weather in another place: its coordinates give the card that place\'s sun, and its times are shown in its time zone' })}
+        ${textField({ id: 'latitude', label: 'Latitude', type: 'number', min: -90, max: 90, step: 'any', value: shown(config.latitude) })}
+        ${textField({ id: 'longitude', label: 'Longitude', type: 'number', min: -180, max: 180, step: 'any', value: shown(config.longitude) })}
+        ${textField({ id: 'time_zone', label: 'Time zone', value: config.time_zone, hint: 'For weather in another place, such as -33.87, 151.21 and Australia/Sydney: the coordinates give the card that place\'s sun, and its times are shown in its time zone' })}
     </div>`;
 }
 

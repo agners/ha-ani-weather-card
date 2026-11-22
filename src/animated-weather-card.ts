@@ -36,7 +36,7 @@ import { FlightInfo, FlightTracker, readFlights } from './flight-tracker';
 // Import time management
 import { TimeOfDayManager } from './time-manager';
 // Import styles
-import { getMainCardStyles } from './styles';
+import { getMainCardStyles } from './styles/card';
 import type { NoteWriter, NoteStage } from './note-generator';
 // NOTE: the config editor is lazy-loaded via a separate bundle in
 // `getConfigElement()`. We deliberately do NOT import it here — that's what

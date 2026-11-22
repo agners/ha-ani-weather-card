@@ -171,16 +171,8 @@ To update a manual install, overwrite the files and raise the `?v=` number in th
 
 1. Edit your dashboard, select **Add card** and search for **Animated Weather Card**. It starts on your weather entity and `sun.sun`.
 2. If you have more than one weather entity, pick the one you want. That's enough to start.
-3. Adjust the rest in the editor's sections:
-   - **Entities**
-   - **Display**
-   - **Forecast and clock**
-   - **Interactions**
-   - **Weather note**
-   - **Day and night**
-   - **Advanced**
-   - **Weather engine**
-   - **Colors**
+3. The editor opens on the basics: the place name, the layout (regular, compact or nightstand), the sky's colours or your theme's, the forecast and the weather note.
+4. Everything else is under **Show all settings**, the advanced settings switch at the top. It adds settings inside the same sections, and five more sections that open when you tap them: **Readings**, **Sky and motion**, **Custom colors**, **Planes** and **Interactions**. The editor remembers it in this browser; it's never part of the card's YAML. Any setting you've changed shows with the switch off too.
 
 For the sun tracker, search for **Animated Sun Tracker**. It starts on `sun.sun`, with your moon sensor if you have one. For the forecast card, search for **Animated Forecast**. It starts on your weather entity.
 
@@ -233,7 +225,7 @@ readings:
 
 ### The readings
 
-The row under the hero holds humidity, wind, pressure and the next sunset or sunrise. `readings` lists the readings and their order, each a type and, where it needs one or you'd rather, an entity. In the editor they're a table under Display → Readings: a row per reading, its type then its entity, and **Add a reading**. Four fit best: a phone shows them in a row or a 2 × 2 grid, a wide card in two columns. More make more rows.
+The row under the hero holds humidity, wind, pressure and the next sunset or sunrise. `readings` lists the readings and their order, each a type and, where it needs one or you'd rather, an entity. In the editor they're a list under **Readings**, with **Show all settings** on: a line per reading that opens to its type and its entity, and **Add a reading**. Four fit best: a phone shows them in a row or a 2 × 2 grid, a wide card in two columns. More make more rows.
 
 - **From the weather entity:** `humidity`, `wind`, `pressure`, `uv`, `feels_like`, `dew_point`, `visibility`, `cloud_cover` and `gust` read the weather entity's own value, in its units, unless the row names a sensor (or another weather entity). A sensor that's unavailable falls back to the weather entity. Wind can take a `direction_entity` too, and its sensor sets how fast the weather moves.
 - **`sun`:** the next sunset by day and the next sunrise by night, from `sun_entity`.

@@ -1,5 +1,5 @@
-"use strict";(()=>{var E={windSpeed:2,rainCount:1,leafCount:1,snowCount:1,cloudBaseSize:1,cloudCount:3,splashBounce:80};var se=o=>`
-        ${o} ha-icon {
+"use strict";(()=>{var M={windSpeed:2,rainCount:1,leafCount:1,snowCount:1,cloudBaseSize:1,cloudCount:3,splashBounce:80};var Oe=t=>`
+        ${t} ha-icon {
           display: inline-flex;
           align-items: center;
           justify-content: center;
@@ -8,794 +8,531 @@
           height: var(--mdc-icon-size, 24px);
           vertical-align: middle;
         }
-`;var ae=()=>`
-${se(".card-config")}
+`;var He=()=>`
+${Oe(".card-config")}
         .card-config {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-          padding: 4px 0;
+          --awc-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+          --awc-in: cubic-bezier(0.25, 1, 0.5, 1);
+          --awc-out: cubic-bezier(0.5, 0, 0.75, 0);
+          --awc-press: cubic-bezier(0.23, 1, 0.32, 1);
+          display: block;
+          padding-bottom: 8px;
           color: var(--primary-text-color);
+          font-size: 14px;
+          line-height: 20px;
+        }
+        /* Whatever display a rule gives an element, hidden hides it */
+        .card-config [hidden] { display: none !important; }
+        /* A drawing never plays a reveal */
+        .card-config[data-instant] *, .card-config[data-instant] *::before { transition: none !important; }
+        .card-config .vh {
+          position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+          clip: rect(0 0 0 0); white-space: nowrap; border: 0;
         }
 
-        /* \u2500\u2500 Sections (outlined expansion panels) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
-        .section {
-          border: 1px solid var(--divider-color, rgba(0, 0, 0, 0.12));
-          border-radius: var(--ha-card-border-radius, 12px);
+        /* \u2500\u2500 Reveals: every row, section and drawer opens by its grid track \u2500\u2500 */
+        .rv {
+          display: grid;
+          grid-template-rows: 0fr;
+          visibility: hidden;
+          transition: grid-template-rows 160ms var(--awc-drawer), visibility 0s linear 160ms;
+        }
+        .rv > .rv-in {
+          min-height: 0;
           overflow: hidden;
+          opacity: 0;
+          /* Room either side for focus rings, at no height */
+          padding-inline: 4px;
+          margin-inline: -4px;
+          transition: opacity 80ms var(--awc-out);
         }
+        /* Open inherits, so a row inside a closed drawer stays out of reach */
+        .rv[data-open] {
+          grid-template-rows: 1fr;
+          visibility: inherit;
+          transition: grid-template-rows 220ms var(--awc-drawer), visibility 0s;
+        }
+        .rv[data-open] > .rv-in {
+          opacity: 1;
+          transition: opacity 160ms var(--awc-in) 30ms;
+        }
+        /* Rows carry their own space, so a closed one takes none */
+        .row { padding-top: 8px; }
+        .row > ha-select, .row > ha-entity-picker, .row > ha-input, .row > ha-textfield { display: block; width: 100%; }
 
-        .section-header {
+        /* \u2500\u2500 The switch \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+        .top {
+          padding: 4px 0 12px;
+          border-bottom: 1px solid var(--divider-color, rgba(127, 127, 127, 0.3));
+        }
+        .top .sw-l { font-weight: 500; }
+
+        /* \u2500\u2500 Sections: a quiet heading, no box \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+        .grp-b { padding-top: 20px; }
+        .grp-h {
+          margin: 0 0 2px;
+          font-size: 14px;
+          line-height: 20px;
+          font-weight: 500;
+          color: var(--secondary-text-color);
+        }
+        [data-sec="dev"] .grp-b { padding-top: 16px; }
+
+        /* \u2500\u2500 Drawers: hairlines, a title and what's inside, a chevron \u2500\u2500\u2500\u2500\u2500\u2500 */
+        /* A hairline above the drawers and under each, so a hidden one leaves none behind */
+        .drws-b { margin-top: 24px; border-top: 1px solid var(--divider-color, rgba(127, 127, 127, 0.3)); }
+        .drw-b { border-bottom: 1px solid var(--divider-color, rgba(127, 127, 127, 0.3)); }
+        .drw-h { margin: 0; font: inherit; }
+        .drw-btn {
+          position: relative;
           display: flex;
           align-items: center;
-          gap: 14px;
-          min-height: 48px;
-          padding: 0 12px 0 16px;
+          gap: 12px;
+          box-sizing: border-box;
+          width: calc(100% + 16px);
+          min-height: 60px;
+          margin: 0 -8px;
+          padding: 10px 8px;
+          border: 0;
+          border-radius: 8px;
+          background: none;
+          color: inherit;
+          font: inherit;
+          text-align: left;
           cursor: pointer;
-          user-select: none;
-          transition: background-color 0.15s ease;
         }
-        .section-header:hover {
-          background: var(--secondary-background-color, rgba(0, 0, 0, 0.04));
+        .drw-tx { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+        .drw-t { font-size: 15px; line-height: 20px; font-weight: 500; }
+        .drw-s {
+          font-size: 13px;
+          line-height: 18px;
+          color: var(--secondary-text-color);
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
         }
-        .section-header:focus-visible {
+        .drw-in { padding-bottom: 16px; }
+        .drw-in > .rv:first-child .row { padding-top: 0; }
+        /* Drawers appearing with the switch fade in one after another */
+        .drw[data-open] > .rv-in { transition-delay: calc(30ms + var(--i, 0) * 16ms); }
+        /* A drawer's own content opens a touch slower: there's more of it */
+        .drw-c { transition-duration: 200ms, 0s; transition-delay: 0s, 200ms; }
+        .drw-c > .rv-in { transition-duration: 90ms; }
+        .drw-c[data-open] { transition-duration: 260ms, 0s; transition-delay: 0s; }
+        .drw-c[data-open] > .rv-in { transition: opacity 180ms var(--awc-in) 40ms; }
+
+        .chev {
+          flex: none;
+          width: 20px;
+          height: 20px;
+          fill: var(--secondary-text-color);
+          transition: transform 200ms var(--awc-in);
+        }
+        [aria-expanded="true"] > .chev { transform: rotate(180deg); transition-duration: 260ms; }
+
+        /* Hover and press: a layer of the text's own colour, right in either theme */
+        .drw-btn::before, .rd-head::before, .tb::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          border-radius: inherit;
+          background: currentColor;
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 180ms var(--awc-press);
+        }
+        @media (hover: hover) {
+          .drw-btn:hover::before, .rd-head:hover::before, .tb:not(:disabled):hover::before { opacity: 0.05; transition-duration: 110ms; }
+        }
+        .drw-btn:active::before, .rd-head:active::before, .tb:not(:disabled):active::before { opacity: 0.1; transition-duration: 60ms; }
+        .drw-btn:focus-visible, .rd-head:focus-visible, .tb:focus-visible {
           outline: 2px solid var(--primary-color);
           outline-offset: -2px;
         }
-        .section-header ha-icon {
-          --mdc-icon-size: 20px;
-          color: var(--secondary-text-color);
-          flex-shrink: 0;
-        }
-        .section-header h3 {
-          flex: 1;
-          margin: 0;
-          font-size: 15px;
-          font-weight: 500;
-          line-height: 20px;
-          color: var(--primary-text-color);
-        }
-        .section-header .expand-icon {
-          transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1);
-        }
-        .section.expanded .expand-icon {
-          transform: rotate(180deg);
-        }
 
-        .section-content {
-          display: none;
-          padding: 4px 16px 16px;
-        }
-        .section.expanded .section-content {
+        /* \u2500\u2500 Switch rows: a short name, one quiet line, the switch \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+        .sw {
           display: flex;
-          flex-direction: column;
-          gap: 4px;
+          align-items: center;
+          justify-content: space-between;
+          gap: 16px;
+          min-height: 48px;
+          cursor: pointer;
+          user-select: none;
         }
+        .sw-t { display: flex; flex-direction: column; min-width: 0; padding: 4px 0; }
+        .sw-l { font-size: 14px; line-height: 20px; color: var(--primary-text-color); }
+        .sw-h, .help {
+          font-size: 12px;
+          line-height: 16px;
+          color: var(--secondary-text-color);
+        }
+        .help { margin: 6px 16px 0; }
+        .seg .help { margin-left: 0; }
+        .row > .help:first-child { margin: 0; }
+        .sub-h {
+          margin: 8px 0 4px;
+          font-size: 13px;
+          line-height: 18px;
+          font-weight: 500;
+          color: var(--secondary-text-color);
+        }
+        .drw-in > .rv:first-child .sub-h { margin-top: 0; }
+        .sub-h + .help { margin: -2px 0 6px; }
 
-        .section-note {
-          margin: 0 0 8px;
+        /* \u2500\u2500 A choice of two or three: segments \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+        .seg { min-width: 0; margin: 4px 0 0; padding: 0; border: 0; }
+        .seg-l { padding: 0; margin: 0 0 6px; font-size: 14px; line-height: 20px; }
+        .seg-track {
+          display: flex;
+          gap: 2px;
+          padding: 3px;
+          border: 1px solid var(--divider-color, rgba(127, 127, 127, 0.3));
+          border-radius: 10px;
+        }
+        .seg-track label { position: relative; flex: 1 1 0; min-width: 0; cursor: pointer; }
+        .seg-track input {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          margin: 0;
+          opacity: 0;
+          cursor: pointer;
+        }
+        .seg-track span {
+          position: relative;
+          isolation: isolate;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          min-height: 34px;
+          padding: 0 6px;
+          border-radius: 7px;
+          font-size: 13px;
+          line-height: 16px;
+          font-weight: 500;
+          text-align: center;
+          color: var(--secondary-text-color);
+          pointer-events: none;
+          transition: color 120ms var(--awc-press), box-shadow 120ms var(--awc-press);
+        }
+        .seg-track span::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          z-index: -1;
+          border-radius: inherit;
+          background: var(--primary-color);
+          opacity: 0;
+          transition: opacity 120ms var(--awc-press);
+        }
+        @media (hover: hover) {
+          .seg-track input:not(:checked):hover + span::before { opacity: 0.06; }
+        }
+        .seg-track input:checked + span {
+          color: var(--primary-text-color);
+          box-shadow: inset 0 0 0 1px var(--primary-color);
+        }
+        .seg-track input:checked + span::before { opacity: 0.14; }
+        .seg-track input:focus-visible + span { outline: 2px solid var(--primary-color); outline-offset: 1px; }
+
+        /* \u2500\u2500 Why something doesn't apply, and what's missing \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+        .why, .status {
+          display: flex;
+          gap: 8px;
+          margin: 0;
           font-size: 13px;
           line-height: 18px;
           color: var(--secondary-text-color);
         }
+        .status { margin-top: 8px; color: var(--primary-text-color); }
+        .ico, .ico-warn { flex: none; width: 18px; height: 18px; fill: currentColor; }
+        .status .ico { fill: var(--warning-color, #b26a00); }
 
-        .group-title {
-          margin: 12px 0 2px;
-          font-size: 12px;
+        /* \u2500\u2500 Text buttons \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+        .tb {
+          position: relative;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          min-height: 36px;
+          padding: 0 12px;
+          border: 0;
+          border-radius: 8px;
+          background: none;
+          color: var(--primary-color);
+          font: inherit;
+          font-size: 14px;
           font-weight: 500;
+          cursor: pointer;
+        }
+        .tb:disabled { color: var(--disabled-text-color, rgba(127, 127, 127, 0.6)); cursor: default; }
+        .tb[data-off] { visibility: hidden; }
+        .reset-engine-btn[data-off], .reset-colors-btn[data-off] { display: none; }
+        .reset-engine-btn, .reset-colors-btn { margin: 8px 0 0 -12px; }
+        .tb svg { width: 18px; height: 18px; fill: currentColor; }
+
+        /* \u2500\u2500 Pairs of numbers side by side \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+        .pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; }
+
+        /* \u2500\u2500 The readings: one line each, opened in place \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+        .readings-table { display: grid; }
+        .rd-list { border-top: 1px solid var(--divider-color, rgba(127, 127, 127, 0.3)); }
+        .rd-row { border-bottom: 1px solid var(--divider-color, rgba(127, 127, 127, 0.3)); }
+        .rd-head {
+          position: relative;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          box-sizing: border-box;
+          width: calc(100% + 16px);
+          min-height: 52px;
+          margin: 0 -8px;
+          padding: 6px 8px;
+          border: 0;
+          border-radius: 8px;
+          background: none;
+          color: inherit;
+          font: inherit;
+          text-align: left;
+          cursor: pointer;
+        }
+        .rd-tx { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+        .rd-t { font-size: 14px; line-height: 20px; }
+        .rd-s {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          min-width: 0;
+          font-size: 12px;
           line-height: 16px;
-          letter-spacing: 0.04em;
-          text-transform: uppercase;
           color: var(--secondary-text-color);
         }
-        .group-title:first-child { margin-top: 4px; }
-
-        /* \u2500\u2500 Options \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
-        .option {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-          margin: 4px 0;
-        }
-
-        /* Setting rows: label on the left, switch on the right */
-        .switch-label {
-          display: flex;
-          flex-direction: row-reverse;
-          align-items: center;
-          justify-content: space-between;
-          gap: 16px;
-          min-height: 40px;
-          cursor: pointer;
-          user-select: none;
-        }
-        .switch-label span {
-          font-size: 14px;
-          line-height: 20px;
-          color: var(--primary-text-color);
-        }
-
-        /* Dependent settings sit indented under their parent */
-        .sub-option {
-          margin-top: -4px;
-          padding-left: 20px;
-        }
-
-        /* The four readings, two a line */
-        /* The readings' table (readings-editor.ts): one bordered row per reading, its tools at its foot */
-        .readings-table { display: grid; gap: 10px; margin-bottom: 12px; }
-        .rd-list { display: grid; gap: 8px; }
-        .rd-row {
-          display: grid;
-          gap: 8px;
-          padding: 12px;
-          border: 1px solid var(--divider-color, rgba(127, 127, 127, 0.3));
-          border-radius: 12px;
-        }
-        .rd-fields { display: grid; gap: 8px; min-width: 0; }
+        .rd-s span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .rd-s .ico-warn { width: 14px; height: 14px; fill: var(--warning-color, #b26a00); }
+        .rd-fields { display: grid; gap: 8px; padding: 4px 0 8px; }
         .rd-fields ha-select, .rd-fields ha-entity-picker, .rd-fields ha-input, .rd-fields ha-textfield { display: block; width: 100%; }
-        .rd-tools { display: flex; align-items: center; gap: 6px; }
+        .rd-note, .rd-warn { margin: 0; font-size: 12px; line-height: 16px; color: var(--secondary-text-color); }
+        .rd-warn { color: var(--primary-text-color); }
+        .rd-foot { display: flex; flex-wrap: wrap; align-items: center; margin: 0 -12px; }
+        .rd-foot .rd-remove { margin-left: auto; color: var(--error-color, #db4437); }
+        .rd-add { margin: 4px 0 0 -12px; justify-self: start; }
+        @keyframes awc-moved { from { background-color: var(--secondary-background-color, rgba(127, 127, 127, 0.15)); } to { background-color: transparent; } }
+        .rd-row[data-moved] { animation: awc-moved 700ms cubic-bezier(0.37, 0, 0.63, 1); }
+        [data-levels-for] { padding-top: 8px; }
 
-        .rd-btn {
-          display: grid; place-items: center; width: 32px; height: 32px; padding: 0;
-          border: 1px solid var(--divider-color, rgba(127, 127, 127, 0.3)); border-radius: 8px;
-          background: none; color: var(--primary-text-color); font: inherit; font-size: 15px; cursor: pointer;
-        }
-        .rd-btn:disabled { opacity: 0.35; cursor: default; }
-        .rd-add {
-          justify-self: start; padding: 8px 14px;
-          border: 1px dashed var(--divider-color, rgba(127, 127, 127, 0.4)); border-radius: 10px;
-          background: none; color: var(--primary-color); font: inherit; font-weight: 500; cursor: pointer;
-        }
-        .rd-btn:focus-visible, .rd-add:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
-        .rd-note, .rd-view-fixed { margin: 0; font-size: 12px; line-height: 16px; color: var(--secondary-text-color); }
-        /* View only leads the tools; the moves and remove keep the row's end */
-        .rd-tools .rd-view, .rd-tools .rd-view-fixed { margin-right: auto; }
-        .rd-warn { margin: 0; font-size: 12px; line-height: 16px; color: var(--warning-color, #b26a00); }
-        [data-levels-for][hidden] { display: none; }
-
-        /* \u2500\u2500 Weather engine sliders \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
-        .engine-grid {
+        /* \u2500\u2500 Amounts: styled sliders, filled to their value \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+        .amt {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-          gap: 16px 24px;
-          margin: 4px 0 12px;
+          grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+          gap: 10px 24px;
         }
-        .engine-option {
+        .amt-o {
           display: grid;
           grid-template-columns: 1fr auto;
-          grid-template-areas:
-            "label value"
-            "range range";
           align-items: baseline;
-          row-gap: 6px;
+          column-gap: 8px;
         }
-        .engine-option label {
-          grid-area: label;
-          font-size: 14px;
-          color: var(--primary-text-color);
-        }
-        .engine-option .value-display {
-          grid-area: value;
+        .amt-o label { font-size: 14px; line-height: 20px; }
+        .amt-o output {
           font-size: 13px;
           font-weight: 500;
           font-variant-numeric: tabular-nums;
           color: var(--secondary-text-color);
         }
-        .engine-option input[type="range"] {
-          grid-area: range;
+        .amt-o input[type="range"] {
+          grid-column: 1 / -1;
+          -webkit-appearance: none;
+          appearance: none;
           width: 100%;
+          height: 28px;
           margin: 0;
-          accent-color: var(--primary-color);
+          background: transparent;
           cursor: pointer;
         }
+        .amt-o input[type="range"]::-webkit-slider-runnable-track {
+          height: 4px;
+          border-radius: 2px;
+          background: linear-gradient(to right, var(--primary-color) var(--fill, 50%), var(--divider-color, rgba(127, 127, 127, 0.3)) var(--fill, 50%));
+        }
+        .amt-o input[type="range"]::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          width: 20px;
+          height: 20px;
+          margin-top: -8px;
+          border: 2px solid var(--card-background-color, #fff);
+          border-radius: 50%;
+          background: var(--primary-color);
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        }
+        .amt-o input[type="range"]::-moz-range-track { height: 4px; border-radius: 2px; background: var(--divider-color, rgba(127, 127, 127, 0.3)); }
+        .amt-o input[type="range"]::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--primary-color); }
+        .amt-o input[type="range"]::-moz-range-thumb {
+          width: 16px;
+          height: 16px;
+          border: 2px solid var(--card-background-color, #fff);
+          border-radius: 50%;
+          background: var(--primary-color);
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        }
+        .amt-o input[type="range"]:focus-visible { outline: none; }
+        .amt-o input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 2px var(--card-background-color, #fff), 0 0 0 4px var(--primary-color); }
+        .amt-o input[type="range"]:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 2px var(--card-background-color, #fff), 0 0 0 4px var(--primary-color); }
 
-        /* \u2500\u2500 Colors \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+        /* \u2500\u2500 Colours: chips with a ring that holds on either theme \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
         .color-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-          gap: 8px 24px;
-          margin: 4px 0 12px;
+          grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+          gap: 2px 24px;
         }
-        .color-option {
+        .swc {
           display: grid;
           grid-template-columns: 32px 1fr auto;
           align-items: center;
           gap: 12px;
-          min-height: 40px;
+          min-height: 44px;
         }
-        .color-option input[type="color"] {
-          order: -1;
+        .swc label { font-size: 14px; cursor: pointer; }
+        .chip {
+          position: relative;
+          display: block;
           width: 32px;
           height: 32px;
-          padding: 0;
-          border: 1px solid var(--divider-color, rgba(0, 0, 0, 0.12));
           border-radius: 8px;
+          background: var(--c, transparent);
+          box-shadow: inset 0 0 0 1px var(--divider-color, rgba(127, 127, 127, 0.3));
+        }
+        /* The text's and the weather's colours, shown on the sky they're seen over */
+        .chip.ink { background: var(--sky, transparent); }
+        .chip.ink::after {
+          content: "";
+          position: absolute;
+          left: 50%;
+          top: 50%;
+          width: 12px;
+          height: 12px;
+          margin: -6px 0 0 -6px;
+          border-radius: 50%;
+          background: var(--c, transparent);
+        }
+        .chip.ink-temperature::after, .chip.ink-text::after {
+          content: "Aa";
+          width: auto;
+          height: auto;
+          margin: 0;
+          transform: translate(-50%, -50%);
+          border-radius: 0;
           background: none;
+          color: var(--c, currentColor);
+          font-size: 13px;
+          line-height: 1;
+          font-weight: 600;
+        }
+        .chip input[type="color"] {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          margin: 0;
+          padding: 0;
+          border: 0;
+          opacity: 0;
           cursor: pointer;
         }
-        .color-option input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
-        .color-option input[type="color"]::-webkit-color-swatch { border: none; border-radius: 7px; }
-        .color-option input[type="color"]::-moz-color-swatch { border: none; border-radius: 7px; }
-        .color-option label {
-          font-size: 14px;
-          color: var(--primary-text-color);
+        .chip:focus-within { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+        .color-reset { padding: 0 8px; margin-right: -8px; font-size: 13px; }
+
+        /* \u2500\u2500 The card's own tap action, beside Home Assistant's picker \u2500\u2500\u2500\u2500\u2500 */
+        .card-action {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          min-height: 48px;
+        }
+        .card-action-reset {
+          position: relative;
+          min-height: 36px;
+          padding: 0 12px;
+          margin-right: -12px;
+          border: 0;
+          border-radius: 8px;
+          background: none;
+          color: var(--primary-color);
+          font: inherit;
+          font-weight: 500;
+          cursor: pointer;
         }
 
-        /* \u2500\u2500 Buttons: quiet text buttons, HA style \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
-        .color-reset,
-        .reset-engine-btn,
-        .reset-colors-btn {
-          align-self: flex-start;
-          padding: 8px 12px;
-          border: none;
-          border-radius: 8px;
-          background: none;
-          font: inherit;
-          font-size: 14px;
-          font-weight: 500;
-          color: var(--primary-color);
-          cursor: pointer;
-          transition: background-color 0.15s ease;
+        /* \u2500\u2500 On a phone: a little more room for every control \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+        @media (pointer: coarse) {
+          .tb { min-height: 40px; }
         }
-        /* Text buttons align their label, not their hit area, with the content edge */
-        .reset-engine-btn,
-        .reset-colors-btn { margin-left: -12px; }
-        .color-reset {
-          padding: 6px 8px;
-          margin-right: -8px;
-          font-size: 13px;
+
+        /* \u2500\u2500 Reduced motion: nothing slides; opening dissolves, closing is instant \u2500\u2500 */
+        @media (prefers-reduced-motion: reduce) {
+          .rv, .rv[data-open], .rv > .rv-in, .drw-c, .drw-c[data-open], .drw-c > .rv-in, .chev, [aria-expanded="true"] > .chev { transition: none !important; }
+          .rv[data-open] > .rv-in, .drw-c[data-open] > .rv-in, .drw[data-open] > .rv-in { transition: opacity 120ms linear !important; }
+          .rd-row[data-moved] { animation-duration: 500ms; }
         }
-        .color-reset:hover,
-        .reset-engine-btn:hover,
-        .reset-colors-btn:hover {
-          background: var(--secondary-background-color, rgba(0, 0, 0, 0.05));
-        }
-        .color-reset:focus-visible,
-        .reset-engine-btn:focus-visible,
-        .reset-colors-btn:focus-visible {
-          outline: 2px solid var(--primary-color);
-          outline-offset: 1px;
-        }
-`;var ke={sunny:{top:[.445,.13,256],mid:[.495,.125,250],bottom:[.575,.11,238],glow:[.88,.08,218],glowAlpha:.45,overcast:0},"partly-cloudy":{top:[.445,.1,254],mid:[.495,.092,248],bottom:[.565,.08,240],glow:[.88,.07,220],glowAlpha:.36,overcast:.25},windy:{top:[.445,.115,244],mid:[.495,.105,236],bottom:[.565,.09,222],glow:[.95,.05,200],glowAlpha:.3,overcast:.1},cloudy:{top:[.43,.026,250],mid:[.475,.025,248],bottom:[.53,.024,244],glow:[.86,.016,250],glowAlpha:.28,overcast:.8},foggy:{top:[.44,.014,212],mid:[.48,.013,214],bottom:[.53,.012,218],glow:[.88,.01,210],glowAlpha:.3,overcast:.9},"light-rain":{top:[.42,.034,246],mid:[.48,.032,243],bottom:[.53,.03,238],glow:[.82,.02,246],glowAlpha:.22,overcast:.85},rainy:{top:[.37,.032,248],mid:[.43,.032,244],bottom:[.48,.03,240],glow:[.78,.02,246],glowAlpha:.18,overcast:.9},pouring:{top:[.3,.03,250],mid:[.36,.031,246],bottom:[.41,.03,242],glow:[.72,.02,248],glowAlpha:.14,overcast:1},stormy:{top:[.26,.032,280],mid:[.31,.034,272],bottom:[.36,.034,262],glow:[.7,.03,280],glowAlpha:.14,overcast:1},snowy:{top:[.45,.04,238],mid:[.495,.036,234],bottom:[.55,.03,228],glow:[.93,.02,230],glowAlpha:.32,overcast:.7},"snowy-rainy":{top:[.44,.036,240],mid:[.49,.033,236],bottom:[.54,.03,232],glow:[.86,.02,236],glowAlpha:.24,overcast:.85},sleety:{top:[.42,.042,258],mid:[.47,.04,252],bottom:[.52,.036,246],glow:[.84,.024,252],glowAlpha:.22,overcast:.85},"snowy-stormy":{top:[.3,.04,266],mid:[.35,.04,260],bottom:[.4,.038,252],glow:[.74,.026,260],glowAlpha:.14,overcast:1},"sleety-stormy":{top:[.28,.042,284],mid:[.33,.042,276],bottom:[.38,.04,266],glow:[.72,.03,280],glowAlpha:.14,overcast:1},"clear-night":{top:[.2,.045,272],mid:[.25,.052,266],bottom:[.31,.055,256],glow:[.86,.03,250],glowAlpha:.16,overcast:0}},le=(o,r,t)=>Math.min(r,Math.max(o,t)),$=(o,r,t)=>o+(r-o)*t;function xe(o,r,t){let i=(r-o+540)%360-180;return(o+i*t+360)%360}function L(o,r,t){let i=([d,h,v])=>[d,h*Math.cos(v*Math.PI/180),h*Math.sin(v*Math.PI/180)],[n,a,e]=i(o),[s,l,c]=i(r),u=$(n,s,t),p=$(a,l,t),x=$(e,c,t),y=Math.hypot(p,x),b=y<1e-6?o[2]:(Math.atan2(x,p)*180/Math.PI+360)%360;return[u,y,b]}function J([o,r,t]){let i=t*Math.PI/180,n=r*Math.cos(i),a=r*Math.sin(i),e=(o+.3963377774*n+.2158037573*a)**3,s=(o-.1055613458*n-.0638541728*a)**3,l=(o-.0894841775*n-1.291485548*a)**3;return[4.0767416621*e-3.3077115913*s+.2309699292*l,-1.2684380046*e+2.6097574011*s-.3413193965*l,-.0041960863*e-.7034186147*s+1.707614701*l]}var Se=o=>o<=.0031308?12.92*o:1.055*Math.pow(o,1/2.4)-.055;function T(o){let r=i=>i.every(n=>n>=-1e-4&&n<=1.0001),t=J(o);if(!r(t)){let i=0,n=o[1];for(let a=0;a<24;a++){let e=(i+n)/2;r(J([o[0],e,o[2]]))?i=e:n=e}t=J([o[0],i,o[2]])}return t.map(i=>Se(le(0,1,i)))}var ce=o=>Math.round(le(0,1,o)*255);function O(o){return"#"+o.map(r=>ce(r).toString(16).padStart(2,"0")).join("")}function re(o,r){return`rgba(${o.map(ce).join(", ")}, ${Number(r.toFixed(3))})`}function X(o,r){return[.15+(o[0]-.15)*.42,o[1]*$(.75,.5,r),xe(o[2],262,.45)]}function Ce(o,r){let t=ke[o],i=1-t.overcast*.7,n={top:t.top,mid:t.mid,bottom:t.bottom,glow:t.glow,glowAlpha:t.glowAlpha,scrimAlpha:$(.46,.28,t.overcast)};if(o==="clear-night"){if(r==="dawn"||r==="dusk"){let a=r==="dawn"?[.4,.09,20]:[.38,.1,40];return{...n,bottom:L(t.bottom,a,.45),glowAlpha:.2,scrimAlpha:.22}}return{...n,scrimAlpha:.2}}switch(r){case"night":return{top:X(t.top,t.overcast),mid:X(t.mid,t.overcast),bottom:X(t.bottom,t.overcast),glow:[.86,.03,250],glowAlpha:$(.14,.06,t.overcast),scrimAlpha:.2};case"dusk":return{top:L(t.top,[t.top[0]*.8,.075,292],.5*i),mid:L(t.mid,[t.mid[0]*.88,.065,350],.42*i),bottom:L(t.bottom,[t.bottom[0]*.92,.115,52],.72*i),glow:L(t.glow,[.82,.13,58],i),glowAlpha:$(t.glowAlpha,.6,i*.6),scrimAlpha:n.scrimAlpha+.04};case"dawn":return{top:L(t.top,[t.top[0]*.95,t.top[1]*.85,262],.4*i),mid:L(t.mid,[t.mid[0]*.95,.05,330],.3*i),bottom:L(t.bottom,[t.bottom[0]*.95,.085,32],.62*i),glow:L(t.glow,[.88,.09,40],i),glowAlpha:$(t.glowAlpha,.5,i*.5),scrimAlpha:n.scrimAlpha+.04};default:return n}}function Le(o){return[.16,Math.min(.04,o[1]*.6),o[2]]}function M(o,r){let t=Ce(o,r);return{top:O(T(t.top)),mid:O(T(t.mid)),bottom:O(T(t.bottom)),glow:re(T(t.glow),t.glowAlpha),scrim:re(T(Le(t.top)),t.scrimAlpha)}}var Q=[.985,.006,250];var Ae={"--awc-sky-top":"#3b5f8c","--awc-sky-mid":"#4a6d99","--awc-sky-bottom":"#5a7ba3","--awc-sky-glow":"rgba(0, 0, 0, 0)","--awc-sky-scrim":"rgba(0, 0, 0, 0)","--weather-sun-primary":"#ffd67a","--weather-sun-secondary":"#ffb547","--weather-sun-glow":"rgba(255, 214, 140, 0.55)","--weather-sun-halo":"rgba(255, 214, 140, 0.24)","--awc-cloud-far":"rgba(214, 226, 242, 0.85)","--awc-cloud-mid":"rgba(232, 239, 248, 0.92)","--awc-cloud-near":"rgba(248, 250, 253, 0.96)"},Te=Object.keys(Ae),Ge=Te.filter(o=>o.startsWith("--awc-sky-"));function g(o){return o==null?"":String(o).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;")}function _(o){let r=customElements.get("ha-input")||!customElements.get("ha-textfield")?"ha-input":"ha-textfield",{id:t,label:i,value:n,placeholder:a,hint:e,type:s,min:l,max:c,step:u}=o,p=[`id="${g(t)}"`,`label="${g(i)}"`,`value="${g(n)}"`,a?`placeholder="${g(a)}"`:"",s?`type="${s}"`:"",l!==void 0?`min="${l}"`:"",c!==void 0?`max="${c}"`:"",u!==void 0?`step="${u}"`:"",e?r==="ha-input"?`hint="${g(e)}"`:`helper="${g(e)}" helperPersistent`:""].filter(Boolean);return`<${r} ${p.join(" ")}></${r}>`}function Z(o,r,t){if(o?.localize)try{let i=o.localize(r);if(i&&i!==r)return i}catch{}return t}var $e=["humidity","wind","pressure","sun","uv","rain"],Fe=["humidity","wind","pressure","sun"];function de(o){let r=o.metrics,t=Array.isArray(r)?r:typeof r=="string"?r.split(","):null;if(!t)return[...Fe];let i=[];for(let n of t){let a=String(n).trim().toLowerCase();$e.includes(a)&&!i.includes(a)&&i.push(a)}return i}var ee=["humidity","wind","pressure","sun","uv","rain","aqi","feels_like","dew_point","visibility","cloud_cover","gust","uv_max","rain_event","rain_week","rain_month","rain_year","sensor"],te={humidity:"humidity",wind:"wind_speed",pressure:"pressure",uv:"uv_index",feels_like:"apparent_temperature",dew_point:"dew_point",visibility:"visibility",cloud_cover:"cloud_coverage",gust:"wind_gust_speed"},F=["uv_max","rain_event","rain_week","rain_month","rain_year"],G=o=>o!=="sun"&&!Object.prototype.hasOwnProperty.call(te,o),ue=["humidity","wind","pressure","sun"],he=o=>typeof o=="string"&&ee.includes(o),B=o=>typeof o=="string"&&o.trim()?o.trim():void 0;function He(o){if(typeof o=="string"){let l=o.trim().toLowerCase();return he(l)?{type:l,view:F.includes(l)}:null}if(!o||typeof o!="object")return null;let r=o,t=typeof r.type=="string"?r.type.trim().toLowerCase():"";if(!he(t))return null;let i={type:t,view:r.view===!0||F.includes(t)},n=B(r.entity);n&&(i.entity=n);let a=B(r.direction_entity);t==="wind"&&a&&(i.direction_entity=a);let e=B(r.rate_entity);t==="rain"&&e&&(i.rate_entity=e);let s=B(r.name);return s&&(i.name=s),i}function pe(o){let r=o.readings;if(Array.isArray(r))return r.map(He).filter(a=>!!a);let t=[],i=a=>{let e=Object.fromEntries(Object.entries(a).filter(([,s])=>s!==void 0&&s!==""));t.push({...e,view:!!a.view||F.includes(a.type)})},n=de(o);for(let a of n){if(a==="sun"){o.show_sun!==!1&&i({type:"sun"});continue}a==="humidity"?i({type:"humidity",entity:o.humidity_sensor_entity}):a==="wind"?i({type:"wind",entity:o.wind_speed_sensor_entity,direction_entity:o.wind_direction_sensor_entity}):a==="pressure"?i({type:"pressure",entity:o.pressure_sensor_entity}):a==="uv"?i({type:"uv",entity:o.uv_entity}):a==="rain"&&i({type:"rain",entity:o.rain_entity,rate_entity:o.rain_rate_entity})}!n.includes("wind")&&(o.wind_speed_sensor_entity||o.wind_direction_sensor_entity)&&i({type:"wind",entity:o.wind_speed_sensor_entity,direction_entity:o.wind_direction_sensor_entity,view:!0}),!n.includes("uv")&&o.uv_entity&&i({type:"uv",entity:o.uv_entity,view:!0}),!n.includes("rain")&&(o.rain_entity||o.rain_rate_entity)&&i({type:"rain",entity:o.rain_entity,rate_entity:o.rain_rate_entity,view:!0}),o.uv_max_entity&&i({type:"uv_max",entity:o.uv_max_entity});for(let a of["rain_event","rain_week","rain_month","rain_year"]){let e=o[`${a}_entity`];e&&i({type:a,entity:e})}return t}var ge=["metrics","show_sun","humidity_sensor_entity","wind_speed_sensor_entity","wind_direction_sensor_entity","pressure_sensor_entity","uv_entity","uv_max_entity","rain_entity","rain_rate_entity","rain_event_entity","rain_week_entity","rain_month_entity","rain_year_entity"];function me(o){return o.map(r=>{let t=Object.entries(r).filter(([n,a])=>n!=="type"&&n!=="view"&&a!==void 0),i=r.view&&!F.includes(r.type);return!t.length&&!i?r.type:{type:r.type,...Object.fromEntries(t),...i?{view:!0}:{}}})}var fe=o=>o.length===ue.length&&o.every((r,t)=>r.type===ue[t]&&!r.view&&!r.entity&&!r.direction_entity&&!r.rate_entity&&!r.name);var Me={humidity:"Humidity",wind:"Wind",pressure:"Pressure",sun:"Next sunset or sunrise",uv:"UV index",rain:"Rain",aqi:"Air quality (US EPA)",feels_like:"Feels like",dew_point:"Dew point",visibility:"Visibility",cloud_cover:"Cloud cover",gust:"Gusts",uv_max:"Today's highest UV (view)",rain_event:"Rain this event (view)",rain_week:"Rain this week (view)",rain_month:"Rain this month (view)",rain_year:"Rain this year (view)",sensor:"Any sensor"};function ye(o,r,t){let i,n=pe(r()),a=()=>r().entity||"your weather entity",e=d=>Object.prototype.hasOwnProperty.call(te,d),s=d=>d.type==="sun"?"From the sun entity above":e(d.type)?`Empty: ${a()}'s own`:d.type==="aqi"?"A sensor on the US EPA scale; AQI levels below move the bands":d.type==="sensor"?"Any entity: its name and its value":"A sensor";function l(){let d={readings:fe(n)?void 0:me(n)};for(let h of ge)d[h]=void 0;t(d),b()}function c(d,h,v,A,H){return`<ha-entity-picker class="${d}" label="${g(h)}" value="${g(v??"")}"${H?` helper="${g(H)}"`:""} allow-custom-entity></ha-entity-picker>`}function u(d,h){let v=e(d.type)?["sensor","weather"]:["sensor"],A=F.includes(d.type);return`<div class="rd-row" data-i="${h}" data-type="${d.type}" role="listitem">
-            <div class="rd-fields">
-              <ha-select class="rd-type" label="Reading ${h+1}"></ha-select>
-              ${d.type==="sun"?`<p class="rd-note">${g(s(d))}</p>`:c("rd-entity",G(d.type)?"Entity":"Entity (optional)",d.entity,v,s(d))}
-              ${d.type==="wind"?c("rd-direction","Direction (optional)",d.direction_entity,["sensor"]):""}
-              ${d.type==="rain"?c("rd-rate","Rain rate (optional)",d.rate_entity,["sensor"],"Shown instead of today's rain while it rains"):""}
-              ${d.type==="sensor"?_({id:`rd-name-${h}`,label:"Name (optional)",value:d.name,hint:"Else the entity's own name"}):""}
-              ${G(d.type)&&!d.entity?`<p class="rd-warn">Pick a sensor: without one, this reading isn't shown</p>`:""}
-            </div>
-            <div class="rd-tools">
-              ${A?'<span class="rd-view-fixed">In the forecast view</span>':`<label class="switch-label rd-view"><ha-switch class="rd-view-switch"${d.view?" checked":""}></ha-switch><span>View only</span></label>`}
-              <button type="button" class="rd-btn rd-up" aria-label="Move reading ${h+1} up"${h===0?" disabled":""}>\u2191</button>
-              <button type="button" class="rd-btn rd-down" aria-label="Move reading ${h+1} down"${h===n.length-1?" disabled":""}>\u2193</button>
-              <button type="button" class="rd-btn rd-remove" aria-label="Remove reading ${h+1}">\u2715</button>
-            </div>
-          </div>`}function p(){o.innerHTML=`<div class="rd-list" role="list">${n.map(u).join("")}</div>
-            <button type="button" class="rd-add">+ Add a reading</button>`,o.querySelectorAll(".rd-row").forEach(d=>x(d,Number(d.dataset.i))),o.querySelector(".rd-add").addEventListener("click",()=>{let h=typeof(i?.states[r().entity??""]?.attributes??{}).uv_index=="number"&&!n.some(v=>v.type==="uv")?"uv":"rain";n=[...n,{type:h,view:!1}],l(),p(),o.querySelector(".rd-row:last-child .rd-type")?.focus()}),y()}function x(d,h){let v=d.querySelector(".rd-type");if(v){let k=()=>{v.options=ee.map(m=>({value:m,label:Me[m]})),v.value=n[h].type};customElements.get("ha-select")?k():customElements.whenDefined("ha-select").then(k),v.addEventListener("selected",(m=>{let w=m.detail?.value;if(!w||w===n[h].type)return;let S=n[h].entity&&(e(w)||!n[h].entity.startsWith("weather."))?n[h].entity:void 0;n=n.map((C,j)=>j===h?{type:w,view:F.includes(w)||C.view&&!F.includes(C.type),...S?{entity:S}:{}}:C),l(),p()})),v.addEventListener("closed",m=>m.stopPropagation())}let A=(k,m)=>{d.querySelector(k)?.addEventListener("value-changed",(w=>{let S=String(w.detail?.value??"").trim(),C=!!n[h].entity;n=n.map((j,Ee)=>{if(Ee!==h)return j;let K={...j};return S?K[m]=S:delete K[m],K}),l(),m==="entity"&&G(n[h].type)&&C!==!!S&&p()}))};A(".rd-entity","entity"),A(".rd-direction","direction_entity"),A(".rd-rate","rate_entity"),d.querySelector(`[id="rd-name-${h}"]`)?.addEventListener("change",k=>{let m=String(k.target.value??"").trim();n=n.map((w,S)=>{if(S!==h)return w;let C={...w};return m?C.name=m:delete C.name,C}),l()}),d.querySelector(".rd-view-switch")?.addEventListener("change",k=>{let m=!!k.target.checked;n=n.map((w,S)=>S===h?{...w,view:m}:w),l()});let H=k=>{let m=h+k;if(m<0||m>=n.length)return;let w=[...n];[w[h],w[m]]=[w[m],w[h]],n=w,l(),p(),o.querySelector(`.rd-row[data-i="${m}"] ${k<0?".rd-up":".rd-down"}`)?.focus()};d.querySelector(".rd-up")?.addEventListener("click",()=>H(-1)),d.querySelector(".rd-down")?.addEventListener("click",()=>H(1)),d.querySelector(".rd-remove")?.addEventListener("click",()=>{n=n.filter((k,m)=>m!==h),l(),p(),o.querySelector(".rd-add")?.focus()})}function y(){o.querySelectorAll(".rd-row").forEach(d=>{let h=n[Number(d.dataset.i)];if(!h)return;let v=(A,H,k)=>{let m=d.querySelector(A);m&&(i&&(m.hass=i),m.includeDomains=k,m.value=H??"")};v(".rd-entity",h.entity,h.type==="sensor"?void 0:e(h.type)?["sensor","weather"]:["sensor"]),v(".rd-direction",h.direction_entity,["sensor"]),v(".rd-rate",h.rate_entity,["sensor"])})}function b(){o.parentElement?.querySelectorAll("[data-levels-for]").forEach(h=>{h.hidden=!n.some(v=>v.type===h.dataset.levelsFor)})}return p(),b(),{hass(d){i=d,y()}}}var _e=o=>o==null?void 0:String(o);function I(o){return`<div class="place-fields">
-        ${_({id:"latitude",label:"Latitude",type:"number",min:-90,max:90,step:"any",placeholder:"-33.87",value:_e(o.latitude)})}
-        ${_({id:"longitude",label:"Longitude",type:"number",min:-180,max:180,step:"any",placeholder:"151.21",value:_e(o.longitude)})}
-        ${_({id:"time_zone",label:"Time zone",placeholder:"Australia/Sydney",value:o.time_zone,hint:"For weather in another place: its coordinates give the card that place's sun, and its times are shown in its time zone"})}
-    </div>`}function P(o,r){for(let t of["latitude","longitude"])o.querySelector(`#${t}`)?.addEventListener("change",i=>{let n=i.target.value.trim(),a=parseFloat(n);r({[t]:n&&isFinite(a)?a:void 0})});o.querySelector("#time_zone")?.addEventListener("change",t=>{r({time_zone:t.target.value.trim()||void 0})})}var q=`
+`;var st={sunny:{top:[.445,.13,256],mid:[.495,.125,250],bottom:[.575,.11,238],glow:[.88,.08,218],glowAlpha:.45,overcast:0},"partly-cloudy":{top:[.445,.1,254],mid:[.495,.092,248],bottom:[.565,.08,240],glow:[.88,.07,220],glowAlpha:.36,overcast:.25},windy:{top:[.445,.115,244],mid:[.495,.105,236],bottom:[.565,.09,222],glow:[.95,.05,200],glowAlpha:.3,overcast:.1},cloudy:{top:[.43,.026,250],mid:[.475,.025,248],bottom:[.53,.024,244],glow:[.86,.016,250],glowAlpha:.28,overcast:.8},foggy:{top:[.44,.014,212],mid:[.48,.013,214],bottom:[.53,.012,218],glow:[.88,.01,210],glowAlpha:.3,overcast:.9},"light-rain":{top:[.42,.034,246],mid:[.48,.032,243],bottom:[.53,.03,238],glow:[.82,.02,246],glowAlpha:.22,overcast:.85},rainy:{top:[.37,.032,248],mid:[.43,.032,244],bottom:[.48,.03,240],glow:[.78,.02,246],glowAlpha:.18,overcast:.9},pouring:{top:[.3,.03,250],mid:[.36,.031,246],bottom:[.41,.03,242],glow:[.72,.02,248],glowAlpha:.14,overcast:1},stormy:{top:[.26,.032,280],mid:[.31,.034,272],bottom:[.36,.034,262],glow:[.7,.03,280],glowAlpha:.14,overcast:1},snowy:{top:[.45,.04,238],mid:[.495,.036,234],bottom:[.55,.03,228],glow:[.93,.02,230],glowAlpha:.32,overcast:.7},"snowy-rainy":{top:[.44,.036,240],mid:[.49,.033,236],bottom:[.54,.03,232],glow:[.86,.02,236],glowAlpha:.24,overcast:.85},sleety:{top:[.42,.042,258],mid:[.47,.04,252],bottom:[.52,.036,246],glow:[.84,.024,252],glowAlpha:.22,overcast:.85},"snowy-stormy":{top:[.3,.04,266],mid:[.35,.04,260],bottom:[.4,.038,252],glow:[.74,.026,260],glowAlpha:.14,overcast:1},"sleety-stormy":{top:[.28,.042,284],mid:[.33,.042,276],bottom:[.38,.04,266],glow:[.72,.03,280],glowAlpha:.14,overcast:1},"clear-night":{top:[.2,.045,272],mid:[.25,.052,266],bottom:[.31,.055,256],glow:[.86,.03,250],glowAlpha:.16,overcast:0}},Pe=(t,r,e)=>Math.min(r,Math.max(t,e)),q=(t,r,e)=>t+(r-t)*e;function rt(t,r,e){let n=(r-t+540)%360-180;return(t+n*e+360)%360}function D(t,r,e){let n=([v,x,C])=>[v,x*Math.cos(C*Math.PI/180),x*Math.sin(C*Math.PI/180)],[o,s,l]=n(t),[d,f,c]=n(r),i=q(o,d,e),a=q(s,f,e),y=q(l,c,e),u=Math.hypot(a,y),g=u<1e-6?t[2]:(Math.atan2(y,a)*180/Math.PI+360)%360;return[i,u,g]}function pe([t,r,e]){let n=e*Math.PI/180,o=r*Math.cos(n),s=r*Math.sin(n),l=(t+.3963377774*o+.2158037573*s)**3,d=(t-.1055613458*o-.0638541728*s)**3,f=(t-.0894841775*o-1.291485548*s)**3;return[4.0767416621*l-3.3077115913*d+.2309699292*f,-1.2684380046*l+2.6097574011*d-.3413193965*f,-.0041960863*l-.7034186147*d+1.707614701*f]}var at=t=>t<=.0031308?12.92*t:1.055*Math.pow(t,1/2.4)-.055;function I(t){let r=n=>n.every(o=>o>=-1e-4&&o<=1.0001),e=pe(t);if(!r(e)){let n=0,o=t[1];for(let s=0;s<24;s++){let l=(n+o)/2;r(pe([t[0],l,t[2]]))?n=l:o=l}e=pe([t[0],n,t[2]])}return e.map(n=>at(Pe(0,1,n)))}var De=t=>Math.round(Pe(0,1,t)*255);function G(t){return"#"+t.map(r=>De(r).toString(16).padStart(2,"0")).join("")}function Me(t,r){return`rgba(${t.map(De).join(", ")}, ${Number(r.toFixed(3))})`}function me(t,r){return[.15+(t[0]-.15)*.42,t[1]*q(.75,.5,r),rt(t[2],262,.45)]}function lt(t,r){let e=st[t],n=1-e.overcast*.7,o={top:e.top,mid:e.mid,bottom:e.bottom,glow:e.glow,glowAlpha:e.glowAlpha,scrimAlpha:q(.46,.28,e.overcast)};if(t==="clear-night"){if(r==="dawn"||r==="dusk"){let s=r==="dawn"?[.4,.09,20]:[.38,.1,40];return{...o,bottom:D(e.bottom,s,.45),glowAlpha:.2,scrimAlpha:.22}}return{...o,scrimAlpha:.2}}switch(r){case"night":return{top:me(e.top,e.overcast),mid:me(e.mid,e.overcast),bottom:me(e.bottom,e.overcast),glow:[.86,.03,250],glowAlpha:q(.14,.06,e.overcast),scrimAlpha:.2};case"dusk":return{top:D(e.top,[e.top[0]*.8,.075,292],.5*n),mid:D(e.mid,[e.mid[0]*.88,.065,350],.42*n),bottom:D(e.bottom,[e.bottom[0]*.92,.115,52],.72*n),glow:D(e.glow,[.82,.13,58],n),glowAlpha:q(e.glowAlpha,.6,n*.6),scrimAlpha:o.scrimAlpha+.04};case"dawn":return{top:D(e.top,[e.top[0]*.95,e.top[1]*.85,262],.4*n),mid:D(e.mid,[e.mid[0]*.95,.05,330],.3*n),bottom:D(e.bottom,[e.bottom[0]*.95,.085,32],.62*n),glow:D(e.glow,[.88,.09,40],n),glowAlpha:q(e.glowAlpha,.5,n*.5),scrimAlpha:o.scrimAlpha+.04};default:return o}}function dt(t){return[.16,Math.min(.04,t[1]*.6),t[2]]}function z(t,r){let e=lt(t,r);return{top:G(I(e.top)),mid:G(I(e.mid)),bottom:G(I(e.bottom)),glow:Me(I(e.glow),e.glowAlpha),scrim:Me(I(dt(e.top)),e.scrimAlpha)}}var fe=[.985,.006,250];var ct={"--awc-sky-top":"#3b5f8c","--awc-sky-mid":"#4a6d99","--awc-sky-bottom":"#5a7ba3","--awc-sky-glow":"rgba(0, 0, 0, 0)","--awc-sky-scrim":"rgba(0, 0, 0, 0)","--weather-sun-primary":"#ffd67a","--weather-sun-secondary":"#ffb547","--weather-sun-glow":"rgba(255, 214, 140, 0.55)","--weather-sun-halo":"rgba(255, 214, 140, 0.24)","--awc-cloud-far":"rgba(214, 226, 242, 0.85)","--awc-cloud-mid":"rgba(232, 239, 248, 0.92)","--awc-cloud-near":"rgba(248, 250, 253, 0.96)"},ut=Object.keys(ct),Mt=ut.filter(t=>t.startsWith("--awc-sky-"));function w(t){return t==null?"":String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;")}function E(t){let r=customElements.get("ha-input")||!customElements.get("ha-textfield")?"ha-input":"ha-textfield",{id:e,label:n,value:o,placeholder:s,hint:l,type:d,min:f,max:c,step:i}=t,a=[`id="${w(e)}"`,`label="${w(n)}"`,`value="${w(o)}"`,s?`placeholder="${w(s)}"`:"",d?`type="${d}"`:"",f!==void 0?`min="${f}"`:"",c!==void 0?`max="${c}"`:"",i!==void 0?`step="${i}"`:"",l?r==="ha-input"?`hint="${w(l)}"`:`helper="${w(l)}" helperPersistent`:""].filter(Boolean);return`<${r} ${a.join(" ")}></${r}>`}function ge(t,r,e){if(t?.localize)try{let n=t.localize(r);if(n&&n!==r)return n}catch{}return e}var ht=["humidity","wind","pressure","sun","uv","rain"],pt=["humidity","wind","pressure","sun"];function Ne(t){let r=t.metrics,e=Array.isArray(r)?r:typeof r=="string"?r.split(","):null;if(!e)return[...pt];let n=[];for(let o of e){let s=String(o).trim().toLowerCase();ht.includes(s)&&!n.includes(s)&&n.push(s)}return n}var ye=["humidity","wind","pressure","sun","uv","rain","aqi","feels_like","dew_point","visibility","cloud_cover","gust","uv_max","rain_event","rain_week","rain_month","rain_year","sensor"],_e={humidity:"humidity",wind:"wind_speed",pressure:"pressure",uv:"uv_index",feels_like:"apparent_temperature",dew_point:"dew_point",visibility:"visibility",cloud_cover:"cloud_coverage",gust:"wind_gust_speed"},P=["uv_max","rain_event","rain_week","rain_month","rain_year"],Q=t=>t!=="sun"&&!Object.prototype.hasOwnProperty.call(_e,t),Ie=["humidity","wind","pressure","sun"],qe=t=>typeof t=="string"&&ye.includes(t),oe=t=>typeof t=="string"&&t.trim()?t.trim():void 0;function mt(t){if(typeof t=="string"){let f=t.trim().toLowerCase();return qe(f)?{type:f,view:P.includes(f)}:null}if(!t||typeof t!="object")return null;let r=t,e=typeof r.type=="string"?r.type.trim().toLowerCase():"";if(!qe(e))return null;let n={type:e,view:r.view===!0||P.includes(e)},o=oe(r.entity);o&&(n.entity=o);let s=oe(r.direction_entity);e==="wind"&&s&&(n.direction_entity=s);let l=oe(r.rate_entity);e==="rain"&&l&&(n.rate_entity=l);let d=oe(r.name);return d&&(n.name=d),n}function B(t){let r=t.readings;if(Array.isArray(r))return r.map(mt).filter(s=>!!s);let e=[],n=s=>{let l=Object.fromEntries(Object.entries(s).filter(([,d])=>d!==void 0&&d!==""));e.push({...l,view:!!s.view||P.includes(s.type)})},o=Ne(t);for(let s of o){if(s==="sun"){t.show_sun!==!1&&n({type:"sun"});continue}s==="humidity"?n({type:"humidity",entity:t.humidity_sensor_entity}):s==="wind"?n({type:"wind",entity:t.wind_speed_sensor_entity,direction_entity:t.wind_direction_sensor_entity}):s==="pressure"?n({type:"pressure",entity:t.pressure_sensor_entity}):s==="uv"?n({type:"uv",entity:t.uv_entity}):s==="rain"&&n({type:"rain",entity:t.rain_entity,rate_entity:t.rain_rate_entity})}!o.includes("wind")&&(t.wind_speed_sensor_entity||t.wind_direction_sensor_entity)&&n({type:"wind",entity:t.wind_speed_sensor_entity,direction_entity:t.wind_direction_sensor_entity,view:!0}),!o.includes("uv")&&t.uv_entity&&n({type:"uv",entity:t.uv_entity,view:!0}),!o.includes("rain")&&(t.rain_entity||t.rain_rate_entity)&&n({type:"rain",entity:t.rain_entity,rate_entity:t.rain_rate_entity,view:!0}),t.uv_max_entity&&n({type:"uv_max",entity:t.uv_max_entity});for(let s of["rain_event","rain_week","rain_month","rain_year"]){let l=t[`${s}_entity`];l&&n({type:s,entity:l})}return e}var se=["metrics","show_sun","humidity_sensor_entity","wind_speed_sensor_entity","wind_direction_sensor_entity","pressure_sensor_entity","uv_entity","uv_max_entity","rain_entity","rain_rate_entity","rain_event_entity","rain_week_entity","rain_month_entity","rain_year_entity"];function ze(t){return t.map(r=>{let e=Object.entries(r).filter(([o,s])=>o!=="type"&&o!=="view"&&s!==void 0),n=r.view&&!P.includes(r.type);return!e.length&&!n?r.type:{type:r.type,...Object.fromEntries(e),...n?{view:!0}:{}}})}var re=t=>t.length===Ie.length&&t.every((r,e)=>r.type===Ie[e]&&!r.view&&!r.entity&&!r.direction_entity&&!r.rate_entity&&!r.name);var be={humidity:"Humidity",wind:"Wind",pressure:"Pressure",sun:"Next sunset or sunrise",uv:"UV index",rain:"Rain",aqi:"Air quality (US EPA)",feels_like:"Feels like",dew_point:"Dew point",visibility:"Visibility",cloud_cover:"Cloud cover",gust:"Gusts",uv_max:"Today's highest UV",rain_event:"Rain this event",rain_week:"Rain this week",rain_month:"Rain this month",rain_year:"Rain this year",sensor:"Any sensor"},ae=t=>t.type==="sensor"&&t.name?t.name:be[t.type],ft='<svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.4 8.6 12 13.2l4.6-4.6L18 10l-6 6-6-6z"/></svg>',je='<svg class="ico-warn" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 1 21h22L12 2zm0 4.3L19.5 19h-15L12 6.3zM11 10v4h2v-4h-2zm0 6v2h2v-2h-2z"/></svg>',gt=0;function We(t,r,e,n={}){let o,s=B(r()),l=n.open??-1,d=++gt,f=()=>r().entity||"the weather entity",c=h=>Object.prototype.hasOwnProperty.call(_e,h),i=h=>P.includes(h.type)||h.view,a=h=>c(h.type)?`Leave empty to use ${f()}`:h.type==="aqi"?"A sensor on the US EPA scale; Air quality levels move the bands":h.type==="sensor"?"Any entity: its name and its value":"A sensor";function y(h){if(Q(h.type)&&!h.entity)return{text:"Pick a sensor",warn:!0};let p=h.type==="sun"?`From ${r().sun_entity||"sun.sun"}`:h.entity||`From ${f()}`;return i(h)?r().show_forecast?{text:`In the forecast view \xB7 ${p}`,warn:!1}:{text:"In the forecast view, which needs the forecast on",warn:!0}:{text:p,warn:!1}}function u(){let h={readings:re(s)?void 0:ze(s)};for(let p of se)h[p]=void 0;e(h),Fe()}function g(h,p,b,A){return`<ha-entity-picker class="${h}" label="${w(p)}" value="${w(b??"")}"${A?` helper="${w(A)}"`:""} allow-custom-entity></ha-entity-picker>`}function v(h,p){let b=P.includes(h.type),A=w(ae(h)),N=y(h),S=`rd-b-${d}-${p}`;return`<div class="rd-row" data-i="${p}" data-type="${h.type}" role="listitem">
+            <button type="button" class="rd-head" aria-expanded="${p===l}" aria-controls="${S}">
+              <span class="rd-tx"><span class="rd-t">${A}</span><span class="rd-s${N.warn?" warn":""}">${N.warn?je:""}<span>${w(N.text)}</span></span></span>${ft}
+            </button>
+            <div class="rv rd-body" id="${S}"${p===l?" data-open":""}><div class="rv-in"><div class="rd-fields">
+              <ha-select class="rd-type" label="Type"></ha-select>
+              ${h.type==="sun"?"":g("rd-entity",Q(h.type)?"Entity":"Entity (optional)",h.entity,a(h))}
+              ${h.type==="wind"?g("rd-direction","Direction sensor (optional)",h.direction_entity):""}
+              ${h.type==="rain"?g("rd-rate","Rain rate sensor (optional)",h.rate_entity,"Shown instead of today's rain while it rains"):""}
+              ${h.type==="sensor"?E({id:`rd-name-${p}`,label:"Name (optional)",value:h.name,hint:"Else the entity's own name"}):""}
+              ${Q(h.type)&&!h.entity?`<p class="rd-warn" role="status">Pick a sensor. Without one, this reading isn't shown.</p>`:""}
+              ${b?'<p class="rd-note">Shown in the forecast view, when you tap the card.</p>':`<label class="sw rd-view"><span class="sw-t"><span class="sw-l">Only in the forecast view</span><span class="sw-h">Shown when you tap the card, not on it</span></span><ha-switch class="rd-view-switch"${h.view?" checked":""}></ha-switch></label>`}
+              <div class="rd-foot">
+                <button type="button" class="tb rd-btn rd-up" aria-label="Move ${A} up"${p===0?" disabled":""}>Move up</button>
+                <button type="button" class="tb rd-btn rd-down" aria-label="Move ${A} down"${p===s.length-1?" disabled":""}>Move down</button>
+                <button type="button" class="tb rd-btn rd-remove" aria-label="Remove ${A}">Remove</button>
+              </div>
+            </div></div></div>
+          </div>`}function x(h){l=h,n.onOpen?.(h),t.querySelectorAll(".rd-row").forEach(p=>{let b=Number(p.dataset.i)===h;p.querySelector(".rd-head")?.setAttribute("aria-expanded",String(b)),p.querySelector(".rd-body")?.toggleAttribute("data-open",b)})}function C(){l>=s.length&&(l=-1),t.innerHTML=`<div class="rd-list" role="list" aria-label="Readings">${s.map(v).join("")}</div>
+            <button type="button" class="tb rd-add"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>Add a reading</button>`,t.querySelectorAll(".rd-row").forEach(h=>it(h,Number(h.dataset.i))),t.querySelector(".rd-add").addEventListener("click",()=>{let p=typeof(o?.states[r().entity??""]?.attributes??{}).uv_index=="number"&&!s.some(b=>b.type==="uv")?"uv":"rain";s=[...s,{type:p,view:!1}],l=s.length-1,n.onOpen?.(l),u(),C(),t.querySelector(".rd-row:last-child .rd-type")?.focus()}),Re()}function W(h,p){let b=y(p),A=h.querySelector(".rd-s");A&&(A.classList.toggle("warn",b.warn),A.innerHTML=`${b.warn?je:""}<span></span>`,A.querySelector("span").textContent=b.text,h.querySelector(".rd-t").textContent=ae(p))}function it(h,p){h.querySelector(".rd-head")?.addEventListener("click",()=>x(l===p?-1:p));let b=h.querySelector(".rd-type");if(b){let S=()=>{b.options=ye.map(_=>({value:_,label:P.includes(_)?`${be[_]}, in the forecast view`:be[_]})),b.value=s[p].type};customElements.get("ha-select")?S():customElements.whenDefined("ha-select").then(S),b.addEventListener("selected",(_=>{let k=_.detail?.value;if(!k||k===s[p].type)return;let T=s[p].entity&&(c(k)||!s[p].entity.startsWith("weather."))?s[p].entity:void 0;s=s.map(($,ie)=>ie===p?{type:k,view:P.includes(k)||$.view&&!P.includes($.type),...T?{entity:T}:{}}:$),u(),C(),t.querySelector(`.rd-row[data-i="${p}"] .rd-type`)?.focus()})),b.addEventListener("closed",_=>_.stopPropagation())}let A=(S,_)=>{h.querySelector(S)?.addEventListener("value-changed",(k=>{let T=String(k.detail?.value??"").trim(),$=!!s[p].entity;s=s.map((ie,ot)=>{if(ot!==p)return ie;let he={...ie};return T?he[_]=T:delete he[_],he}),u(),_==="entity"&&Q(s[p].type)&&$!==!!T?C():W(h,s[p])}))};A(".rd-entity","entity"),A(".rd-direction","direction_entity"),A(".rd-rate","rate_entity"),h.querySelector(`[id="rd-name-${p}"]`)?.addEventListener("change",S=>{let _=String(S.target.value??"").trim();s=s.map((k,T)=>{if(T!==p)return k;let $={...k};return _?$.name=_:delete $.name,$}),u(),W(h,s[p])}),h.querySelector(".rd-view-switch")?.addEventListener("change",S=>{let _=!!S.target.checked;s=s.map((k,T)=>T===p?{...k,view:_}:k),u(),W(h,s[p])});let N=S=>{let _=p+S;if(_<0||_>=s.length)return;let k=[...s];[k[p],k[_]]=[k[_],k[p]],s=k,l=_,n.onOpen?.(_),u(),C();let T=t.querySelector(`.rd-row[data-i="${_}"]`);T?.setAttribute("data-moved","");let $=T?.querySelector(S<0?".rd-up":".rd-down");($&&!$.disabled?$:T?.querySelector(S<0?".rd-down":".rd-up"))?.focus()};h.querySelector(".rd-up")?.addEventListener("click",()=>N(-1)),h.querySelector(".rd-down")?.addEventListener("click",()=>N(1)),h.querySelector(".rd-remove")?.addEventListener("click",()=>{s=s.filter((_,k)=>k!==p),l=-1,n.onOpen?.(-1),u(),C();let S=t.querySelectorAll(".rd-head");(S[Math.min(p,S.length-1)]??t.querySelector(".rd-add"))?.focus()})}function Re(){t.querySelectorAll(".rd-row").forEach(h=>{let p=s[Number(h.dataset.i)];if(!p)return;let b=(A,N,S)=>{let _=h.querySelector(A);_&&(o&&(_.hass=o),_.includeDomains=S,_.value=N??"")};b(".rd-entity",p.entity,p.type==="sensor"?void 0:c(p.type)?["sensor","weather"]:["sensor"]),b(".rd-direction",p.direction_entity,["sensor"]),b(".rd-rate",p.rate_entity,["sensor"])})}function Fe(){t.parentElement?.querySelectorAll("[data-levels-for]").forEach(p=>{p.hidden=!s.some(b=>b.type===p.dataset.levelsFor)})}return C(),Fe(),{hass(h){o=h,Re()},sync(){t.querySelectorAll(".rd-row").forEach(h=>{let p=s[Number(h.dataset.i)];p&&W(h,p)})}}}var Ge=t=>t==null?void 0:String(t);function K(t){return`<div class="place-fields">
+        ${E({id:"latitude",label:"Latitude",type:"number",min:-90,max:90,step:"any",value:Ge(t.latitude)})}
+        ${E({id:"longitude",label:"Longitude",type:"number",min:-180,max:180,step:"any",value:Ge(t.longitude)})}
+        ${E({id:"time_zone",label:"Time zone",value:t.time_zone,hint:"For weather in another place, such as -33.87, 151.21 and Australia/Sydney: the coordinates give the card that place's sun, and its times are shown in its time zone"})}
+    </div>`}function Y(t,r){for(let e of["latitude","longitude"])t.querySelector(`#${e}`)?.addEventListener("change",n=>{let o=n.target.value.trim(),s=parseFloat(o);r({[e]:o&&isFinite(s)?s:void 0})});t.querySelector("#time_zone")?.addEventListener("change",e=>{r({time_zone:e.target.value.trim()||void 0})})}var U=`
     .place-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; }
     .place-fields > :last-child { grid-column: 1 / -1; }
-`;function z(o){return o&&typeof o=="object"&&typeof o.action=="string"?o:void 0}function D(o,r){return{entity:r,tap_action:z(o?.tap_action),hold_action:z(o?.hold_action),double_tap_action:z(o?.double_tap_action)}}var W=["tap_action","hold_action","double_tap_action"],Re={tap_action:["ui.panel.lovelace.editor.card.generic.tap_action","Tap behavior"],hold_action:["ui.panel.lovelace.editor.card.generic.hold_action","Hold behavior"],double_tap_action:["ui.panel.lovelace.editor.card.generic.double_tap_action","Double tap behavior"]},ne=(o,r)=>Z(o,...Re[r]),Oe=W.map(o=>({name:o,selector:{ui_action:{default_action:o==="tap_action"?"more-info":"none"}},context:{entity_id:"entity"}}));function R(o,r,t,i,n={}){let a={...t},e=u=>{a={...a,...u},i(u)},s=u=>{let p=a[u]?.action;return p!==void 0&&Object.prototype.hasOwnProperty.call(n,p)?p:void 0},l=()=>W.filter(s).map(u=>{let p=document.createElement("div");return p.className="option card-action",p.innerHTML=`<span>${g(ne(r,u))}: <b>${g(n[s(u)]??"")}</b></span><button type="button" class="card-action-reset">${g(Z(r,"ui.common.reset","Reset"))}</button>`,p.querySelector("button").addEventListener("click",()=>{e({[u]:void 0}),R(o,r,a,i,n)}),p}),c=()=>{let u=document.createElement("ha-form");u.hass=r,u.data={...a},u.schema=Oe.filter(p=>!s(p.name)),u.computeLabel=p=>ne(r,p.name),u.addEventListener("value-changed",p=>{p.stopPropagation();let x=p.detail?.value??{},y={};for(let b of W){let d=z(x[b]);JSON.stringify(d)!==JSON.stringify(a[b])&&(y[b]=d)}u.data={...a,...y},Object.keys(y).length&&e(y)}),o.replaceChildren(...l(),u)};if(customElements.get("ha-form")){c();return}be(o,r,()=>a,e,n),customElements.whenDefined("ha-form").then(()=>{o.isConnected&&c()}),Ie()}function N(o,r){let t=o?.querySelector("ha-form");t&&r&&(t.hass=r)}async function Ie(){try{await(await(await window.loadCardHelpers?.())?.createCardElement({type:"tile",entity:"sun.sun"}))?.constructor?.getConfigElement?.()}catch{}}var Pe=[{value:"default",label:"Default"},{value:"more-info",label:"More info"},{value:"navigate",label:"Navigate"},{value:"url",label:"Open a URL"},{value:"none",label:"Nothing"}],ve={navigate:{key:"navigation_path",label:"Path",placeholder:"/lovelace/weather"},url:{key:"url_path",label:"URL",placeholder:"https://"}};function be(o,r,t,i,n={}){let a=[...Pe,...Object.entries(n).map(([e,s])=>({value:e,label:s}))];o.innerHTML=W.map(e=>{let s=t()[e],l=s?ve[s.action]:void 0;return`<div class="option"><ha-select data-action="${e}" label="${g(ne(r,e))}"></ha-select></div>`+(l?`<div class="option">${_({id:`${e}-${l.key}`,label:l.label,placeholder:l.placeholder,value:typeof s?.[l.key]=="string"?s[l.key]:""})}</div>`:"")}).join("");for(let e of W){let s=t()[e],l=o.querySelector(`[data-action="${e}"]`);if(!l)continue;let c=s&&!a.some(y=>y.value===s.action)?[...a,{value:s.action,label:`${s.action} (set in YAML)`}]:a,u=()=>{l.options=c,l.value=s?.action??"default"};customElements.get("ha-select")?u():customElements.whenDefined("ha-select").then(u),l.addEventListener("selected",(y=>{let b=y.detail?.value;!b||b===(t()[e]?.action??"default")||(i({[e]:b==="default"?void 0:{action:b}}),be(o,r,t,i,n))})),l.addEventListener("closed",y=>y.stopPropagation());let p=s?ve[s.action]:void 0;(p?o.querySelector(`#${e}-${p.key}`):null)?.addEventListener("input",y=>{let b=y.target.value.trim(),{[p.key]:d,...h}=t()[e]??{action:s.action};i({[e]:{...h,action:s.action,...b?{[p.key]:b}:{}}})})}}function we(o){return(Array.isArray(o)?o:typeof o=="string"?[o]:[]).map(String).filter(Boolean)}var ie=[{value:"line",label:"A line"},{value:"area",label:"A line with a soft fill"},{value:"bars",label:"Bars"},{value:"none",label:"No graph: the values alone"}],f=class f extends HTMLElement{constructor(){super(...arguments);this._initialized=!1}setConfig(t){let i=!this._config||Object.keys(t).length!==Object.keys(this._config).length||JSON.stringify(Object.keys(t).sort())!==JSON.stringify(Object.keys(this._config).sort());this._config={...t},this.isConnected&&i&&this.render()}async connectedCallback(){this._config=this._config||{},await this.ensureEntityPickerLoaded(),this.render(),this._initialized=!0,this._hass&&this.updateEntityPickers()}disconnectedCallback(){this._cleanupSuppressHandler(),this.innerHTML=""}_cleanupSuppressHandler(){this._suppressHandler&&(window.removeEventListener("unhandledrejection",this._suppressHandler),this._suppressHandler=void 0),this._suppressTimeout&&(clearTimeout(this._suppressTimeout),this._suppressTimeout=void 0)}async ensureEntityPickerLoaded(){if(!customElements.get("ha-entity-picker"))try{let i=await(await window.loadCardHelpers()).createCardElement({type:"entities",entities:[]});this._cleanupSuppressHandler(),this._suppressHandler=n=>{(n.reason?.message?.includes("localize")||n.reason?.message?.includes("hass"))&&n.preventDefault()},window.addEventListener("unhandledrejection",this._suppressHandler);try{await i.constructor.getConfigElement?.()}finally{this._suppressTimeout=setTimeout(()=>this._cleanupSuppressHandler(),2e3)}}catch{}}render(){this._config||(this._config={});let t=this._config.color_palette||"default",i=Object.fromEntries(Object.entries(this._config.engine_settings||{}).filter(([,a])=>typeof a=="number"&&isFinite(a))),n=this._config.custom_colors||{};this.innerHTML=`
-      <div class="card-config">
-        <!-- Entities \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 -->
-        <div class="section expanded">
-          <div class="section-header" role="button" tabindex="0" data-section="entities">
-            <ha-icon icon="mdi:link-variant"></ha-icon>
-            <h3>Entities</h3>
-            <ha-icon class="expand-icon" icon="mdi:chevron-down"></ha-icon>
-          </div>
-          <div class="section-content">
-            <div class="option">
-              <ha-entity-picker
-                id="entity"
-                label="Weather entity"
-                value="${g(this._config.entity||"")}"
-                helper="Required unless developer mode is on"
-                allow-custom-entity
-              ></ha-entity-picker>
-            </div>
-            <div class="option">
-              ${_({id:"name",label:"Name",placeholder:"Weather",value:this._config.name})}
-            </div>
-            <div class="option">
-              <ha-entity-picker
-                id="outdoor_sensor_entity"
-                label="Outdoor temperature sensor"
-                value="${g(this._config.outdoor_sensor_entity||"")}"
-                helper="Shown instead of the weather entity's temperature"
-                allow-custom-entity
-              ></ha-entity-picker>
-            </div>
-            <div class="option">
-              <ha-entity-picker
-                id="feels_like_entity"
-                label="Feels-like sensor"
-                value="${g(this._config.feels_like_entity||"")}"
-                helper="Adds a 'Feels like' line under the temperature"
-                allow-custom-entity
-              ></ha-entity-picker>
-            </div>
-            <div class="option">
-              <ha-entity-picker
-                id="indoor_temperature_entity"
-                label="Indoor temperature sensor"
-                value="${g(this._config.indoor_temperature_entity||"")}"
-                helper="Adds an indoor line under the condition"
-                allow-custom-entity
-              ></ha-entity-picker>
-            </div>
-            <div class="option">
-              <ha-entity-picker
-                id="indoor_humidity_entity"
-                label="Indoor humidity sensor"
-                value="${g(this._config.indoor_humidity_entity||"")}"
-                allow-custom-entity
-              ></ha-entity-picker>
-            </div>
-            <div class="option">
-              <ha-entity-picker
-                id="sun_entity"
-                label="Sun entity"
-                value="${g(this._config.sun_entity||"")}"
-                helper="Usually sun.sun. Drives the sky's time of day and sunset time"
-                allow-custom-entity
-              ></ha-entity-picker>
-            </div>
-            <div class="option">
-              <ha-entity-picker
-                id="moon_entity"
-                label="Moon phase sensor (optional)"
-                value="${g(this._config.moon_entity||"")}"
-                helper="The Moon integration's sensor.moon_phase. The night's moon shows its phase; without one, the card works it out from the date"
-                allow-custom-entity
-              ></ha-entity-picker>
-            </div>
-            <div class="option">
-              <ha-entity-picker
-                id="flights_entity"
-                label="Flights sensor"
-                value="${g(this._config.flights_entity||"")}"
-                helper="Flightradar24 'Current in area' sensor. Each new flight crosses the card once"
-                allow-custom-entity
-              ></ha-entity-picker>
-            </div>
-          </div>
+`;function Z(t){return t&&typeof t=="object"&&typeof t.action=="string"?t:void 0}function V(t,r){return{entity:r,tap_action:Z(t?.tap_action),hold_action:Z(t?.hold_action),double_tap_action:Z(t?.double_tap_action)}}var ee=["tap_action","hold_action","double_tap_action"],yt={tap_action:["ui.panel.lovelace.editor.card.generic.tap_action","Tap behavior"],hold_action:["ui.panel.lovelace.editor.card.generic.hold_action","Hold behavior"],double_tap_action:["ui.panel.lovelace.editor.card.generic.double_tap_action","Double tap behavior"]},we=(t,r)=>ge(t,...yt[r]),_t=ee.map(t=>({name:t,selector:{ui_action:{default_action:t==="tap_action"?"more-info":"none"}},context:{entity_id:"entity"}}));function j(t,r,e,n,o={}){let s={...e},l=i=>{s={...s,...i},n(i)},d=i=>{let a=s[i]?.action;return a!==void 0&&Object.prototype.hasOwnProperty.call(o,a)?a:void 0},f=()=>ee.filter(d).map(i=>{let a=document.createElement("div");return a.className="option card-action",a.innerHTML=`<span>${w(we(r,i))}: <b>${w(o[d(i)]??"")}</b></span><button type="button" class="card-action-reset">${w(ge(r,"ui.common.reset","Reset"))}</button>`,a.querySelector("button").addEventListener("click",()=>{l({[i]:void 0}),j(t,r,s,n,o)}),a}),c=()=>{let i=document.createElement("ha-form");i.hass=r,i.data={...s},i.schema=_t.filter(a=>!d(a.name)),i.computeLabel=a=>we(r,a.name),i.addEventListener("value-changed",a=>{a.stopPropagation();let y=a.detail?.value??{},u={};for(let g of ee){let v=Z(y[g]);JSON.stringify(v)!==JSON.stringify(s[g])&&(u[g]=v)}i.data={...s,...u},Object.keys(u).length&&l(u)}),t.replaceChildren(...f(),i)};if(customElements.get("ha-form")){c();return}Ke(t,r,()=>s,l,o),customElements.whenDefined("ha-form").then(()=>{t.isConnected&&c()}),bt()}function J(t,r){let e=t?.querySelector("ha-form");e&&r&&(e.hass=r)}async function bt(){try{await(await(await window.loadCardHelpers?.())?.createCardElement({type:"tile",entity:"sun.sun"}))?.constructor?.getConfigElement?.()}catch{}}var wt=[{value:"default",label:"Default"},{value:"more-info",label:"More info"},{value:"navigate",label:"Navigate"},{value:"url",label:"Open a URL"},{value:"none",label:"Nothing"}],Be={navigate:{key:"navigation_path",label:"Path",placeholder:"/lovelace/weather"},url:{key:"url_path",label:"URL",placeholder:"https://"}};function Ke(t,r,e,n,o={}){let s=[...wt,...Object.entries(o).map(([l,d])=>({value:l,label:d}))];t.innerHTML=ee.map(l=>{let d=e()[l],f=d?Be[d.action]:void 0;return`<div class="option"><ha-select data-action="${l}" label="${w(we(r,l))}"></ha-select></div>`+(f?`<div class="option">${E({id:`${l}-${f.key}`,label:f.label,placeholder:f.placeholder,value:typeof d?.[f.key]=="string"?d[f.key]:""})}</div>`:"")}).join("");for(let l of ee){let d=e()[l],f=t.querySelector(`[data-action="${l}"]`);if(!f)continue;let c=d&&!s.some(u=>u.value===d.action)?[...s,{value:d.action,label:`${d.action} (set in YAML)`}]:s,i=()=>{f.options=c,f.value=d?.action??"default"};customElements.get("ha-select")?i():customElements.whenDefined("ha-select").then(i),f.addEventListener("selected",(u=>{let g=u.detail?.value;!g||g===(e()[l]?.action??"default")||(n({[l]:g==="default"?void 0:{action:g}}),Ke(t,r,e,n,o))})),f.addEventListener("closed",u=>u.stopPropagation());let a=d?Be[d.action]:void 0;(a?t.querySelector(`#${l}-${a.key}`):null)?.addEventListener("input",u=>{let g=u.target.value.trim(),{[a.key]:v,...x}=e()[l]??{action:d.action};n({[l]:{...x,action:d.action,...g?{[a.key]:g}:{}}})})}}var Ye={show_location:!0,temperature_decimals:0,compact:!1,layout:"default",color_palette:"default",hero:"temperature",show_clock:!1,show_date:!1,show_forecast:!1,show_days:!1,forecast_days:7,forecast_metric:"temp",forecast_graph:"line",show_attributes:!0,show_attribute_labels:!0,show_attribute_icons:!0,show_indoor:!0,indoor_style:"label",show_flight_labels:!0,flight_label:"flight",plane_speed:1,planes_on_load:!1,animate:!0,spill_particles:!0,disable_lightning_shake:!1,auto_pause:!1,dev_mode:!1,enable_day_night_cycle:!1,sunrise_hour:6,sunset_hour:20,night:"auto",night_red:!0,night_lux:5,wake_time:"07:00",show_note:!1,note_tone:"snarky",note_attribute:"note",note_max_age:180,sun_entity:"sun.sun"},Ue=t=>t==null||typeof t=="string"&&!t.trim()||Array.isArray(t)&&!t.length,Je=t=>t===!0?"on":t===!1?"off":t;function X(t,r){let e=t;if(r.startsWith("engine_settings.")){let s=r.slice(16),l=e.engine_settings?.[s];return typeof l=="number"&&isFinite(l)&&l!==M[s]}if(r.startsWith("custom_colors."))return!Ue(e.custom_colors?.[r.slice(14)]);let n=e[r];if(Ue(n))return!1;if(!(r in Ye))return!0;let o=Ye[r];return r==="night"?Je(n)!==o:r==="wake_time"?String(n).replace(/^(\d):/,"0$1:")!==o:typeof o=="number"?Number(n)!==o:n!==o}var le=t=>t.layout==="nightstand"?"none":t.show_forecast?"forecast":"more-info",Ve=t=>t&&typeof t=="object"&&typeof t.action=="string"?t.action:void 0,vt=Object.keys(M).map(t=>`engine_settings.${t}`),xt=["sunny_bg","cloudy_bg","rainy_bg","stormy_bg","snowy_bg","windy_bg","fog_color"].map(t=>`custom_colors.${t}`),kt=["temperature_color","text_color","sun_color","rain_color","snow_color"].map(t=>`custom_colors.${t}`),L=t=>t.layout==="nightstand",ve=(t,r)=>!!t.show_forecast&&(r.all||!L(t)),xe=t=>t.animate!==!1,te={entity:{tier:"basic",keys:["entity"]},name:{tier:"basic",keys:["name"]},show_location:{tier:"all",keys:["show_location"]},outdoor_sensor_entity:{tier:"all",keys:["outdoor_sensor_entity"]},feels_like_entity:{tier:"all",keys:["feels_like_entity"]},another_place:{tier:"all",keys:["latitude","longitude","time_zone"]},place_fields:{tier:"all",keys:["latitude","longitude","time_zone"],when:(t,r)=>r.place},layout:{tier:"basic",keys:["compact","layout"]},color_palette:{tier:"basic",keys:["color_palette"]},temperature_decimals:{tier:"all",keys:["temperature_decimals"]},why_nightstand_only:{tier:"basic",keys:[],reason:!0,when:t=>!L(t)},alarm_entity:{tier:"basic",keys:["alarm_entity"],when:L},wake_time:{tier:"basic",keys:["wake_time"],when:L},night:{tier:"all",keys:["night"],when:L},night_sensor:{tier:"all",keys:["night_sensor"],when:t=>L(t)&&Je(t.night??"auto")==="auto"},night_lux:{tier:"all",keys:["night_lux"],when:t=>L(t)&&!!t.night_sensor},bed_time:{tier:"all",keys:["bed_time"],when:L},night_red:{tier:"all",keys:["night_red"],when:L},why_forecast_nightstand:{tier:"basic",keys:[],reason:!0,when:L},show_forecast:{tier:"basic",keys:["show_forecast"],when:(t,r)=>r.all||!L(t)},forecast_days:{tier:"all",keys:["show_days","forecast_days"],when:ve},forecast_metric:{tier:"all",keys:["forecast_metric"],when:ve},forecast_graph:{tier:"all",keys:["forecast_graph"],when:ve},time_date:{tier:"all",keys:["show_clock","show_date"]},hero:{tier:"all",keys:["hero"]},note:{tier:"basic",keys:["show_note","note_entity"],when:(t,r)=>r.all||!L(t)},why_note_compact:{tier:"basic",keys:[],reason:!0,when:(t,r)=>!!t.compact&&!L(t)&&r.note!=="off"},why_note_nightstand:{tier:"basic",keys:[],reason:!0,when:L},note_tone:{tier:"basic",keys:["note_tone"],when:(t,r)=>r.note==="ai"},note_ai_task_entity:{tier:"all",keys:["note_ai_task_entity"],when:(t,r)=>r.note==="ai",promote:(t,r)=>r.noDefaultAi},note_calendar:{tier:"all",keys:["note_calendar"],when:(t,r)=>r.note==="ai"},note_entity:{tier:"basic",keys:["note_entity"],when:(t,r)=>r.note==="entity"},note_attribute:{tier:"all",keys:["note_attribute"],when:(t,r)=>r.note==="entity"},note_max_age:{tier:"all",keys:["note_max_age"],when:(t,r)=>r.note!=="off"},show_attributes:{tier:"all",keys:["show_attributes"]},readings:{tier:"all",keys:["readings","uv_levels","aqi_levels",...se],when:t=>t.show_attributes!==!1,changed:t=>!re(B(t))||X(t,"uv_levels")||X(t,"aqi_levels")},reading_style:{tier:"all",keys:["show_attribute_labels","show_attribute_icons"],when:t=>t.show_attributes!==!1},indoor_temperature_entity:{tier:"all",keys:["indoor_temperature_entity"]},indoor_humidity_entity:{tier:"all",keys:["indoor_humidity_entity"]},indoor_line:{tier:"all",keys:["show_indoor","indoor_style"],when:t=>!!(t.indoor_temperature_entity||t.indoor_humidity_entity)},animate:{tier:"all",keys:["animate"]},spill_particles:{tier:"all",keys:["spill_particles"],when:xe},lightning:{tier:"all",keys:["disable_lightning_shake"],when:xe},auto_pause:{tier:"all",keys:["auto_pause"]},sky_follows:{tier:"all",keys:["enable_day_night_cycle"]},day_hours:{tier:"all",keys:["sunrise_hour","sunset_hour"],when:t=>!!t.enable_day_night_cycle},sun_entity:{tier:"all",keys:["sun_entity"]},moon_entity:{tier:"all",keys:["moon_entity"]},amounts:{tier:"all",keys:vt,when:xe},sky_colors:{tier:"all",keys:xt,when:t=>t.color_palette!=="theme"},why_sky_colors_theme:{tier:"all",keys:[],reason:!0,when:t=>t.color_palette==="theme"},ink_colors:{tier:"all",keys:kt},flights_entity:{tier:"all",keys:["flights_entity"]},plane_tags:{tier:"all",keys:["show_flight_labels","flight_label"],when:t=>!!t.flights_entity},plane_speed:{tier:"all",keys:["plane_speed"],when:t=>!!t.flights_entity},planes_on_load:{tier:"all",keys:["planes_on_load"],when:t=>!!t.flights_entity},actions:{tier:"all",keys:["tap_action","hold_action","double_tap_action"],changed:t=>{let r=Ve(t.tap_action),e=n=>{let o=Ve(n);return o!==void 0&&o!=="none"};return r!==void 0&&r!==le(t)||e(t.hold_action)||e(t.double_tap_action)}},dev_mode:{tier:"all",keys:["dev_mode"]}},Xe={weather:["entity","name","show_location","outdoor_sensor_entity","feels_like_entity","another_place","place_fields"],look:["layout","color_palette","temperature_decimals"],nightstand:["why_nightstand_only","alarm_entity","wake_time","night","night_sensor","night_lux","bed_time","night_red"],forecast:["why_forecast_nightstand","show_forecast","forecast_days","forecast_metric","forecast_graph","time_date","hero"],note:["note","why_note_compact","why_note_nightstand","note_tone","note_ai_task_entity","note_calendar","note_entity","note_attribute","note_max_age"],readings:["show_attributes","readings","reading_style","indoor_temperature_entity","indoor_humidity_entity","indoor_line"],sky:["animate","spill_particles","lightning","auto_pause","sky_follows","day_hours","sun_entity","moon_entity","amounts"],colors:["sky_colors","why_sky_colors_theme","ink_colors"],planes:["flights_entity","plane_tags","plane_speed","planes_on_load"],interactions:["actions"],dev:["dev_mode"]},ke=["readings","sky","colors","planes","interactions"];function Qe(t,r){let e=te[t];return!e||e.reason?!1:e.changed?e.changed(r):e.keys.some(n=>X(r,n))}function Ee(t,r,e,n){let o=te[t];return o?n.has(t)?!0:o.when&&!o.when(r,e)?!1:o.tier==="basic"||e.all||!!o.promote?.(r,e):!1}function Ze(t,r,e,n){return t.some(o=>!te[o]?.reason&&Ee(o,r,e,n))}function et(t){return(Array.isArray(t)?t:typeof t=="string"?[t]:[]).map(String).filter(Boolean)}var Le=[{value:"line",label:"Line"},{value:"area",label:"Line with a soft fill"},{value:"bars",label:"Bars"},{value:"none",label:"No graph, the values alone"}],nt="animated-weather-card:editor-all";function Et(){try{return localStorage.getItem(nt)==="1"}catch{return!1}}function St(t){try{localStorage.setItem(nt,t?"1":"0")}catch{}}var tt=t=>typeof requestAnimationFrame=="function"?requestAnimationFrame(t):setTimeout(t,16),At='<svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.4 8.6 12 13.2l4.6-4.6L18 10l-6 6-6-6z"/></svg>',Te='<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16z"/></svg>',Se=[["windSpeed","Wind's effect",'<input type="range" id="windSpeed" min="0.5" max="5" step="0.1"'],["rainCount","Rain",'<input type="range" id="rainCount" min="0.5" max="3" step="0.1"'],["snowCount","Snow",'<input type="range" id="snowCount" min="0.5" max="3" step="0.1"'],["leafCount","Leaves on windy days",'<input type="range" id="leafCount" min="0.5" max="3" step="0.1"'],["cloudCount","Clouds, and stars at night",'<input type="range" id="cloudCount" min="1" max="6" step="1"'],["cloudBaseSize","Cloud size",'<input type="range" id="cloudBaseSize" min="0.5" max="2" step="0.1"'],["splashBounce","Splash height",'<input type="range" id="splashBounce" min="40" max="120" step="5"']],Ae=[["sunny_bg","Sunny sky"],["cloudy_bg","Cloudy sky"],["rainy_bg","Rainy sky"],["stormy_bg","Stormy sky"],["snowy_bg","Snowy sky"],["windy_bg","Windy sky"],["fog_color","Fog"]],Ce=[["temperature_color","Temperature"],["text_color","Text"],["sun_color","Sun"],["rain_color","Rain"],["snow_color","Snow"]],Ct=0,m=(t,r)=>`<div class="rv" data-row="${t}"><div class="rv-in"><div class="row">${r}</div></div></div>`,R=(t,r,e,n="")=>`<label class="sw"><span class="sw-t"><span class="sw-l">${r}</span>${n?`<span class="sw-h">${n}</span>`:""}</span><ha-switch id="${t}"${e?" checked":""}></ha-switch></label>`,F=(t,r,e,n="")=>`<ha-entity-picker id="${t}" label="${w(r)}" value="${w(String(e??""))}"${n?` helper="${w(n)}"`:""} allow-custom-entity></ha-entity-picker>`,H=(t,r,e="")=>`<ha-select id="${t}" label="${w(r)}"></ha-select>${e?`<p class="help">${e}</p>`:""}`,ne=t=>`<p class="why">${Te}<span>${t}</span></p>`,O=class O extends HTMLElement{constructor(){super(...arguments);this._initialized=!1;this.uid=++Ct;this.all=Et();this.pinned=new Set;this.openDrawers=new Set;this.readingOpen=-1;this.placeOn=!1;this.placeKept={};this.noDefaultAi=!1;this.refill={}}setConfig(e){let n=!this._config||Object.keys(e).length!==Object.keys(this._config).length||JSON.stringify(Object.keys(e).sort())!==JSON.stringify(Object.keys(this._config).sort());this._config={...e},this.isConnected&&n?this.render():this.isConnected&&this._initialized&&this.sync()}async connectedCallback(){this._config=this._config||{},await this.ensureEntityPickerLoaded(),this.render(),this._initialized=!0,this._hass&&this.updateEntityPickers()}disconnectedCallback(){this._cleanupSuppressHandler(),this.pinned.clear(),this.innerHTML=""}_cleanupSuppressHandler(){this._suppressHandler&&(window.removeEventListener("unhandledrejection",this._suppressHandler),this._suppressHandler=void 0),this._suppressTimeout&&(clearTimeout(this._suppressTimeout),this._suppressTimeout=void 0)}async ensureEntityPickerLoaded(){if(!customElements.get("ha-entity-picker"))try{let n=await(await window.loadCardHelpers()).createCardElement({type:"entities",entities:[]});this._cleanupSuppressHandler(),this._suppressHandler=o=>{(o.reason?.message?.includes("localize")||o.reason?.message?.includes("hass"))&&o.preventDefault()},window.addEventListener("unhandledrejection",this._suppressHandler);try{await n.constructor.getConfigElement?.()}finally{this._suppressTimeout=setTimeout(()=>this._cleanupSuppressHandler(),2e3)}}catch{}}ctx(){return{all:this.all,place:this.placeOn,note:this.noteSource(),noDefaultAi:this.noDefaultAi}}noteSource(){let e=this._config??{};return e.note_entity||this.noteChoice==="entity"?"entity":e.show_note?"ai":"off"}render(){let e=this._config??(this._config={}),n=this.uid,o=["latitude","longitude","time_zone"].some(u=>e[u]!==void 0&&e[u]!=="");this.placeOn=this.placeOn||o;let s=Object.fromEntries(Object.entries(e.engine_settings||{}).filter(([,u])=>typeof u=="number"&&isFinite(u))),l=e.custom_colors||{},d=e.layout==="nightstand"?"nightstand":e.compact?"compact":"default",f=(u,g,v,x)=>`<fieldset class="seg" id="${u}"><legend class="seg-l">${g}</legend><div class="seg-track">${v.map(([C,W])=>`<label><input type="radio" name="awc-${u}-${n}" value="${C}"${C===x?" checked":""}><span>${W}</span></label>`).join("")}</div><p class="help" data-help="${u}"></p></fieldset>`,c=([u,g],v)=>`<div class="swc"><span class="chip${v?` ink ink-${u.replace("_color","")}`:""}"><input type="color" id="${u}" value="${w(l[u]||O.DEFAULT_COLORS[u])}"></span><label for="${u}">${g}</label><button type="button" class="tb color-reset" data-target="${u}" aria-label="Reset ${g}"${l[u]?"":" data-off"}>Reset</button></div>`,i=(u,g,v)=>`<section class="rv grp" data-sec="${u}"><div class="rv-in"><div class="grp-b">${g?`<h3 class="grp-h">${g}</h3>`:""}${v}</div></div></section>`,a=(u,g,v,x)=>`<section class="rv drw" data-sec="${u}" style="--i:${x}"><div class="rv-in"><div class="drw-b"><h3 class="drw-h"><button type="button" class="drw-btn" data-drawer="${u}" aria-expanded="false" aria-controls="awc-${u}-${n}"><span class="drw-tx"><span class="drw-t">${g}</span><span class="drw-s" data-summary="${u}"></span></span>${At}</button></h3><div class="rv drw-c" id="awc-${u}-${n}" role="region" aria-label="${g}"><div class="rv-in"><div class="drw-in">${v}</div></div></div></div></div></section>`;this.innerHTML=`
+      <div class="card-config" data-instant>
+        <div class="top">
+          ${R("all_settings","Show all settings",this.all,"Settings you've changed always show")}
+          <span class="vh" aria-live="polite" data-live></span>
         </div>
 
-        <!-- Display \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 -->
-        <div class="section">
-          <div class="section-header" role="button" tabindex="0" data-section="display">
-            <ha-icon icon="mdi:eye-outline"></ha-icon>
-            <h3>Display</h3>
-            <ha-icon class="expand-icon" icon="mdi:chevron-down"></ha-icon>
-          </div>
-          <div class="section-content">
-            <div class="group-title">Appearance</div>
-            <div class="option">
-              <ha-select id="color_palette" label="Color palette"></ha-select>
-            </div>
-            <div class="option">
-              <label class="switch-label">
-                <ha-switch id="compact" ${this._config.compact?"checked":""}></ha-switch>
-                <span>Compact: one line, the temperature and condition over the sky</span>
-              </label>
-            </div>
-            <div class="option">
-              <label class="switch-label">
-                <ha-switch id="temperature_decimals" ${Number(this._config.temperature_decimals)===1?"checked":""}></ha-switch>
-                <span>Temperatures to one decimal: 21.5\xB0 rather than 22\xB0</span>
-              </label>
-            </div>
+        ${i("weather","Weather",[m("entity",`${F("entity","Weather entity",e.entity)}<p class="status" role="status" data-status="entity" hidden>${Te}<span>Pick a weather entity to start.</span></p>`),m("name",E({id:"name",label:"Place name",placeholder:"Weather",value:e.name,hint:"Shown above the temperature"})),m("show_location",R("show_location","Show the place name",e.show_location!==!1)),m("outdoor_sensor_entity",F("outdoor_sensor_entity","Temperature from",e.outdoor_sensor_entity,"A sensor of yours, shown instead of the weather entity's")),m("feels_like_entity",F("feels_like_entity","Feels like from",e.feels_like_entity,"Without one, the weather entity's own, when it reports one")),m("another_place",R("another_place","Weather for another place",this.placeOn,"Its sun, and its times in its time zone")),m("place_fields",K(e))].join(""))}
 
-            <div class="group-title">Show</div>
-            <div class="option">
-              <label class="switch-label">
-                <ha-switch id="show_location" ${this._config.show_location!==!1?"checked":""}></ha-switch>
-                <span>Location</span>
-              </label>
-            </div>
-            <div class="option">
-              <label class="switch-label">
-                <ha-switch id="show_attributes" ${this._config.show_attributes!==!1?"checked":""}></ha-switch>
-                <span>Readings</span>
-              </label>
-            </div>
-            <div class="option sub-option" id="metrics-option" style="display: ${this._config.show_attributes!==!1?"block":"none"}">
-              <div id="readings-table" class="readings-table"></div>
-              <div data-levels-for="uv">${_({id:"uv_levels",label:"UV levels start at",placeholder:"3, 6, 8, 11",value:Array.isArray(this._config.uv_levels)?this._config.uv_levels.join(", "):this._config.uv_levels,hint:"Moderate, high, very high and extreme. The level's word follows the UV index, and its icon takes its colour"})}</div>
-              <div data-levels-for="aqi">${_({id:"aqi_levels",label:"AQI levels start at",placeholder:"51, 101, 151, 201, 301",value:Array.isArray(this._config.aqi_levels)?this._config.aqi_levels.join(", "):this._config.aqi_levels,hint:"Moderate, unhealthy for some, unhealthy, very unhealthy and hazardous: the US EPA's unless your sensor uses another scale"})}</div>
-            </div>
-            <div class="option sub-option" id="attribute-labels-option" style="display: ${this._config.show_attributes!==!1?"block":"none"}">
-              <label class="switch-label">
-                <ha-switch id="show_attribute_labels" ${this._config.show_attribute_labels!==!1?"checked":""}></ha-switch>
-                <span>Labels</span>
-              </label>
-            </div>
-            <div class="option sub-option" id="attribute-icons-option" style="display: ${this._config.show_attributes!==!1?"block":"none"}">
-              <label class="switch-label">
-                <ha-switch id="show_attribute_icons" ${this._config.show_attribute_icons!==!1?"checked":""}></ha-switch>
-                <span>Icons</span>
-              </label>
-            </div>
-            <div class="option">
-              <label class="switch-label">
-                <ha-switch id="show_indoor" ${this._config.show_indoor!==!1?"checked":""}></ha-switch>
-                <span>Indoor temperature and humidity</span>
-              </label>
-            </div>
-            <div class="option">
-              <ha-select id="indoor_style" label="Indoor reading starts with"></ha-select>
-            </div>
-            <div class="option">
-              <label class="switch-label">
-                <ha-switch id="show_flight_labels" ${this._config.show_flight_labels!==!1?"checked":""}></ha-switch>
-                <span>Flight labels on planes</span>
-              </label>
-            </div>
-            <div class="option">
-              <ha-select id="flight_label" label="Plane labels show"></ha-select>
-            </div>
-            <div class="option">
-              <ha-select id="plane_speed" label="Plane speed"></ha-select>
-            </div>
-            <div class="option">
-              <label class="switch-label">
-                <ha-switch id="planes_on_load" ${this._config.planes_on_load?"checked":""}></ha-switch>
-                <span>Fly the planes already overhead when the dashboard opens</span>
-              </label>
-            </div>
+        ${i("look","Layout and colors",[m("layout",f("layout","Layout",[["default","Regular"],["compact","Compact"],["nightstand","Nightstand"]],d)),m("color_palette",f("color_palette","Colors",[["default","Sky"],["theme","Theme"]],e.color_palette==="theme"?"theme":"default")),m("temperature_decimals",R("temperature_decimals","One decimal",Number(e.temperature_decimals)===1,"21.5\xB0 rather than 22\xB0"))].join(""))}
 
-            <div class="group-title">Motion</div>
-            <div class="option">
-              <label class="switch-label">
-                <ha-switch id="animate" ${this._config.animate!==!1?"checked":""}></ha-switch>
-                <span>Animate the weather</span>
-              </label>
-            </div>
-            <div class="option">
-              <label class="switch-label">
-                <ha-switch id="spill_particles" ${this._config.spill_particles!==!1?"checked":""}></ha-switch>
-                <span>Let rain, snow and leaves spill outside the card</span>
-              </label>
-            </div>
-          </div>
-        </div>
+        ${i("nightstand","Nightstand",[m("why_nightstand_only",ne("These apply with the Nightstand layout.")),m("alarm_entity",F("alarm_entity","Next alarm",e.alarm_entity,"Optional. Your phone's next alarm sensor, or a date and time helper")),m("wake_time",E({id:"wake_time",label:"Wake time",placeholder:"07:00",value:e.wake_time,hint:"When you get up without an alarm"})),m("night",H("night","Night mode","Automatic: when the room goes dark, or from bed time without a light sensor")),m("night_sensor",F("night_sensor","Light sensor",e.night_sensor,"An illuminance sensor near the screen")),m("night_lux",E({id:"night_lux",label:"Dark below (lx)",type:"number",min:.1,step:"any",placeholder:"5",value:e.night_lux!==void 0?String(e.night_lux):"",hint:"Raise it if the screen or a street light keeps the room brighter"})),m("bed_time",E({id:"bed_time",label:"Bed time",placeholder:"22:30",value:e.bed_time,hint:"By default, 8 h 30 min before the alarm or wake time"})),m("night_red",R("night_red","Red at night",e.night_red!==!1,"Red on black, like a bedside clock"))].join(""))}
 
-        <!-- Forecast and clock \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 -->
-        <div class="section">
-          <div class="section-header" role="button" tabindex="0" data-section="forecast">
-            <ha-icon icon="mdi:clock-time-four-outline"></ha-icon>
-            <h3>Forecast and clock</h3>
-            <ha-icon class="expand-icon" icon="mdi:chevron-down"></ha-icon>
-          </div>
-          <div class="section-content">
-            <div class="option card-only">
-              <ha-select id="hero" label="The big value"></ha-select>
-            </div>
-            <div class="option card-only small-clock">
-              <label class="switch-label">
-                <ha-switch id="show_clock" ${this._config.show_clock?"checked":""}></ha-switch>
-                <span>The time, leading the location line</span>
-              </label>
-            </div>
-            <div class="option card-only">
-              <label class="switch-label">
-                <ha-switch id="show_date" ${this._config.show_date?"checked":""}></ha-switch>
-                <span>The date, after the time</span>
-              </label>
-            </div>
-            <div class="option">
-              <label class="switch-label">
-                <ha-switch id="show_forecast" ${this._config.show_forecast?"checked":""}></ha-switch>
-                <span>The forecast: what turns, the hours ahead, and the slide through them</span>
-              </label>
-            </div>
-            <p class="section-note">Drag the card sideways and its sky, weather and readings go to the hour you stop at. It stays there until you tap Now, or until nobody has touched it for half a minute. Asks for eight rows in a sections view (five without an hourly forecast), and with the days one more for every two; a shorter frame gives up the days from the end, then the chips, then the icons, then the row, before the temperature ever shrinks. A tap opens the whole forecast unless you choose something else under Interactions.</p>
-            <div class="option forecast-only">
-              <ha-select id="forecast_metric" label="The hours first show"></ha-select>
-            </div>
-            <div class="option forecast-only">
-              <ha-select id="forecast_graph" label="The hours' graph"></ha-select>
-            </div>
-            <div class="option forecast-only">
-              <label class="switch-label">
-                <ha-switch id="show_days" ${this._config.show_days?"checked":""}></ha-switch>
-                <span>The days, under the hours</span>
-              </label>
-            </div>
-            <div class="option forecast-only days-only">
-              <ha-select id="forecast_days" label="Days"></ha-select>
-            </div>
-            <div class="option">
-              <ha-select id="layout" label="Layout"></ha-select>
-            </div>
-            <div class="option nightstand-only">
-              <ha-entity-picker id="alarm_entity" label="Next alarm" value="${g(this._config.alarm_entity||"")}" helper="A timestamp sensor, like the Companion app's next alarm, or an input_datetime" allow-custom-entity></ha-entity-picker>
-            </div>
-            <div class="option nightstand-only">
-              ${_({id:"wake_time",label:"Wake time",placeholder:"07:00",value:this._config.wake_time,hint:"When you get up without an alarm"})}
-            </div>
-            <div class="option nightstand-only">
-              ${_({id:"bed_time",label:"Bed time",placeholder:"22:30",value:this._config.bed_time,hint:"When night begins without a light sensor: by default, 8 h 30 min before the alarm or wake time"})}
-            </div>
-            <div class="option nightstand-only">
-              <ha-select id="night" label="Night"></ha-select>
-            </div>
-            <div class="option nightstand-only">
-              <ha-entity-picker id="night_sensor" label="Light sensor" value="${g(this._config.night_sensor||"")}" helper="An illuminance sensor beside it: night when the room is dark" allow-custom-entity></ha-entity-picker>
-            </div>
-            <div class="option nightstand-only">
-              <label class="switch-label">
-                <ha-switch id="night_red" ${this._config.night_red!==!1?"checked":""}></ha-switch>
-                <span>Red on black at night, as a bedside clock's night mode</span>
-              </label>
-            </div>
-            <div class="option nightstand-only">
-              ${_({id:"night_lux",label:"Dark below (lx)",type:"number",min:.1,step:"any",placeholder:"5",value:this._config.night_lux!==void 0?String(this._config.night_lux):"",hint:"Night when the light sensor reads less for a minute; day again at three times it"})}
-            </div>
-          </div>
-        </div>
+        ${i("forecast","Forecast and clock",[m("why_forecast_nightstand",ne("The nightstand shows the time, the date and what's coming on its own.")),m("show_forecast",R("show_forecast","Forecast",!!e.show_forecast,"Today's high and low, the hours ahead, and the week on a tap")),m("forecast_days",H("forecast_days","Days under the hours")),m("forecast_metric",H("forecast_metric","Hours open on","The buttons under the hours switch between them")),m("forecast_graph",H("forecast_graph","Graph")),m("time_date",H("time_date","Time and date","Before the place name, in your profile's 12- or 24-hour format")),m("hero",f("hero","Big number",[["temperature","Temperature"],["clock","Time"]],e.hero==="clock"?"clock":"temperature"))].join(""))}
 
-        <!-- Interactions \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 -->
-        <div class="section">
-          <div class="section-header" role="button" tabindex="0" data-section="interactions">
-            <ha-icon icon="mdi:gesture-tap"></ha-icon>
-            <h3>Interactions</h3>
-            <ha-icon class="expand-icon" icon="mdi:chevron-down"></ha-icon>
-          </div>
-          <div class="section-content">
-            <p class="section-note">What a tap, a hold and a double tap on the card do. By default a tap opens the weather's details, the forecast with the forecast on, and nothing on a nightstand.</p>
-            <div id="actions-editor"></div>
-          </div>
-        </div>
+        ${i("note","Weather note",[m("note",`${H("note_source","Note")}<p class="help" data-help="note"></p><p class="status" role="status" id="note_status" hidden></p>`),m("why_note_compact",ne("The compact card has no room for the note.")),m("why_note_nightstand",ne("The nightstand doesn't show the note.")),m("note_tone",H("note_tone","Voice","Serious weather always gets plain advice")),m("note_ai_task_entity",F("note_ai_task_entity","AI Task",e.note_ai_task_entity,"Leave empty for your default AI Task")),m("note_calendar",F("note_calendar","Calendar",et(e.note_calendar)[0],"For what to wear when you're out. Only the times reach your AI")),m("note_entity",F("note_entity","Note entity",e.note_entity,"A text helper or a sensor: its state is the short note")),m("note_attribute",E({id:"note_attribute",label:"Longer version",placeholder:"note",value:e.note_attribute,hint:"The attribute shown where there's room for two lines"})),m("note_max_age",E({id:"note_max_age",label:"Hide after (minutes)",type:"number",min:0,placeholder:"180",value:e.note_max_age!==void 0?String(e.note_max_age):"",hint:"Counted from when the note was written. 0 keeps it up"}))].join(""))}
 
-        <!-- Weather note \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 -->
-        <div class="section">
-          <div class="section-header" role="button" tabindex="0" data-section="note">
-            <ha-icon icon="mdi:message-text-outline"></ha-icon>
-            <h3>Weather note</h3>
-            <ha-icon class="expand-icon" icon="mdi:chevron-down"></ha-icon>
-          </div>
-          <div class="section-content">
-            <p class="section-note">A sentence under the conditions: a remark on the weather, what's coming and what to wear. Asks for five rows in a sections view; a shorter frame shows a one-line version, then none.</p>
-            <div class="option">
-              <label class="switch-label">
-                <ha-switch id="show_note" ${this._config.show_note?"checked":""}></ha-switch>
-                <span>Write it with your AI, from the forecast</span>
-              </label>
-            </div>
-            <p class="section-note" id="note_status" hidden></p>
-            <div class="option note-ai">
-              <ha-select id="note_tone" label="Voice"></ha-select>
-            </div>
-            <div class="option note-ai">
-              <ha-entity-picker
-                id="note_ai_task_entity"
-                label="AI Task"
-                value="${g(this._config.note_ai_task_entity||"")}"
-                helper="Empty: the default in Settings \u2192 System \u2192 AI"
-                allow-custom-entity
-              ></ha-entity-picker>
-            </div>
-            <div class="option note-ai">
-              <ha-entity-picker
-                id="note_calendar"
-                label="Your calendar, for when you're out"
-                value="${g(we(this._config.note_calendar)[0]||"")}"
-                helper="Timed events count as time out; all-day and online ones don't. Only the times reach the AI"
-                allow-custom-entity
-              ></ha-entity-picker>
-            </div>
-            <p class="section-note">Or show a note from an entity of yours instead:</p>
-            <div class="option">
-              <ha-entity-picker
-                id="note_entity"
-                label="Note entity"
-                value="${g(this._config.note_entity||"")}"
-                helper="Its state is the one-line version. Used instead of the AI"
-                allow-custom-entity
-              ></ha-entity-picker>
-            </div>
-            <div class="option">
-              ${_({id:"note_attribute",label:"Longer note attribute",placeholder:"note",value:this._config.note_attribute,hint:"Shown where there's room for two lines"})}
-            </div>
-            <div class="option">
-              ${_({id:"note_max_age",label:"Hide after (minutes)",type:"number",min:0,value:this._config.note_max_age??180,hint:"Counted from when it was written (an entity's generated_at). 0 keeps it"})}
-            </div>
-          </div>
-        </div>
+        <div class="rv drws" data-drawers><div class="rv-in"><div class="drws-b">
+          ${a("readings","Readings",[m("show_attributes",R("show_attributes","Show the readings",e.show_attributes!==!1)),m("readings",`<div class="readings-table"></div>
+              <div data-levels-for="uv">${E({id:"uv_levels",label:"UV levels",placeholder:"3, 6, 8, 11",value:Array.isArray(e.uv_levels)?e.uv_levels.join(", "):e.uv_levels,hint:"Where moderate, high, very high and extreme start. The WHO's by default"})}</div>
+              <div data-levels-for="aqi">${E({id:"aqi_levels",label:"Air quality levels",placeholder:"51, 101, 151, 201, 301",value:Array.isArray(e.aqi_levels)?e.aqi_levels.join(", "):e.aqi_levels,hint:"Where each US EPA level starts, unless your sensor uses another scale"})}</div>`),m("reading_style",H("reading_style","Each reading shows")),m("indoor_temperature_entity",F("indoor_temperature_entity","Indoor temperature",e.indoor_temperature_entity,"A line under the condition")),m("indoor_humidity_entity",F("indoor_humidity_entity","Indoor humidity",e.indoor_humidity_entity)),m("indoor_line",H("indoor_line","Indoor line starts with"))].join(""),0)}
+          ${a("sky","Sky and motion",[m("animate",R("animate","Animate the weather",e.animate!==!1,"Off, a still sky in the weather's colors")),m("spill_particles",R("spill_particles","Let weather spill out",e.spill_particles!==!1,"Rain, snow and leaves fall past the card's edges")),m("lightning",R("lightning_shake","Shake on lightning",!e.disable_lightning_shake,"A small jolt when lightning strikes")),m("auto_pause",R("auto_pause","Pause in the background",!!e.auto_pause,"Also while this window isn't in front. The card always pauses off screen")),m("sky_follows",f("sky_follows","Sky follows",[["sun","The sun"],["hours","Set hours"]],e.enable_day_night_cycle?"hours":"sun")),m("day_hours",`<div class="pair">${E({id:"sunrise_hour",label:"Day begins at",type:"number",min:0,max:23,placeholder:"6",value:e.sunrise_hour!==void 0?String(e.sunrise_hour):""})}${E({id:"sunset_hour",label:"Night begins at",type:"number",min:0,max:23,placeholder:"20",value:e.sunset_hour!==void 0?String(e.sunset_hour):""})}</div>`),m("sun_entity",F("sun_entity","Sun",e.sun_entity,"Sets the sky's time of day and the sunset reading. Usually sun.sun")),m("moon_entity",F("moon_entity","Moon phase",e.moon_entity,"The Moon integration's sensor. Else, worked out from the date")),m("amounts",`<p class="sub-h">Amounts</p><div class="amt">${Se.map(([u,g,v])=>{let x=s[u]??M[u];return`<div class="amt-o"><label for="${u}">${g}</label><output for="${u}" data-out="${u}">${O.formatEngineValue(u,x)}</output>${v} value="${w(x)}" /></div>`}).join("")}</div><button type="button" class="tb reset-engine-btn" data-off>Reset amounts</button>`)].join(""),1)}
+          ${a("colors","Custom colors",[m("sky_colors",`<p class="sub-h">Skies</p><p class="help">Each color replaces that condition's whole sky</p><div class="color-grid" id="color-grid">${Ae.map(u=>c(u,!1)).join("")}</div>`),m("why_sky_colors_theme",ne("Sky colors apply with Colors set to Sky.")),m("ink_colors",`<p class="sub-h">Text and weather</p><div class="color-grid" id="ink-grid">${Ce.map(u=>c(u,!0)).join("")}</div><button type="button" class="tb reset-colors-btn" id="reset-colors-btn" data-off>Reset all colors</button>`)].join(""),2)}
+          ${a("planes","Planes",[m("flights_entity",F("flights_entity","Flights sensor",e.flights_entity,"Flightradar24's Current in area sensor. Each new flight crosses the card once")),m("plane_tags",H("plane_tags","Plane tags","Tags show only in open sky, never over the temperature")),m("plane_speed",H("plane_speed","Speed")),m("planes_on_load",R("planes_on_load","Fly the planes already up",!!e.planes_on_load,"When the dashboard opens, not only new arrivals"))].join(""),3)}
+          ${a("interactions","Interactions",m("actions",'<div id="actions-editor"></div>'),4)}
+        </div></div></div>
 
-        <!-- Day / Night \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 -->
-        <div class="section">
-          <div class="section-header" role="button" tabindex="0" data-section="daynight">
-            <ha-icon icon="mdi:weather-sunset"></ha-icon>
-            <h3>Day and night</h3>
-            <ha-icon class="expand-icon" icon="mdi:chevron-down"></ha-icon>
-          </div>
-          <div class="section-content">
-            <div class="option">
-              ${I(this._config)}
-            </div>
-            <div class="option">
-              <label class="switch-label">
-                <ha-switch id="enable_day_night_cycle" ${this._config.enable_day_night_cycle?"checked":""}></ha-switch>
-                <span>Follow a fixed day and night schedule</span>
-              </label>
-            </div>
-            <div class="option ${this._config.enable_day_night_cycle?"":"disabled"}" style="${this._config.enable_day_night_cycle?"":"opacity: 0.5; pointer-events: none;"}">
-              ${_({id:"sunrise_hour",label:"Sunrise hour (0-23)",type:"number",min:0,max:23,value:this._config.sunrise_hour??6,hint:"When the day sky and animations begin"})}
-            </div>
-            <div class="option ${this._config.enable_day_night_cycle?"":"disabled"}" style="${this._config.enable_day_night_cycle?"":"opacity: 0.5; pointer-events: none;"}">
-              ${_({id:"sunset_hour",label:"Sunset hour (0-23)",type:"number",min:0,max:23,value:this._config.sunset_hour??20,hint:"When the night sky and animations begin"})}
-            </div>
-          </div>
-        </div>
-
-        <!-- Advanced \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 -->
-        <div class="section">
-          <div class="section-header" role="button" tabindex="0" data-section="advanced">
-            <ha-icon icon="mdi:tune"></ha-icon>
-            <h3>Advanced</h3>
-            <ha-icon class="expand-icon" icon="mdi:chevron-down"></ha-icon>
-          </div>
-          <div class="section-content">
-            <div class="option">
-              <label class="switch-label">
-                <ha-switch id="auto_pause" ${this._config.auto_pause?"checked":""}></ha-switch>
-                <span>Also pause when the browser window is in the background</span>
-              </label>
-            </div>
-            <div class="option">
-              <label class="switch-label">
-                <ha-switch id="disable_lightning_shake" ${this._config.disable_lightning_shake?"checked":""}></ha-switch>
-                <span>Turn off the lightning jolt</span>
-              </label>
-            </div>
-            <div class="option">
-              <label class="switch-label">
-                <ha-switch id="dev_mode" ${this._config.dev_mode?"checked":""}></ha-switch>
-                <span>Developer mode: the dev card's simulated weather</span>
-              </label>
-            </div>
-          </div>
-        </div>
-
-        <div class="section">
-          <div class="section-header" role="button" tabindex="0" data-section="engine">
-            <ha-icon icon="mdi:weather-partly-cloudy"></ha-icon>
-            <h3>Weather engine</h3>
-            <ha-icon class="expand-icon" icon="mdi:chevron-down"></ha-icon>
-          </div>
-          <div class="section-content">
-          <div class="engine-grid">
-            <div class="engine-option">
-              <label>Wind effect</label>
-              <input type="range" id="windSpeed" min="0.5" max="5" step="0.1" value="${g(i.windSpeed||E.windSpeed)}" />
-              <span class="value-display">${f.formatEngineValue("windSpeed",i.windSpeed||E.windSpeed)}</span>
-            </div>
-            <div class="engine-option">
-              <label>Rain amount</label>
-              <input type="range" id="rainCount" min="0.5" max="3" step="0.1" value="${g(i.rainCount||E.rainCount)}" />
-              <span class="value-display">${f.formatEngineValue("rainCount",i.rainCount||E.rainCount)}</span>
-            </div>
-            <div class="engine-option">
-              <label>Leaf amount</label>
-              <input type="range" id="leafCount" min="0.5" max="3" step="0.1" value="${g(i.leafCount||E.leafCount)}" />
-              <span class="value-display">${f.formatEngineValue("leafCount",i.leafCount||E.leafCount)}</span>
-            </div>
-            <div class="engine-option">
-              <label>Snow amount</label>
-              <input type="range" id="snowCount" min="0.5" max="3" step="0.1" value="${g(i.snowCount||E.snowCount)}" />
-              <span class="value-display">${f.formatEngineValue("snowCount",i.snowCount||E.snowCount)}</span>
-            </div>
-            <div class="engine-option">
-              <label>Cloud size</label>
-              <input type="range" id="cloudBaseSize" min="0.5" max="2" step="0.1" value="${g(i.cloudBaseSize||E.cloudBaseSize)}" />
-              <span class="value-display">${f.formatEngineValue("cloudBaseSize",i.cloudBaseSize||E.cloudBaseSize)}</span>
-            </div>
-            <div class="engine-option">
-              <label>Cloud count</label>
-              <input type="range" id="cloudCount" min="1" max="6" step="1" value="${g(i.cloudCount||E.cloudCount)}" />
-              <span class="value-display">${f.formatEngineValue("cloudCount",i.cloudCount||E.cloudCount)}</span>
-            </div>
-            <div class="engine-option">
-              <label>Splash bounce</label>
-              <input type="range" id="splashBounce" min="40" max="120" step="5" value="${g(i.splashBounce||E.splashBounce)}" />
-              <span class="value-display">${f.formatEngineValue("splashBounce",i.splashBounce||E.splashBounce)}</span>
-            </div>
-          </div>
-          <button class="reset-engine-btn">Reset engine settings</button>
-          </div>
-        </div>
-
-        <div class="section">
-          <div class="section-header" role="button" tabindex="0" data-section="colors">
-            <ha-icon icon="mdi:palette"></ha-icon>
-            <h3>Colors</h3>
-            <ha-icon class="expand-icon" icon="mdi:chevron-down"></ha-icon>
-          </div>
-          <div class="section-content">
-          <p class="section-note" id="sky-note" style="display: ${t==="default"?"block":"none"}">Each sky color becomes the whole sky for that condition, and Fog colors the fog. These apply to the colorized palette only.</p>
-          
-          <div class="color-grid" id="color-grid" style="display: ${t==="default"?"grid":"none"}; opacity: ${t==="default"?"1":"0.5"}">
-            <div class="color-option">
-              <label>Sunny sky</label>
-              <input type="color" id="sunny_bg" value="${g(n.sunny_bg||f.DEFAULT_COLORS.sunny_bg)}" />
-              <button class="color-reset" data-target="sunny_bg" ${n.sunny_bg?"":"hidden"}>Reset</button>
-            </div>
-            <div class="color-option">
-              <label>Rainy sky</label>
-              <input type="color" id="rainy_bg" value="${g(n.rainy_bg||f.DEFAULT_COLORS.rainy_bg)}" />
-              <button class="color-reset" data-target="rainy_bg" ${n.rainy_bg?"":"hidden"}>Reset</button>
-            </div>
-            <div class="color-option">
-              <label>Snowy sky</label>
-              <input type="color" id="snowy_bg" value="${g(n.snowy_bg||f.DEFAULT_COLORS.snowy_bg)}" />
-              <button class="color-reset" data-target="snowy_bg" ${n.snowy_bg?"":"hidden"}>Reset</button>
-            </div>
-            <div class="color-option">
-              <label>Stormy sky</label>
-              <input type="color" id="stormy_bg" value="${g(n.stormy_bg||f.DEFAULT_COLORS.stormy_bg)}" />
-              <button class="color-reset" data-target="stormy_bg" ${n.stormy_bg?"":"hidden"}>Reset</button>
-            </div>
-            <div class="color-option">
-              <label>Windy sky</label>
-              <input type="color" id="windy_bg" value="${g(n.windy_bg||f.DEFAULT_COLORS.windy_bg)}" />
-              <button class="color-reset" data-target="windy_bg" ${n.windy_bg?"":"hidden"}>Reset</button>
-            </div>
-            <div class="color-option">
-              <label>Cloudy sky</label>
-              <input type="color" id="cloudy_bg" value="${g(n.cloudy_bg||f.DEFAULT_COLORS.cloudy_bg)}" />
-              <button class="color-reset" data-target="cloudy_bg" ${n.cloudy_bg?"":"hidden"}>Reset</button>
-            </div>
-            <div class="color-option">
-              <label>Fog</label>
-              <input type="color" id="fog_color" value="${g(n.fog_color||f.DEFAULT_COLORS.fog_color)}" />
-              <button class="color-reset" data-target="fog_color" ${n.fog_color?"":"hidden"}>Reset</button>
-            </div>
-          </div>
-          <p class="section-note">These apply on either palette.</p>
-          <div class="color-grid" id="ink-grid">
-            <div class="color-option">
-              <label>Temperature</label>
-              <input type="color" id="temperature_color" value="${g(n.temperature_color||f.DEFAULT_COLORS.temperature_color)}" />
-              <button class="color-reset" data-target="temperature_color" ${n.temperature_color?"":"hidden"}>Reset</button>
-            </div>
-            <div class="color-option">
-              <label>Text</label>
-              <input type="color" id="text_color" value="${g(n.text_color||f.DEFAULT_COLORS.text_color)}" />
-              <button class="color-reset" data-target="text_color" ${n.text_color?"":"hidden"}>Reset</button>
-            </div>
-            <div class="color-option">
-              <label>Sun</label>
-              <input type="color" id="sun_color" value="${g(n.sun_color||f.DEFAULT_COLORS.sun_color)}" />
-              <button class="color-reset" data-target="sun_color" ${n.sun_color?"":"hidden"}>Reset</button>
-            </div>
-            <div class="color-option">
-              <label>Rain</label>
-              <input type="color" id="rain_color" value="${g(n.rain_color||f.DEFAULT_COLORS.rain_color)}" />
-              <button class="color-reset" data-target="rain_color" ${n.rain_color?"":"hidden"}>Reset</button>
-            </div>
-            <div class="color-option">
-              <label>Snow</label>
-              <input type="color" id="snow_color" value="${g(n.snow_color||f.DEFAULT_COLORS.snow_color)}" />
-              <button class="color-reset" data-target="snow_color" ${n.snow_color?"":"hidden"}>Reset</button>
-            </div>
-          </div>
-          <button class="reset-colors-btn" id="reset-colors-btn" ${Object.keys(n).length?"":"hidden"}>Reset all colors</button>
-          </div>
-        </div>
+        ${i("dev","",m("dev_mode",R("dev_mode","Simulated weather",!!e.dev_mode,"The dev card's weather, with no weather entity needed")))}
       </div>
-      
-      <style>
-        ${ae()}${q}
-      </style>
-    `,this.attachEventListeners(),setTimeout(()=>{this.updateEntityPickers()},0)}attachEventListeners(){this.updateEntityPickers(),this.querySelector("#entity")?.addEventListener("value-changed",e=>{this._updateConfig("entity",e.target.value)}),this.querySelector("#outdoor_sensor_entity")?.addEventListener("value-changed",e=>{this._updateConfig("outdoor_sensor_entity",e.target.value)}),this.querySelector("#feels_like_entity")?.addEventListener("value-changed",e=>{this._updateConfig("feels_like_entity",e.target.value)}),this.querySelector("#name")?.addEventListener("input",e=>{this._updateConfig("name",e.target.value)}),this.querySelector("#indoor_temperature_entity")?.addEventListener("value-changed",e=>{this._updateConfig("indoor_temperature_entity",e.target.value)}),this.querySelector("#indoor_humidity_entity")?.addEventListener("value-changed",e=>{this._updateConfig("indoor_humidity_entity",e.target.value)}),this.querySelector("#sun_entity")?.addEventListener("value-changed",e=>{this._updateConfig("sun_entity",e.target.value)}),this.querySelector("#moon_entity")?.addEventListener("value-changed",e=>{this._updateConfig("moon_entity",e.target.value)}),this.querySelector("#flights_entity")?.addEventListener("value-changed",e=>{this._updateConfig("flights_entity",e.target.value)}),this.querySelector("#note_entity")?.addEventListener("value-changed",e=>{this._updateConfig("note_entity",e.target.value),this.syncNoteOptions()}),this.querySelector("#note_attribute")?.addEventListener("input",e=>{this._updateConfig("note_attribute",e.target.value.trim())}),this.querySelector("#note_max_age")?.addEventListener("change",e=>{let s=parseInt(e.target.value);s>=0&&this._updateConfig("note_max_age",s)}),this._bindSelect("hero",[{value:"temperature",label:"The temperature"},{value:"clock",label:"The time, with the temperature beside the condition"}],this._config?.hero==="clock"?"clock":"temperature",e=>{this._updateConfig("hero",e==="clock"?e:void 0),this.syncForecastOptions()}),this.querySelector("#show_clock")?.addEventListener("change",e=>{this._updateConfig("show_clock",e.target.checked||void 0)}),this.querySelector("#show_date")?.addEventListener("change",e=>{this._updateConfig("show_date",e.target.checked||void 0)}),this.querySelector("#show_forecast")?.addEventListener("change",e=>{this._updateConfig("show_forecast",e.target.checked||void 0),this.syncForecastOptions(),this.mountActions()}),this._bindSelect("forecast_metric",[{value:"temp",label:"Temperature"},{value:"feels",label:"Feels like"},{value:"chance",label:"Chance of rain"},{value:"amount",label:"Rain amount"}],this._config?.forecast_metric||"temp",e=>{this._updateConfig("forecast_metric",e==="temp"?void 0:e)}),this._bindSelect("forecast_graph",ie,this._config?.forecast_graph||"line",e=>{this._updateConfig("forecast_graph",e==="line"?void 0:e)}),this.querySelector("#show_days")?.addEventListener("change",e=>{this._updateConfig("show_days",e.target.checked||void 0),this.syncForecastOptions()}),this._bindSelect("forecast_days",Array.from({length:10},(e,s)=>({value:String(s+1),label:String(s+1)})),String(this._config?.forecast_days??7),e=>{this._updateConfig("forecast_days",e==="7"?void 0:Number(e))}),this._bindSelect("layout",[{value:"default",label:"The weather card"},{value:"nightstand",label:"Nightstand: the time as the hero"}],this._config?.layout||"default",e=>{this._updateConfig("layout",e==="default"?void 0:e),this.syncForecastOptions(),this.mountActions()}),this._bindSelect("night",[{value:"auto",label:"From the light sensor, else bed to wake time"},{value:"on",label:"Always"},{value:"off",label:"Never"}],this._config?.night===!0?"on":this._config?.night===!1?"off":this._config?.night||"auto",e=>{this._updateConfig("night",e==="auto"?void 0:e)}),this.querySelector("#alarm_entity")?.addEventListener("value-changed",e=>{this._updateConfig("alarm_entity",e.target.value||void 0)}),this.querySelector("#night_sensor")?.addEventListener("value-changed",e=>{this._updateConfig("night_sensor",e.target.value||void 0)}),this.querySelector("#night_red")?.addEventListener("change",e=>{this._updateConfig("night_red",e.target.checked?void 0:!1)}),this.querySelector("#night_lux")?.addEventListener("input",e=>{let s=Number((e.target.value||"").trim());this._updateConfig("night_lux",Number.isFinite(s)&&s>0?s:void 0)});for(let e of["wake_time","bed_time"])this.querySelector(`#${e}`)?.addEventListener("input",s=>{let l=(s.target.value||"").trim();this._updateConfig(e,/^\d{1,2}:\d{2}$/.test(l)?l:void 0)});this.syncForecastOptions(),this.querySelector("#show_note")?.addEventListener("change",e=>{this._updateConfig("show_note",e.target.checked||void 0),this.syncNoteOptions()}),this._bindSelect("flight_label",[{value:"flight",label:"Flight number and aircraft"},{value:"route",label:"Route (Lisbon \u2192 Paris)"},{value:"both",label:"Route and flight number"}],this._config?.flight_label||"flight",e=>{this._updateConfig("flight_label",e==="flight"?void 0:e)});let t=String(this._config?.plane_speed??1);this._bindSelect("plane_speed",[{value:"1",label:"Usual"},{value:"0.5",label:"Slower (half speed)"},{value:"0.25",label:"Slowest (a quarter)"},...["1","0.5","0.25"].includes(t)?[]:[{value:t,label:`${t}\xD7`}]],t,e=>{this._updateConfig("plane_speed",e==="1"?void 0:Number(e))}),this.querySelector("#planes_on_load")?.addEventListener("change",e=>{this._updateConfig("planes_on_load",e.target.checked||void 0)}),this._bindSelect("note_tone",[{value:"snarky",label:"Snarky"},{value:"calm",label:"Calm"},{value:"friendly",label:"Friendly"},{value:"dry",label:"Dry"}],this._config?.note_tone||"snarky",e=>{this._updateConfig("note_tone",e==="snarky"?void 0:e)}),this.querySelector("#note_ai_task_entity")?.addEventListener("value-changed",e=>{this._updateConfig("note_ai_task_entity",e.target.value),this.syncNoteOptions()}),this.querySelector("#note_calendar")?.addEventListener("value-changed",e=>{let s=[e.target.value,...we(this._config?.note_calendar).slice(1)].filter(Boolean);this._updateConfig("note_calendar",s.length>1?s:s[0]||void 0)}),this.syncNoteOptions(),this._bindSelect("color_palette",[{value:"default",label:"Colorized sky"},{value:"theme",label:"Blend with dashboard theme"}],this._config?.color_palette||"default",e=>{this._updateConfig("color_palette",e);let s=this.querySelector("#color-grid");s&&(s.style.display=e==="default"?"grid":"none",s.style.opacity=e==="default"?"1":"0.5");let l=this.querySelector("#sky-note");l&&(l.style.display=e==="default"?"block":"none"),this._syncColorResets()});let i=this.querySelector(".readings-table");this.readingsEditor=i?ye(i,()=>this._config??{},e=>this._patchConfig(e)):void 0,this.readingsEditor?.hass(this._hass),this.querySelector("#uv_levels")?.addEventListener("change",e=>{let s=e.target.value.trim(),l=s.split(",").map(u=>parseFloat(u)),c=l.length===4&&l.every((u,p)=>isFinite(u)&&(p===0||u>l[p-1]));this._updateConfig("uv_levels",s?c?l:s:void 0)}),this.querySelector("#aqi_levels")?.addEventListener("change",e=>{let s=e.target.value.trim(),l=s.split(",").map(u=>parseFloat(u)),c=l.length===5&&l.every((u,p)=>isFinite(u)&&(p===0||u>l[p-1]));this._updateConfig("aqi_levels",s?c?l:s:void 0)}),P(this,e=>{for(let[s,l]of Object.entries(e))this._updateConfig(s,l)}),this._bindSelect("indoor_style",[{value:"label",label:'The word "Indoors"'},{value:"icon",label:"A house icon"},{value:"both",label:"Icon and word"}],this._config?.indoor_style||"label",e=>{this._updateConfig("indoor_style",e==="label"?void 0:e)}),this.mountActions(),this.querySelector("#animate")?.addEventListener("change",e=>{this._updateConfig("animate",e.target.checked)}),this.querySelector("#show_attributes")?.addEventListener("change",e=>{let s=e.target.checked;this._updateConfig("show_attributes",s);for(let l of["#attribute-labels-option","#attribute-icons-option","#metrics-option"]){let c=this.querySelector(l);c&&(c.style.display=s?"block":"none")}}),this.querySelector("#show_attribute_labels")?.addEventListener("change",e=>{this._updateConfig("show_attribute_labels",e.target.checked)}),this.querySelector("#show_attribute_icons")?.addEventListener("change",e=>{this._updateConfig("show_attribute_icons",e.target.checked)}),this.querySelector("#compact")?.addEventListener("change",e=>{this._updateConfig("compact",e.target.checked||void 0)}),this.querySelector("#temperature_decimals")?.addEventListener("change",e=>{this._updateConfig("temperature_decimals",e.target.checked?1:void 0)}),this.querySelector("#show_location")?.addEventListener("change",e=>{this._updateConfig("show_location",e.target.checked)}),this.querySelector("#show_indoor")?.addEventListener("change",e=>{this._updateConfig("show_indoor",e.target.checked)}),this.querySelector("#show_flight_labels")?.addEventListener("change",e=>{this._updateConfig("show_flight_labels",e.target.checked)}),this.querySelector("#spill_particles")?.addEventListener("change",e=>{this._updateConfig("spill_particles",e.target.checked)}),this.querySelector("#auto_pause")?.addEventListener("change",e=>{this._updateConfig("auto_pause",e.target.checked)}),this.querySelector("#disable_lightning_shake")?.addEventListener("change",e=>{this._updateConfig("disable_lightning_shake",e.target.checked)}),this.querySelector("#dev_mode")?.addEventListener("change",e=>{this._updateConfig("dev_mode",e.target.checked)}),this.querySelector("#enable_day_night_cycle")?.addEventListener("change",e=>{let s=e.target.checked;this._updateConfig("enable_day_night_cycle",s);let l=this.querySelector("#sunrise_hour")?.closest(".option"),c=this.querySelector("#sunset_hour")?.closest(".option");if(l&&c){let u=s?"":"opacity: 0.5; pointer-events: none;";l.style.cssText=u,c.style.cssText=u}}),this.querySelector("#sunrise_hour")?.addEventListener("change",e=>{let s=parseInt(e.target.value);s>=0&&s<=23&&this._updateConfig("sunrise_hour",s)}),this.querySelector("#sunset_hour")?.addEventListener("change",e=>{let s=parseInt(e.target.value);s>=0&&s<=23&&this._updateConfig("sunset_hour",s)}),["windSpeed","rainCount","leafCount","snowCount","cloudBaseSize","cloudCount","splashBounce"].forEach(e=>{let s=this.querySelector(`#${e}`);s&&(s.addEventListener("input",l=>{let c=parseFloat(l.target.value),u=l.target.parentNode.querySelector(".value-display");u&&(u.textContent=f.formatEngineValue(e,c))}),s.addEventListener("change",l=>{let c=parseFloat(l.target.value);this._updateEngineConfig(e,c)}))}),this.querySelector(".reset-engine-btn")?.addEventListener("click",e=>{e.preventDefault(),this._resetEngineSettings()}),["sunny_bg","rainy_bg","snowy_bg","stormy_bg","windy_bg","cloudy_bg","fog_color","temperature_color","text_color","sun_color","rain_color","snow_color"].forEach(e=>{let s=this.querySelector(`#${e}`);s&&s.addEventListener("change",l=>{this._updateColorConfig(e,l.target.value)})}),this.querySelectorAll(".color-reset").forEach(e=>{e.addEventListener("click",s=>{s.preventDefault();let l=s.target.dataset.target;this._resetColorConfig(l)})}),this.querySelector(".reset-colors-btn")?.addEventListener("click",e=>{e.preventDefault(),this._resetAllColors()}),this.querySelectorAll(".section-header").forEach(e=>{let s=e.closest(".section"),l=()=>e.setAttribute("aria-expanded",String(!!s?.classList.contains("expanded"))),c=()=>{s?.classList.toggle("expanded"),l()};l(),e.addEventListener("click",c),e.addEventListener("keydown",u=>{let p=u.key;(p==="Enter"||p===" ")&&(u.preventDefault(),c())})})}_bindSelect(t,i,n,a){let e=this.querySelector(`#${t}`);if(!e)return;let s=()=>{e.options=i,e.value=n};customElements.get("ha-select")?s():customElements.whenDefined("ha-select").then(s),e.addEventListener("selected",(l=>{let c=l.detail?.value;c&&(e.value=c,a(c))})),e.addEventListener("closed",l=>l.stopPropagation())}tapDefault(){return this._config?.layout==="nightstand"?{action:"none"}:this._config?.show_forecast?{action:"forecast"}:void 0}mountActions(){let t=this.querySelector("#actions-editor");if(!t)return;let i=D(this._config,this._config?.entity),n=this.tapDefault();R(t,this._hass,i.tap_action||!n?i:{...i,tap_action:n},a=>{let e={...a};n&&"tap_action"in a&&(e.tap_action=a.tap_action===void 0?{action:"more-info"}:a.tap_action.action===n.action?void 0:a.tap_action);for(let[s,l]of Object.entries(e))this._updateConfig(s,l)},{forecast:"Forecast"})}syncForecastOptions(){let t=(i,n)=>this.querySelectorAll(i).forEach(a=>{a.style.cssText=n?"":"opacity: 0.5; pointer-events: none;"});t(".forecast-only",!!this._config?.show_forecast),t(".days-only",!!this._config?.show_forecast&&!!this._config?.show_days),t(".small-clock",this._config?.hero!=="clock"),this.querySelectorAll(".nightstand-only").forEach(i=>{i.hidden=this._config?.layout!=="nightstand"}),this.querySelectorAll(".card-only").forEach(i=>{i.hidden=this._config?.layout==="nightstand"})}syncNoteOptions(){let t=!!this._config?.show_note&&!this._config?.note_entity;this.querySelectorAll(".note-ai").forEach(i=>{i.style.cssText=t?"":"opacity: 0.5; pointer-events: none;"}),this.updateNoteStatus(t)}async updateNoteStatus(t){let i=this.querySelector("#note_status"),n=this._hass;if(!i)return;let a="";t&&n&&(n.config?.components?.includes("ai_task")?this._config?.note_ai_task_entity||(this.noteDefault??(this.noteDefault=n.callWS({type:"ai_task/preferences/get"}).then(e=>e?.gen_data_entity_id??null).catch(()=>null)),await this.noteDefault||(a="Pick an AI Task above, or set a default in Settings \u2192 System \u2192 AI.")):a="Needs Home Assistant 2025.8 or later, with an AI integration that provides an AI Task, such as OpenAI or Anthropic."),i.textContent=a,i.hidden=!a}_patchConfig(t){this._config||(this._config={});let i=this._config;for(let[n,a]of Object.entries(t))a===""||a===null||a===void 0?delete i[n]:i[n]=a;this._fireConfigChanged()}_updateConfig(t,i){this._config||(this._config={}),i===""||i===null||i===void 0?delete this._config[t]:this._config[t]=i,this._fireConfigChanged()}_updateEngineConfig(t,i){this._config.engine_settings||(this._config.engine_settings={}),this._config.engine_settings[t]=i,this._fireConfigChanged()}_resetEngineSettings(){this._config.engine_settings={},this.render(),this._fireConfigChanged()}static formatEngineValue(t,i){return t==="cloudCount"?String(Math.round(i)):t==="splashBounce"?`${Math.round(i)}%`:`${i.toFixed(1)}\xD7`}_updateColorConfig(t,i){this._config.custom_colors||(this._config.custom_colors={}),this._config.custom_colors[t]=i,this._syncColorResets(),this._fireConfigChanged()}_syncColorResets(){let t=this._config?.custom_colors||{};this.querySelectorAll(".color-reset").forEach(n=>{n.hidden=!t[n.dataset.target]});let i=this.querySelector("#reset-colors-btn");i&&(i.hidden=Object.keys(t).length===0)}_resetColorConfig(t){this._config.custom_colors&&(delete this._config.custom_colors[t],Object.keys(this._config.custom_colors).length===0&&delete this._config.custom_colors);let i=this.querySelector(`#${t}`);i&&(i.value=f.DEFAULT_COLORS[t]||i.value),this._syncColorResets(),this._fireConfigChanged()}_resetAllColors(){delete this._config.custom_colors;for(let[t,i]of Object.entries(f.DEFAULT_COLORS)){let n=this.querySelector(`#${t}`);n&&(n.value=i)}this._syncColorResets(),this._fireConfigChanged()}_fireConfigChanged(){let t=new CustomEvent("config-changed",{detail:{config:this._config},bubbles:!0,composed:!0});this.dispatchEvent(t)}set hass(t){this._hass=t,this._initialized&&this.isConnected&&this.updateEntityPickers()}updateEntityPickers(){if(!this._hass||!this.isConnected||!this._initialized)return;this.syncNoteOptions(),N(this.querySelector("#actions-editor"),this._hass),this.readingsEditor?.hass(this._hass),[{id:"#entity",domains:["weather"]},{id:"#outdoor_sensor_entity",domains:["sensor"]},{id:"#feels_like_entity",domains:["sensor"]},{id:"#indoor_temperature_entity",domains:["sensor"]},{id:"#indoor_humidity_entity",domains:["sensor"]},{id:"#sun_entity",domains:["sun"]},{id:"#moon_entity",domains:["sensor"]},{id:"#flights_entity",domains:["sensor"]},{id:"#note_entity",domains:["sensor","input_text"]},{id:"#note_ai_task_entity",domains:["ai_task"]},{id:"#note_calendar",domains:["calendar"]}].forEach(({id:i,domains:n})=>{let a=this.querySelector(i);a&&(a.hass=this._hass,a.includeDomains=n)})}};f.DEFAULT_COLORS={sunny_bg:M("sunny","day").mid,rainy_bg:M("rainy","day").mid,snowy_bg:M("snowy","day").mid,stormy_bg:M("stormy","day").mid,windy_bg:M("windy","day").mid,cloudy_bg:M("cloudy","day").mid,fog_color:"#e0e0e0",text_color:O(T(Q)),temperature_color:O(T(Q)),sun_color:"#ffd67a",rain_color:"#deeaff",snow_color:"#f7fbff"};var U=f;var qe=`
+      <style>${He()}${U}</style>
+    `,this.attachEventListeners(),this.sync();for(let u of this.openDrawers)this.applyDrawer(u);this.syncColorInputs();let y=this.querySelector(".card-config");tt(()=>tt(()=>y?.removeAttribute("data-instant"))),setTimeout(()=>this.updateEntityPickers(),0)}attachEventListeners(){this.updateEntityPickers();let e=(i,a,y)=>this.querySelector(i)?.addEventListener(a,u=>y(u.target,u)),n=(i,a)=>this.querySelectorAll(`[id="${i}"] input[type="radio"]`).forEach(y=>y.addEventListener("change",()=>{y.checked&&a(y.value)}));e("#all_settings","change",i=>{this.all=!!i.checked,St(this.all),this.sync();let a=this.querySelector("[data-live]");a&&(a.textContent=this.all?"All settings shown. More sections at the end.":"Showing the basics, and the settings you've changed.")}),e("#entity","value-changed",i=>this._set({entity:i.value})),e("#name","input",i=>this._set({name:i.value})),e("#show_location","change",i=>this._set({show_location:i.checked?void 0:!1}));for(let i of["outdoor_sensor_entity","feels_like_entity","alarm_entity","night_sensor","note_ai_task_entity","indoor_temperature_entity","indoor_humidity_entity","sun_entity","moon_entity","flights_entity"])e(`#${i}`,"value-changed",a=>{this._set({[i]:a.value||void 0}),i==="note_ai_task_entity"&&this.syncNoteStatus()});e("#another_place","change",i=>{if(this.placeOn=!!i.checked,this.placeOn){Object.keys(this.placeKept).length?this._set(this.placeKept):this.sync();return}let a=this._config??{};this.placeKept=Object.fromEntries(["latitude","longitude","time_zone"].filter(y=>a[y]!==void 0).map(y=>[y,a[y]])),this.pinned.delete("place_fields"),this._set({latitude:void 0,longitude:void 0,time_zone:void 0})}),Y(this,i=>this._set(i)),n("layout",i=>{this._set(i==="compact"?{compact:!0,layout:void 0}:i==="nightstand"?{layout:"nightstand",compact:void 0}:{compact:void 0,layout:void 0}),this.mountActions()}),n("color_palette",i=>{this._set({color_palette:i==="theme"?i:void 0}),this.syncColorInputs()}),e("#temperature_decimals","change",i=>this._set({temperature_decimals:i.checked?1:void 0}));for(let i of["wake_time","bed_time"])e(`#${i}`,"input",a=>{let y=(a.value||"").trim();this._set({[i]:/^\d{1,2}:\d{2}$/.test(y)?y:void 0})});this._bindSelect("night",[{value:"auto",label:"Automatic"},{value:"on",label:"Always"},{value:"off",label:"Never"}],this._config?.night===!0?"on":this._config?.night===!1?"off":String(this._config?.night||"auto"),i=>{this._set({night:i==="auto"?void 0:i})}),e("#night_lux","input",i=>{let a=Number((i.value||"").trim());this._set({night_lux:Number.isFinite(a)&&a>0&&a!==5?a:void 0})}),e("#night_red","change",i=>this._set({night_red:i.checked?void 0:!1})),e("#show_forecast","change",i=>{this._set({show_forecast:i.checked||void 0}),this.mountActions()});let o=this._config?.show_days?String(this._config?.forecast_days??7):"none";this._bindSelect("forecast_days",[{value:"none",label:"None"},...Array.from({length:10},(i,a)=>({value:String(a+1),label:a?`${a+1} days`:"1 day"}))],o,i=>{this._set(i==="none"?{show_days:void 0}:{show_days:!0,forecast_days:i==="7"?void 0:Number(i)})}),this._bindSelect("forecast_metric",[{value:"temp",label:"Temperature"},{value:"feels",label:"Feels like"},{value:"chance",label:"Chance of rain"},{value:"amount",label:"Rain amount"}],this._config?.forecast_metric||"temp",i=>this._set({forecast_metric:i==="temp"?void 0:i})),this._bindSelect("forecast_graph",Le,this._config?.forecast_graph||"line",i=>this._set({forecast_graph:i==="line"?void 0:i})),this._bindSelect("time_date",this.timeDateOptions(),this.timeDateValue(),i=>{this._config?.hero==="clock"?this._set({show_date:i==="date"||void 0}):this._set({show_clock:i==="time"||i==="both"||void 0,show_date:i==="date"||i==="both"||void 0})}),n("hero",i=>{this._set({hero:i==="clock"?i:void 0}),this.refill.time_date?.(this.timeDateOptions(),this.timeDateValue())}),this._bindSelect("note_source",[{value:"off",label:"Off"},{value:"ai",label:"Written by your AI"},{value:"entity",label:"From an entity"}],this.noteSource(),i=>{let a=this._config??{};a.note_entity&&(this.noteEntityKept=a.note_entity),this.noteChoice=i==="entity"?"entity":void 0,i==="off"?this._set({show_note:void 0,note_entity:void 0}):i==="ai"?this._set({show_note:!0,note_entity:void 0}):this.noteEntityKept?this._set({note_entity:this.noteEntityKept,show_note:void 0}):(this.sync(),this.querySelector("#note_entity")?.focus()),this.syncNoteStatus()}),e("#note_entity","value-changed",i=>{let a=i.value||void 0;a&&(this.noteChoice=void 0),this._set(a?{note_entity:a,show_note:void 0}:{note_entity:void 0}),this.syncNoteStatus()}),this._bindSelect("note_tone",[{value:"snarky",label:"Snarky"},{value:"calm",label:"Calm"},{value:"friendly",label:"Friendly"},{value:"dry",label:"Dry"}],this._config?.note_tone||"snarky",i=>this._set({note_tone:i==="snarky"?void 0:i})),e("#note_calendar","value-changed",i=>{let a=[i.value,...et(this._config?.note_calendar).slice(1)].filter(Boolean);this._set({note_calendar:a.length>1?a:a[0]||void 0})}),e("#note_attribute","input",i=>this._set({note_attribute:i.value.trim()||void 0})),e("#note_max_age","change",i=>{let a=i.value.trim(),y=parseInt(a);a?y>=0&&this._set({note_max_age:y===180?void 0:y}):this._set({note_max_age:void 0})}),e("#show_attributes","change",i=>this._set({show_attributes:i.checked?void 0:!1}));let s=this.querySelector(".readings-table");this.readingsEditor=s?We(s,()=>this._config??{},i=>this._set(i),{open:this.readingOpen,onOpen:i=>{this.readingOpen=i}}):void 0,this.readingsEditor?.hass(this._hass);let l=(i,a)=>e(`#${i}`,"change",y=>{let u=y.value.trim(),g=u.split(",").map(x=>parseFloat(x)),v=g.length===a&&g.every((x,C)=>isFinite(x)&&(C===0||x>g[C-1]));this._set({[i]:u?v?g:u:void 0})});l("uv_levels",4),l("aqi_levels",5);let d=this._config??{};this._bindSelect("reading_style",[{value:"both",label:"Icon and label"},{value:"label",label:"Label"},{value:"icon",label:"Icon"},{value:"value",label:"The value alone"}],d.show_attribute_labels===!1?d.show_attribute_icons===!1?"value":"icon":d.show_attribute_icons===!1?"label":"both",i=>{this._set({show_attribute_labels:i==="icon"||i==="value"?!1:void 0,show_attribute_icons:i==="label"||i==="value"?!1:void 0})}),this._bindSelect("indoor_line",[{value:"label",label:'The word "Indoors"'},{value:"icon",label:"A house icon"},{value:"both",label:"Icon and word"},{value:"hidden",label:"Hidden"}],d.show_indoor===!1?"hidden":d.indoor_style||"label",i=>{this._set(i==="hidden"?{show_indoor:!1}:{show_indoor:void 0,indoor_style:i==="label"?void 0:i})}),e("#animate","change",i=>this._set({animate:i.checked?void 0:!1})),e("#spill_particles","change",i=>this._set({spill_particles:i.checked?void 0:!1})),e("#lightning_shake","change",i=>this._set({disable_lightning_shake:i.checked?void 0:!0})),e("#auto_pause","change",i=>this._set({auto_pause:i.checked||void 0})),n("sky_follows",i=>this._set({enable_day_night_cycle:i==="hours"||void 0}));for(let[i,a]of[["sunrise_hour",6],["sunset_hour",20]])e(`#${i}`,"change",y=>{let u=y.value.trim(),g=parseInt(u);u?g>=0&&g<=23&&this._set({[i]:g===a?void 0:g}):this._set({[i]:void 0})});for(let[i]of Se){let a=this.querySelector(`#${i}`);a&&(this.syncFill(a),a.addEventListener("input",()=>{let y=this.querySelector(`[data-out="${i}"]`);y&&(y.textContent=O.formatEngineValue(i,parseFloat(a.value))),this.syncFill(a)}),a.addEventListener("change",()=>this._updateEngineConfig(i,parseFloat(a.value))))}e(".reset-engine-btn","click",(i,a)=>{a.preventDefault(),this._resetEngineSettings()});for(let[i]of[...Ae,...Ce])e(`#${i}`,"input",a=>this.paintChip(a)),e(`#${i}`,"change",a=>this._updateColorConfig(i,a.value));this.querySelectorAll(".color-reset").forEach(i=>i.addEventListener("click",a=>{a.preventDefault(),this._resetColorConfig(i.dataset.target)})),e(".reset-colors-btn","click",(i,a)=>{a.preventDefault(),this._resetAllColors()});let f=this._config??{};this._bindSelect("plane_tags",[{value:"flight",label:"Flight number and aircraft"},{value:"route",label:"Route (Lisbon \u2192 Paris)"},{value:"both",label:"Route and flight number"},{value:"none",label:"None"}],f.show_flight_labels===!1?"none":f.flight_label||"flight",i=>{this._set(i==="none"?{show_flight_labels:!1}:{show_flight_labels:void 0,flight_label:i==="flight"?void 0:i})});let c=String(f.plane_speed??1);this._bindSelect("plane_speed",[{value:"1",label:"Usual"},{value:"0.5",label:"Half"},{value:"0.25",label:"A quarter"},...["1","0.5","0.25"].includes(c)?[]:[{value:c,label:`${c}\xD7 (set in YAML)`}]],c,i=>this._set({plane_speed:i==="1"?void 0:Number(i)})),e("#planes_on_load","change",i=>this._set({planes_on_load:i.checked||void 0})),this.mountActions(),e("#dev_mode","change",i=>this._set({dev_mode:i.checked||void 0})),this.querySelectorAll(".drw-btn").forEach(i=>i.addEventListener("click",()=>{let a=i.dataset.drawer;this.openDrawers.has(a)?this.openDrawers.delete(a):this.openDrawers.add(a),this.applyDrawer(a)})),this.syncNoteStatus()}applyDrawer(e){let n=this.openDrawers.has(e);this.querySelector(`[data-drawer="${e}"]`)?.setAttribute("aria-expanded",String(n)),this.querySelector(`[data-sec="${e}"] .drw-c`)?.toggleAttribute("data-open",n)}timeDateOptions(){return this._config?.hero==="clock"?[{value:"off",label:"Off"},{value:"date",label:"Date"}]:[{value:"off",label:"Off"},{value:"time",label:"Time"},{value:"date",label:"Date"},{value:"both",label:"Time and date"}]}timeDateValue(){let e=this._config??{};return e.hero==="clock"?e.show_date?"date":"off":e.show_clock&&e.show_date?"both":e.show_clock?"time":e.show_date?"date":"off"}sync(){let e=this.querySelector(".card-config");if(!e)return;let n=this._config??{},o=this.ctx();for(let c of Object.keys(te))Qe(c,n)&&this.pinned.add(c);e.toggleAttribute("data-all",o.all),this.querySelectorAll("[data-row]").forEach(c=>c.toggleAttribute("data-open",Ee(c.dataset.row,n,o,this.pinned)));let s=!1;for(let[c,i]of Object.entries(Xe)){let a=Ze(i,n,o,this.pinned);this.querySelector(`[data-sec="${c}"]`)?.toggleAttribute("data-open",a),a&&ke.includes(c)&&(s=!0)}this.querySelector("[data-drawers]")?.toggleAttribute("data-open",s);let l=this.querySelector("#all_settings");l&&l.checked!==o.all&&(l.checked=o.all);let d=(c,i)=>{let a=this.querySelector(c);a&&a.textContent!==i&&(a.textContent=i)},f=n.layout==="nightstand"?"nightstand":n.compact?"compact":"default";d('[data-help="layout"]',{default:"The sky, the temperature and your readings",compact:"One line, to sit under other cards",nightstand:"A bedside clock that goes dark at night"}[f]),d('[data-help="color_palette"]',n.color_palette==="theme"?"Your dashboard theme's colors, light or dark":"Colors from the weather and the time of day"),d('[data-help="hero"]',n.hero==="clock"?"The time leads, and the temperature starts the condition's line":"The temperature leads the card"),d('[data-help="sky_follows"]',n.enable_day_night_cycle?"Day and night change at the hours you set":"Dawn, day, dusk and night follow the sun"),d('[data-help="note"]',{off:"A line under the conditions: what's coming and what to wear",ai:"Your AI writes it from the forecast. The card grows a row to fit it",entity:"Text from a helper or a sensor of yours"}[o.note]);for(let c of ke)d(`[data-summary="${c}"]`,this.summary(c));this.querySelector('[data-status="entity"]')?.toggleAttribute("hidden",!!n.entity||!!n.dev_mode),this.querySelector(".reset-engine-btn")?.toggleAttribute("data-off",!Object.keys(M).some(c=>X(n,`engine_settings.${c}`))),this.syncPlaceholder(),this.readingsEditor?.sync()}summary(e){let n=this._config??{};if(e==="readings"){let d=B(n),f=d.filter(c=>c.view).length;return[n.show_attributes===!1?"Off":d.filter(c=>!c.view).map(ae).join(", ")||"None",f?`${f} in the forecast view`:"",n.indoor_temperature_entity||n.indoor_humidity_entity?"Indoors":""].filter(Boolean).join(" \xB7 ")}if(e==="sky"){if(n.animate===!1)return"Still";let d=Object.keys(M).filter(f=>X(n,`engine_settings.${f}`)).length;return["Moving",n.spill_particles===!1?"inside the card":"",n.enable_day_night_cycle?"set hours":"",d?`${d} ${d===1?"amount":"amounts"} changed`:""].filter(Boolean).join(" \xB7 ")}if(e==="colors"){let d=Object.values(n.custom_colors||{}).filter(Boolean).length;return d?`${d} ${d===1?"color":"colors"} set`:"None set"}if(e==="planes")return n.flights_entity||"Needs a Flightradar24 sensor";let o=n.tap_action?.action??le(n),s={forecast:"A tap opens the forecast","more-info":"A tap opens the weather's details",none:"A tap does nothing",navigate:"A tap goes to a view",url:"A tap opens a link",toggle:"A tap toggles",assist:"A tap opens Assist"},l=["hold_action","double_tap_action"].filter(d=>{let f=n[d]?.action;return f&&f!=="none"}).length;return(s[o]??"A tap runs an action")+(l?" \xB7 more gestures set":"")}syncPlaceholder(){let e=this.querySelector("#name"),n=this._config?.entity,o=n?this._hass?.states?.[n]?.attributes?.friendly_name:void 0;!e||typeof o!="string"||!o||e.getAttribute("placeholder")===o||(e.setAttribute("placeholder",o),e.placeholder=o)}_bindSelect(e,n,o,s){let l=this.querySelector(`#${e}`);if(!l)return;let d={options:n,current:o},f=()=>{l.options=d.options,l.value=d.current};this.refill[e]=(c,i)=>{d={options:c,current:i},customElements.get("ha-select")&&f()},customElements.get("ha-select")?f():customElements.whenDefined("ha-select").then(f),l.addEventListener("selected",(c=>{let i=c.detail?.value;!i||i===l.value&&i===d.current||(l.value=i,d={...d,current:i},s(i))})),l.addEventListener("closed",c=>c.stopPropagation())}mountActions(){let e=this.querySelector("#actions-editor");if(!e)return;let n=V(this._config,this._config?.entity),o=le(this._config??{}),s=o==="more-info"?void 0:{action:o};j(e,this._hass,n.tap_action||!s?n:{...n,tap_action:s},l=>{let d={...l};s&&"tap_action"in l&&(d.tap_action=l.tap_action===void 0?{action:"more-info"}:l.tap_action.action===s.action?void 0:l.tap_action),this._set(d)},{forecast:"Forecast"})}syncNoteStatus(){this.updateNoteStatus()}async updateNoteStatus(){let e=this.querySelector("#note_status"),n=this._hass;if(!e)return;let o=this.noteSource()==="ai",s="",l=!1;o&&n&&(n.config?.components?.includes("ai_task")?this._config?.note_ai_task_entity||(this.noteDefault??(this.noteDefault=n.callWS({type:"ai_task/preferences/get"}).then(d=>d?.gen_data_entity_id??null).catch(()=>null)),await this.noteDefault||(s="You have no default AI Task. Pick one below, or set one in Settings \u2192 System \u2192 AI.",l=!0)):s="The note needs Home Assistant 2025.8 or later, with an AI integration that provides an AI Task, such as OpenAI or Anthropic."),e.innerHTML=s?`${Te}<span></span>`:"",s&&(e.querySelector("span").textContent=s),e.hidden=!s,l!==this.noDefaultAi&&(this.noDefaultAi=l,this.sync())}_set(e){this._patchConfig(e),this.sync()}_patchConfig(e){this._config||(this._config={});let n=this._config;for(let[o,s]of Object.entries(e))s===""||s===null||s===void 0?delete n[o]:n[o]=s;this._fireConfigChanged()}_updateConfig(e,n){this._set({[e]:n})}_updateEngineConfig(e,n){let s={...(this._config??(this._config={})).engine_settings||{}};n===M[e]?delete s[e]:s[e]=n,this._set({engine_settings:Object.keys(s).length?s:void 0})}_resetEngineSettings(){for(let[e]of Se){let n=this.querySelector(`#${e}`),o=M[e];n&&(n.value=String(o),this.syncFill(n));let s=this.querySelector(`[data-out="${e}"]`);s&&(s.textContent=O.formatEngineValue(e,o))}this._set({engine_settings:void 0}),this.querySelector("#windSpeed")?.focus()}syncFill(e){let n=Number(e.min),o=Number(e.max),s=Number(e.value);e.style.setProperty("--fill",`${Math.max(0,Math.min(100,(s-n)/(o-n)*100))}%`)}static formatEngineValue(e,n){return e==="cloudCount"?String(Math.round(n)):e==="splashBounce"?`${Math.round(n)}%`:`${n.toFixed(1)}\xD7`}static hex(e){if(e){if(/^#[0-9a-f]{6}$/i.test(e))return e.toLowerCase();if(/^#[0-9a-f]{3}$/i.test(e))return`#${[...e.slice(1)].map(n=>n+n).join("")}`.toLowerCase();try{let n=document.createElement("canvas").getContext("2d");if(!n)return;n.fillStyle="#000",n.fillStyle=e;let o=String(n.fillStyle);if(/^#[0-9a-f]{6}$/i.test(o))return o;let s=o.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/);return s?`#${s.slice(1,4).map(l=>Number(l).toString(16).padStart(2,"0")).join("")}`:void 0}catch{return}}}syncColorInputs(){let e=this._config?.custom_colors||{},n=this._config?.color_palette==="theme"?"var(--card-background-color, #fff)":O.DEFAULT_COLORS.sunny_bg;for(let[o]of[...Ae,...Ce]){let s=this.querySelector(`#${o}`);s&&(s.value=O.hex(e[o])??O.DEFAULT_COLORS[o],s.parentElement.style.setProperty("--sky",n),this.paintChip(s))}this._syncColorResets()}paintChip(e){let n=O.hex(e.value);n&&e.parentElement.style.setProperty("--c",n)}_updateColorConfig(e,n){let o={...this._config?.custom_colors||{},[e]:n};this._set({custom_colors:o}),this._syncColorResets()}_syncColorResets(){let e=this._config?.custom_colors||{};this.querySelectorAll(".color-reset").forEach(n=>{n.toggleAttribute("data-off",!e[n.dataset.target])}),this.querySelector("#reset-colors-btn")?.toggleAttribute("data-off",!Object.values(e).some(Boolean))}_resetColorConfig(e){let n={...this._config?.custom_colors||{}};delete n[e],this._set({custom_colors:Object.keys(n).length?n:void 0});let o=this.querySelector(`#${e}`);o&&(o.value=O.DEFAULT_COLORS[e]||o.value,this.paintChip(o),o.focus()),this._syncColorResets()}_resetAllColors(){this._set({custom_colors:void 0}),this.syncColorInputs()}_fireConfigChanged(){let e=new CustomEvent("config-changed",{detail:{config:this._config},bubbles:!0,composed:!0});this.dispatchEvent(e)}set hass(e){this._hass=e,this._initialized&&this.isConnected&&this.updateEntityPickers()}updateEntityPickers(){if(!this._hass||!this.isConnected||!this._initialized)return;this.syncNoteStatus(),this.syncPlaceholder(),J(this.querySelector("#actions-editor"),this._hass),this.readingsEditor?.hass(this._hass),[{id:"#entity",domains:["weather"]},{id:"#outdoor_sensor_entity",domains:["sensor"]},{id:"#feels_like_entity",domains:["sensor"]},{id:"#indoor_temperature_entity",domains:["sensor"]},{id:"#indoor_humidity_entity",domains:["sensor"]},{id:"#sun_entity",domains:["sun"]},{id:"#moon_entity",domains:["sensor"]},{id:"#flights_entity",domains:["sensor"]},{id:"#alarm_entity",domains:["sensor","input_datetime"]},{id:"#night_sensor",domains:["sensor"]},{id:"#note_entity",domains:["sensor","input_text"]},{id:"#note_ai_task_entity",domains:["ai_task"]},{id:"#note_calendar",domains:["calendar"]}].forEach(({id:n,domains:o})=>{let s=this.querySelector(n);s&&(s.hass=this._hass,s.includeDomains=o)})}};O.DEFAULT_COLORS={sunny_bg:z("sunny","day").mid,rainy_bg:z("rainy","day").mid,snowy_bg:z("snowy","day").mid,stormy_bg:z("stormy","day").mid,windy_bg:z("windy","day").mid,cloudy_bg:z("cloudy","day").mid,fog_color:"#e0e0e0",text_color:G(I(fe)),temperature_color:G(I(fe)),sun_color:"#ffd67a",rain_color:"#deeaff",snow_color:"#f7fbff"};var de=O;var Tt=`
     .st-editor {
         display: flex;
         flex-direction: column;
@@ -836,29 +573,29 @@ ${se(".card-config")}
         flex-direction: column;
         gap: 8px;
     }
-`,V=class extends HTMLElement{constructor(){super(...arguments);this._config={};this._initialized=!1}setConfig(t){let i=JSON.stringify(t)===JSON.stringify(this._config);this._config={...t},this._initialized&&!i&&this._render()}set hass(t){this._hass=t,this._initialized&&this.isConnected&&(this._updatePickers(),N(this.querySelector("#st-actions"),t))}async connectedCallback(){this._config=this._config||{},await this._ensureEntityPickerLoaded(),this._render(),this._initialized=!0,this._hass&&this._updatePickers()}disconnectedCallback(){this.innerHTML=""}async _ensureEntityPickerLoaded(){if(!customElements.get("ha-entity-picker"))try{let i=await(await window.loadCardHelpers()).createCardElement({type:"entities",entities:[]}),n=a=>{(a.reason?.message?.includes("localize")||a.reason?.message?.includes("hass"))&&a.preventDefault()};window.addEventListener("unhandledrejection",n);try{await i.constructor.getConfigElement()}catch{}setTimeout(()=>window.removeEventListener("unhandledrejection",n),2e3)}catch{}}_render(){let t=this._config,i=(n,a,e,s)=>`
-                    <label class="st-switch" for="${n}">
-                        <span>${a}<small>${e}</small></span>
-                        <ha-switch id="${n}" ${s?"checked":""}></ha-switch>
+`,ce=class extends HTMLElement{constructor(){super(...arguments);this._config={};this._initialized=!1}setConfig(e){let n=JSON.stringify(e)===JSON.stringify(this._config);this._config={...e},this._initialized&&!n&&this._render()}set hass(e){this._hass=e,this._initialized&&this.isConnected&&(this._updatePickers(),J(this.querySelector("#st-actions"),e))}async connectedCallback(){this._config=this._config||{},await this._ensureEntityPickerLoaded(),this._render(),this._initialized=!0,this._hass&&this._updatePickers()}disconnectedCallback(){this.innerHTML=""}async _ensureEntityPickerLoaded(){if(!customElements.get("ha-entity-picker"))try{let n=await(await window.loadCardHelpers()).createCardElement({type:"entities",entities:[]}),o=s=>{(s.reason?.message?.includes("localize")||s.reason?.message?.includes("hass"))&&s.preventDefault()};window.addEventListener("unhandledrejection",o);try{await n.constructor.getConfigElement()}catch{}setTimeout(()=>window.removeEventListener("unhandledrejection",o),2e3)}catch{}}_render(){let e=this._config,n=(o,s,l,d)=>`
+                    <label class="st-switch" for="${o}">
+                        <span>${s}<small>${l}</small></span>
+                        <ha-switch id="${o}" ${d?"checked":""}></ha-switch>
                     </label>`;this.innerHTML=`
-            <style>${qe}${q}</style>
+            <style>${Tt}${U}</style>
             <div class="st-editor">
                 <ha-entity-picker id="sun-picker" allow-custom-entity></ha-entity-picker>
-                ${I(t)}
+                ${K(e)}
                 <ha-entity-picker id="moon-picker" allow-custom-entity></ha-entity-picker>
                 <ha-entity-picker id="weather-picker" allow-custom-entity></ha-entity-picker>
-                ${_({id:"title",label:"Title (optional)",value:t.title})}
+                ${E({id:"title",label:"Title (optional)",value:e.title})}
                 <ha-select id="direction" label="Direction"></ha-select>
                 <div class="st-switches">
-                    ${i("compact","Compact","One line: the next sunrise or sunset beside the sun's path",!!t.compact)}
-                    ${i("show_header","Next sunrise or sunset","The headline time and countdown",t.show_header!==!1)}
-                    ${i("show_details","Details","First and last light, solar noon, daylight, moon",t.show_details!==!1)}
-                    ${i("theme_palette","Blend with dashboard theme","Use theme colors instead of the sky",t.color_palette==="theme")}
+                    ${n("compact","Compact","One line: the next sunrise or sunset beside the sun's path",!!e.compact)}
+                    ${n("show_header","Next sunrise or sunset","The headline time and countdown",e.show_header!==!1)}
+                    ${n("show_details","Details","First and last light, solar noon, daylight, moon",e.show_details!==!1)}
+                    ${n("theme_palette","Blend with dashboard theme","Use theme colors instead of the sky",e.color_palette==="theme")}
                 </div>
                 <div class="st-actions-title">Interactions</div>
                 <div id="st-actions"></div>
             </div>
-        `,this._updatePickers(),this._attachListeners(),R(this.querySelector("#st-actions"),this._hass,D(this._config,this._config.sun_entity),n=>this._update(n))}_updatePickers(){let t=[{id:"#sun-picker",value:this._config.sun_entity||"",label:"Sun entity",domains:["sun"]},{id:"#moon-picker",value:this._config.moon_entity||"",label:"Moon phase entity (optional)",domains:["sensor"]},{id:"#weather-picker",value:this._config.weather_entity||"",label:"Share the sky of a weather entity (optional)",domains:["weather"],helper:"Without one, it shares the sky of the weather card on the same sun"}];for(let i of t){let n=this.querySelector(i.id);n&&(this._hass&&(n.hass=this._hass),n.value=i.value,n.label=i.label,n.includeDomains=i.domains,"helper"in i&&(n.helper=i.helper))}}_attachListeners(){this.querySelector("#sun-picker")?.addEventListener("value-changed",n=>{this._update({sun_entity:n.detail.value})}),P(this,n=>this._update(n)),this.querySelector("#moon-picker")?.addEventListener("value-changed",n=>{this._update({moon_entity:n.detail.value||void 0})}),this.querySelector("#weather-picker")?.addEventListener("value-changed",n=>{this._update({weather_entity:n.detail.value||void 0})}),this.querySelector("#title")?.addEventListener("input",n=>{this._update({title:n.target.value||void 0})});let t=(n,a)=>{this.querySelector(`#${n}`)?.addEventListener("change",e=>{this._update(a(e.target.checked))})};t("compact",n=>({compact:n||void 0})),t("show_header",n=>({show_header:n})),t("show_details",n=>({show_details:n})),t("theme_palette",n=>({color_palette:n?"theme":void 0}));let i=this.querySelector("#direction");if(i){let n=this._config.direction??"auto",a=()=>{i.options=[{value:"auto",label:"From your location: right to left south of the equator"},{value:"left_to_right",label:"Left to right"},{value:"right_to_left",label:"Right to left"}],i.value=n};customElements.get("ha-select")?a():customElements.whenDefined("ha-select").then(a),i.addEventListener("selected",(e=>{let s=e.detail?.value;!s||s===n||(n=s,this._update({direction:s==="auto"?void 0:s}))})),i.addEventListener("closed",e=>e.stopPropagation())}}_update(t){let i={...this._config,...t};for(let n of Object.keys(i))(i[n]===void 0||i[n]==="")&&delete i[n];this._config=i,this.dispatchEvent(new CustomEvent("config-changed",{detail:{config:this._config},bubbles:!0,composed:!0}))}};var De=`
+        `,this._updatePickers(),this._attachListeners(),j(this.querySelector("#st-actions"),this._hass,V(this._config,this._config.sun_entity),o=>this._update(o))}_updatePickers(){let e=[{id:"#sun-picker",value:this._config.sun_entity||"",label:"Sun entity",domains:["sun"]},{id:"#moon-picker",value:this._config.moon_entity||"",label:"Moon phase entity (optional)",domains:["sensor"]},{id:"#weather-picker",value:this._config.weather_entity||"",label:"Share the sky of a weather entity (optional)",domains:["weather"],helper:"Without one, it shares the sky of the weather card on the same sun"}];for(let n of e){let o=this.querySelector(n.id);o&&(this._hass&&(o.hass=this._hass),o.value=n.value,o.label=n.label,o.includeDomains=n.domains,"helper"in n&&(o.helper=n.helper))}}_attachListeners(){this.querySelector("#sun-picker")?.addEventListener("value-changed",o=>{this._update({sun_entity:o.detail.value})}),Y(this,o=>this._update(o)),this.querySelector("#moon-picker")?.addEventListener("value-changed",o=>{this._update({moon_entity:o.detail.value||void 0})}),this.querySelector("#weather-picker")?.addEventListener("value-changed",o=>{this._update({weather_entity:o.detail.value||void 0})}),this.querySelector("#title")?.addEventListener("input",o=>{this._update({title:o.target.value||void 0})});let e=(o,s)=>{this.querySelector(`#${o}`)?.addEventListener("change",l=>{this._update(s(l.target.checked))})};e("compact",o=>({compact:o||void 0})),e("show_header",o=>({show_header:o})),e("show_details",o=>({show_details:o})),e("theme_palette",o=>({color_palette:o?"theme":void 0}));let n=this.querySelector("#direction");if(n){let o=this._config.direction??"auto",s=()=>{n.options=[{value:"auto",label:"From your location: right to left south of the equator"},{value:"left_to_right",label:"Left to right"},{value:"right_to_left",label:"Right to left"}],n.value=o};customElements.get("ha-select")?s():customElements.whenDefined("ha-select").then(s),n.addEventListener("selected",(l=>{let d=l.detail?.value;!d||d===o||(o=d,this._update({direction:d==="auto"?void 0:d}))})),n.addEventListener("closed",l=>l.stopPropagation())}}_update(e){let n={...this._config,...e};for(let o of Object.keys(n))(n[o]===void 0||n[o]==="")&&delete n[o];this._config=n,this.dispatchEvent(new CustomEvent("config-changed",{detail:{config:this._config},bubbles:!0,composed:!0}))}};var Lt=`
     .fc-editor {
         display: flex;
         flex-direction: column;
@@ -916,26 +653,26 @@ ${se(".card-config")}
         padding: 8px;
         cursor: pointer;
     }
-`,Ne=[{value:"temp",label:"Temperature"},{value:"feels",label:"Feels like"},{value:"chance",label:"Chance of rain"},{value:"amount",label:"Rain amount"}],oe=["0","3","5","7","10"].map(o=>({value:o,label:o==="0"?"No days":`${o} days`})),Y=class extends HTMLElement{constructor(){super(...arguments);this._config={};this._initialized=!1}setConfig(t){let i=JSON.stringify(t)===JSON.stringify(this._config);this._config={...t},this._initialized&&!i&&this._render()}set hass(t){this._hass=t,this._initialized&&this.isConnected&&(this._updatePickers(),N(this.querySelector("#fc-actions"),t))}async connectedCallback(){await this._ensureEntityPickerLoaded(),this._render(),this._initialized=!0,this._hass&&this._updatePickers()}disconnectedCallback(){this.innerHTML=""}async _ensureEntityPickerLoaded(){if(!customElements.get("ha-entity-picker"))try{let i=await(await window.loadCardHelpers()).createCardElement({type:"entities",entities:[]}),n=a=>{(a.reason?.message?.includes("localize")||a.reason?.message?.includes("hass"))&&a.preventDefault()};window.addEventListener("unhandledrejection",n);try{await i.constructor.getConfigElement?.()}catch{}setTimeout(()=>window.removeEventListener("unhandledrejection",n),2e3)}catch{}}_render(){let t=this._config,i=(c,u,p,x)=>`
+`,$t=[{value:"temp",label:"Temperature"},{value:"feels",label:"Feels like"},{value:"chance",label:"Chance of rain"},{value:"amount",label:"Rain amount"}],$e=["0","3","5","7","10"].map(t=>({value:t,label:t==="0"?"No days":`${t} days`})),ue=class extends HTMLElement{constructor(){super(...arguments);this._config={};this._initialized=!1}setConfig(e){let n=JSON.stringify(e)===JSON.stringify(this._config);this._config={...e},this._initialized&&!n&&this._render()}set hass(e){this._hass=e,this._initialized&&this.isConnected&&(this._updatePickers(),J(this.querySelector("#fc-actions"),e))}async connectedCallback(){await this._ensureEntityPickerLoaded(),this._render(),this._initialized=!0,this._hass&&this._updatePickers()}disconnectedCallback(){this.innerHTML=""}async _ensureEntityPickerLoaded(){if(!customElements.get("ha-entity-picker"))try{let n=await(await window.loadCardHelpers()).createCardElement({type:"entities",entities:[]}),o=s=>{(s.reason?.message?.includes("localize")||s.reason?.message?.includes("hass"))&&s.preventDefault()};window.addEventListener("unhandledrejection",o);try{await n.constructor.getConfigElement?.()}catch{}setTimeout(()=>window.removeEventListener("unhandledrejection",o),2e3)}catch{}}_render(){let e=this._config,n=(c,i,a,y)=>`
                     <label class="fc-switch" for="${c}">
-                        <span>${u}<small>${p}</small></span>
-                        <ha-switch id="${c}" ${x?"checked":""}></ha-switch>
+                        <span>${i}<small>${a}</small></span>
+                        <ha-switch id="${c}" ${y?"checked":""}></ha-switch>
                     </label>`;this.innerHTML=`
-            <style>${De}${q}</style>
+            <style>${Lt}${U}</style>
             <div class="fc-editor">
                 <ha-entity-picker id="weather-picker" allow-custom-entity></ha-entity-picker>
                 <ha-entity-picker id="sun-picker" allow-custom-entity></ha-entity-picker>
-                ${I(t)}
+                ${K(e)}
                 <ha-select id="forecast_metric" label="The hours first show"></ha-select>
                 <ha-select id="forecast_graph" label="The hours' graph"></ha-select>
                 <ha-select id="forecast_days" label="Days"></ha-select>
                 <div class="fc-switches">
-                    ${i("show_hours","The hours","The hourly row and its chips: drag it, and the sky goes there",t.show_hours!==!1)}
-                    ${i("weather_effects","Weather","Rain, snow, fog, wind and lightning move behind the forecast, and go to the hour you drag to",!!t.weather_effects)}
-                    ${i("compact","Strip","The hours alone, to sit under the compact weather card",!!t.compact)}
-                    ${i("theme_palette","Blend with dashboard theme","Use theme colors instead of the sky",t.color_palette==="theme")}
+                    ${n("show_hours","The hours","The hourly row and its chips: drag it, and the sky goes there",e.show_hours!==!1)}
+                    ${n("weather_effects","Weather","Rain, snow, fog, wind and lightning move behind the forecast, and go to the hour you drag to",!!e.weather_effects)}
+                    ${n("compact","Strip","The hours alone, to sit under the compact weather card",!!e.compact)}
+                    ${n("theme_palette","Blend with dashboard theme","Use theme colors instead of the sky",e.color_palette==="theme")}
                 </div>
                 <div class="fc-title">Interactions</div>
                 <div id="fc-actions"></div>
             </div>
-        `,this._updatePickers();let n=(c,u,p,x)=>{let y=this.querySelector(`#${c}`);if(!y)return;let b=()=>{y.options=u,y.value=p};customElements.get("ha-select")?b():customElements.whenDefined("ha-select").then(b),y.addEventListener("selected",(d=>{let h=d.detail?.value;!h||h===p||(p=h,this._update(x(h)))})),y.addEventListener("closed",d=>d.stopPropagation())};n("forecast_metric",Ne,t.forecast_metric??"temp",c=>({forecast_metric:c==="temp"?void 0:c})),n("forecast_graph",ie,t.forecast_graph??"line",c=>({forecast_graph:c==="line"?void 0:c}));let a=String(t.forecast_days??7),e=oe.some(c=>c.value===a)||!Number.isFinite(Number(a))?oe:[...oe,{value:a,label:`${a} day${a==="1"?"":"s"}`}].sort((c,u)=>Number(c.value)-Number(u.value));n("forecast_days",e,a,c=>({forecast_days:c==="7"?void 0:Number(c)}));let s=(c,u)=>{this.querySelector(`#${c}`)?.addEventListener("change",p=>{this._update(u(p.target.checked))})};s("compact",c=>({compact:c||void 0})),s("show_hours",c=>({show_hours:c?void 0:!1})),s("weather_effects",c=>({weather_effects:c||void 0})),s("theme_palette",c=>({color_palette:c?"theme":void 0})),this.querySelector("#weather-picker")?.addEventListener("value-changed",c=>{this._update({entity:c.detail.value||void 0})}),this.querySelector("#sun-picker")?.addEventListener("value-changed",c=>{this._update({sun_entity:c.detail.value||void 0})}),P(this,c=>this._update(c));let l=D(this._config,this._config.entity);R(this.querySelector("#fc-actions"),this._hass,l.tap_action?l:{...l,tap_action:{action:"forecast"}},c=>this._update(c.tap_action===void 0&&"tap_action"in c?{...c,tap_action:{action:"more-info"}}:c.tap_action?.action==="forecast"?{...c,tap_action:void 0}:c),{forecast:"Forecast"})}_updatePickers(){let t=[{id:"#weather-picker",value:this._config.entity||"",label:"Weather entity",domains:["weather"]},{id:"#sun-picker",value:this._config.sun_entity||"",label:"Sun, for the sky's time of day (optional)",domains:["sun"]}];for(let i of t){let n=this.querySelector(i.id);n&&(this._hass&&(n.hass=this._hass),n.value=i.value,n.label=i.label,n.includeDomains=i.domains)}}_update(t){let i={...this._config,...t};for(let n of Object.keys(i))(i[n]===void 0||i[n]==="")&&delete i[n];this._config=i,this.dispatchEvent(new CustomEvent("config-changed",{detail:{config:this._config},bubbles:!0,composed:!0}))}};customElements.get("animated-weather-card-editor")||customElements.define("animated-weather-card-editor",U);customElements.get("animated-sun-tracker-editor")||customElements.define("animated-sun-tracker-editor",V);customElements.get("animated-forecast-card-editor")||customElements.define("animated-forecast-card-editor",Y);})();
+        `,this._updatePickers();let o=(c,i,a,y)=>{let u=this.querySelector(`#${c}`);if(!u)return;let g=()=>{u.options=i,u.value=a};customElements.get("ha-select")?g():customElements.whenDefined("ha-select").then(g),u.addEventListener("selected",(v=>{let x=v.detail?.value;!x||x===a||(a=x,this._update(y(x)))})),u.addEventListener("closed",v=>v.stopPropagation())};o("forecast_metric",$t,e.forecast_metric??"temp",c=>({forecast_metric:c==="temp"?void 0:c})),o("forecast_graph",Le,e.forecast_graph??"line",c=>({forecast_graph:c==="line"?void 0:c}));let s=String(e.forecast_days??7),l=$e.some(c=>c.value===s)||!Number.isFinite(Number(s))?$e:[...$e,{value:s,label:`${s} day${s==="1"?"":"s"}`}].sort((c,i)=>Number(c.value)-Number(i.value));o("forecast_days",l,s,c=>({forecast_days:c==="7"?void 0:Number(c)}));let d=(c,i)=>{this.querySelector(`#${c}`)?.addEventListener("change",a=>{this._update(i(a.target.checked))})};d("compact",c=>({compact:c||void 0})),d("show_hours",c=>({show_hours:c?void 0:!1})),d("weather_effects",c=>({weather_effects:c||void 0})),d("theme_palette",c=>({color_palette:c?"theme":void 0})),this.querySelector("#weather-picker")?.addEventListener("value-changed",c=>{this._update({entity:c.detail.value||void 0})}),this.querySelector("#sun-picker")?.addEventListener("value-changed",c=>{this._update({sun_entity:c.detail.value||void 0})}),Y(this,c=>this._update(c));let f=V(this._config,this._config.entity);j(this.querySelector("#fc-actions"),this._hass,f.tap_action?f:{...f,tap_action:{action:"forecast"}},c=>this._update(c.tap_action===void 0&&"tap_action"in c?{...c,tap_action:{action:"more-info"}}:c.tap_action?.action==="forecast"?{...c,tap_action:void 0}:c),{forecast:"Forecast"})}_updatePickers(){let e=[{id:"#weather-picker",value:this._config.entity||"",label:"Weather entity",domains:["weather"]},{id:"#sun-picker",value:this._config.sun_entity||"",label:"Sun, for the sky's time of day (optional)",domains:["sun"]}];for(let n of e){let o=this.querySelector(n.id);o&&(this._hass&&(o.hass=this._hass),o.value=n.value,o.label=n.label,o.includeDomains=n.domains)}}_update(e){let n={...this._config,...e};for(let o of Object.keys(n))(n[o]===void 0||n[o]==="")&&delete n[o];this._config=n,this.dispatchEvent(new CustomEvent("config-changed",{detail:{config:this._config},bubbles:!0,composed:!0}))}};customElements.get("animated-weather-card-editor")||customElements.define("animated-weather-card-editor",de);customElements.get("animated-sun-tracker-editor")||customElements.define("animated-sun-tracker-editor",ce);customElements.get("animated-forecast-card-editor")||customElements.define("animated-forecast-card-editor",ue);})();
