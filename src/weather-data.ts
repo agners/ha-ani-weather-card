@@ -5,6 +5,7 @@ import { DEV_MODE_TEMPERATURES, DEV_MODE_CONDITION_NAMES, DEV_MODE_SAMPLE_DATA }
 import { convertWindSpeedToKmh, formatLocalizedNumber, lookup } from './utils';
 import { CardString, localizeString } from './localize';
 import { UvLevel, uvLevel, uvLevels } from './metrics';
+import { cardNow, cardDate } from './clock';
 
 export { DEFAULT_METRICS, METRIC_KINDS, metricKinds, UV_LEVELS, UV_LEVEL_NAMES, uvLevel, uvLevels } from './metrics';
 export type { MetricKind, UvLevel } from './metrics';
@@ -238,13 +239,13 @@ function processDevModeData(config: AnimatedWeatherCardConfig, currentDevConditi
     const indoorHumidity = DEV_MODE_SAMPLE_DATA.indoorHumidity;
 
     // Dev mode sample sun data — simulate today's sunrise/sunset
-    const today = new Date();
+    const today = cardDate();
     const sunriseDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 6, 14);
     const sunsetDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 18, 32);
     const dawnDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 5, 45);
     const duskDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 19, 1);
     const noonDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12, 23);
-    const nowMs = Date.now();
+    const nowMs = cardNow();
     const sun: SunData = {
         sunrise: sunriseDate.toISOString(),
         sunset: sunsetDate.toISOString(),

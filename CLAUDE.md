@@ -90,6 +90,7 @@ src/
 ├── actions.ts                      # Tap, hold and double-tap actions for the cards, and the card's own `forecast` action
 ├── action-editor.ts                # The three editors' controls for those actions
 ├── utils.ts                        # Condition mapping, engine settings, escaping, helpers
+├── clock.ts                        # The cards' clock: what time it is in their world, which the dev card can move (both bundles)
 ├── sky.ts                          # Sky palettes (OKLCH), phases, dissolves, contrast math
 ├── time-manager.ts                 # Clock-based day/night cycle (enable_day_night_cycle)
 ├── animation-controller.ts         # Which animations run for a condition; pause and resume
@@ -353,6 +354,7 @@ demo/
   - Everything that moves is real.
 - **Accessibility.** Keep the contrast tests passing, keep reduced motion still, and never convey information by colour alone.
 - **Each change.** Rebuild and commit the bundles, add a CHANGELOG line, and update the README when an option, default, range or behaviour changes.
+- **Time.** Ask `cardNow()` or `cardDate()` (`clock.ts`) what time it is: the clock, the date, the forecast's hours, the tracker's now, the moon, a place's sun, the note's age. The dev card moves the cards' clock with an offset (a whole number of minutes) and never touches `window.Date`, which Home Assistant's frontend and GSAP read too. `Date.now()` only times how long something takes (a fade, a hold, a refresh interval); `test/utils/clock.test.ts` fails on any other bare `Date.now()` or `new Date()` in `src/`.
 - **Writing.** In code comments, the CHANGELOG and the docs, say what the code does and why, plainly.
 - **Branches.** Work on a branch from `main` and open pull requests against `main`.
 - **Attribution.** The README says once that AI helped build the card. Don't add AI attribution anywhere else: no `Co-Authored-By` or "Generated with" lines in commits, pull requests, issues or code comments.

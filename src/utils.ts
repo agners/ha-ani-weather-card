@@ -10,6 +10,7 @@ import type {
     GSAPAnimation,
     HassEntity
 } from './types';
+import { cardDate } from './clock';
 
 /**
  * Type guard to check if a value is a valid weather condition
@@ -430,7 +431,7 @@ export function getWeatherClass(
         // The clock's hours: the day/night cycle's, or the defaults when
         // nothing else says. Use HA's timezone if provided, so the hour is
         // HA's even when the dashboard is viewed from another timezone.
-        const now = new Date();
+        const now = cardDate();
         let hour: number;
         if (timeZone) {
             try {

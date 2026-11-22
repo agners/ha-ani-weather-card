@@ -31,6 +31,7 @@ import { Model, buildModel, dayPeriods, iconTints, valueText } from './fc-weathe
 import { SKY_GLOW_WIDE } from './sky';
 import { dropView, openView } from './fc-view';
 import { cloudFloor } from './cloud-band';
+import { cardNow, cardDate } from './clock';
 
 export const isWall = (root: HTMLElement): boolean => root.clientWidth >= 640 && root.clientHeight >= 540;
 
@@ -198,12 +199,12 @@ export function attachWall(host: ForecastHost): ForecastExtras {
         const t = host.current();
         const feels = Number(s?.attributes?.apparent_temperature);
         const widest = Math.max(2, ...m.hours.slice(0, 16).map(x => (x.temp === null ? 0 : String(Math.round(x.temp)).length)));
-        const L = wallLayout(root.clientWidth || 816, root.clientHeight || 632, widest, !!timeParts(new Date(), hass).period);
+        const L = wallLayout(root.clientWidth || 816, root.clientHeight || 632, widest, !!timeParts(cardDate(), hass).period);
         size = `${L.w}x${L.h}`;
         for (const [k, v] of Object.entries(layoutVars(L))) fw.style.setProperty(k, v);
         fw.toggleAttribute('data-stack', L.stack);
         let date = '';
-        try { date = dateText(new Date(), hass, { weekday: 'short', day: 'numeric', month: 'short' }); } catch { /* none */ }
+        try { date = dateText(cardDate(), hass, { weekday: 'short', day: 'numeric', month: 'short' }); } catch { /* none */ }
         // hero: clock swaps the two: the time in the temperature's place and size, the date in the clock's,
         // and the temperature leading the condition's line ("16° Partly cloudy")
         const big = host.config().hero === 'clock';
@@ -236,7 +237,7 @@ export function attachWall(host: ForecastHost): ForecastExtras {
             hoursBox.append(hourly.el);
         }
         const f = host.forecast();
-        const wk = week(f.daily, f.dailyType === 'twice_daily' ? 'twice_daily' : 'daily', Date.now(), hass, { count: L.days, current: host.current() });
+        const wk = week(f.daily, f.dailyType === 'twice_daily' ? 'twice_daily' : 'daily', cardNow(), hass, { count: L.days, current: host.current() });
         daily = createDaily({ hass, W, week: wk, current: host.current(), glyphSize: L.dayGlyph, theme: host.config().color_palette === 'theme', fahrenheit: m.fahrenheit, tints: host.config().color_palette === 'theme' ? null : litTints(45, false, 0.17), ring: Math.round(L.bar * 0.9), conditionName: c => conditionNoun(c, hass, x => host.conditionName(x)) });
         (fw.querySelector('.fw-week') as HTMLElement).append(daily.el);
         fitNames();
@@ -250,15 +251,15 @@ export function attachWall(host: ForecastHost): ForecastExtras {
                 host, root, tl: m.tl, ruler: hourly, sliderHost: hourly.el, sliderLabel: W.hours, settleEvery: 2,
                 valueText: sl => valueText(m, host, sl),
                 onSlot: (sl: Slot | null, k: number) => {
-                    if (!sl) { tv.innerHTML = home.tv; cond.innerHTML = home.cond; setTurn(turn, m.lineAt(0)); chance.innerHTML = ''; delete fw.dataset.away; if (big) showTime(new Date(), false); host.refresh(); return; }
+                    if (!sl) { tv.innerHTML = home.tv; cond.innerHTML = home.cond; setTurn(turn, m.lineAt(0)); chance.innerHTML = ''; delete fw.dataset.away; if (big) showTime(cardDate(), false); host.refresh(); return; }
                     fw.dataset.away = '';
                     // A hero clock goes to the hour, so the away line names only another day
                     if (big) showTime(sl.at, false);
                     if (typeof sl.temperature === 'number') tv.textContent = host.temperature(sl.temperature);
                     cond.textContent = conditionNoun(sl.condition ?? '', hass, x => host.conditionName(x));
                     setTurn(turn, m.lineAt(k));
-                    const sameDay = sl.at.toDateString() === new Date().toDateString();
-                    at.innerHTML = `${sameDay ? '' : `${esc(dayName(sl.at, hass))} `}${big ? '' : timeHtml(sl.at, hass)} <span class="fw-rel">${esc(relative(sl.at.getTime() - Date.now(), hass))}</span>`;
+                    const sameDay = sl.at.toDateString() === cardDate().toDateString();
+                    at.innerHTML = `${sameDay ? '' : `${esc(dayName(sl.at, hass))} `}${big ? '' : timeHtml(sl.at, hass)} <span class="fw-rel">${esc(relative(sl.at.getTime() - cardNow(), hass))}</span>`;
                     const p = sl.precipitation_probability;
                     chance.innerHTML = typeof p === 'number' && p >= 20 ? `<span class="awc-hl-pair"><b>${esc(W[m.noun])}</b> ${Math.round(p)}%</span>` : '';
                 },
@@ -284,7 +285,7 @@ export function attachWall(host: ForecastHost): ForecastExtras {
     function tick() {
         // A hero clock away at another hour stays there; it comes back to now with the card
         if (fw.hasAttribute('data-hero') && fw.dataset.away !== undefined) return;
-        showTime(new Date(), !host.still());
+        showTime(cardDate(), !host.still());
     }
     function teardown() {
         slide?.destroy(); slide = null;
@@ -297,10 +298,10 @@ export function attachWall(host: ForecastHost): ForecastExtras {
         const f = host.forecast();
         return `${f.settled}|${f.hourly?.[0]?.datetime}|${f.hourly?.map(e => `${e.temperature}${e.condition}`).join()}|${f.daily?.map(e => `${e.temperature}${e.templow}`).join()}|${host.current()}|${root.clientWidth}x${root.clientHeight}`;
     }
-    let hour = Math.floor(Date.now() / HOUR);
+    let hour = Math.floor(cardNow() / HOUR);
     const ticker = minuteTicker(() => {
         tick();
-        const h = Math.floor(Date.now() / HOUR);
+        const h = Math.floor(cardNow() / HOUR);
         if (h === hour) return;
         hour = h;
         if (slide?.active()) { pending = true; slide.home(); return; }

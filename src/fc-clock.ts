@@ -11,6 +11,7 @@
 //             0.15: its place never blank, never two figures above 0.15
 
 import { CURVE, css, esc } from './fc-core';
+import { cardNow } from './clock';
 
 export const MINUTE = {
     day: { out: 120, outEase: css(CURVE.out), in: 220, inEase: css(CURVE.in), at: 120 },
@@ -82,7 +83,7 @@ export function minuteTicker(tick: () => void): { stop(): void; rearm(): void } 
     let timer = 0, stopped = false;
     const arm = () => {
         clearTimeout(timer);
-        timer = window.setTimeout(() => { if (stopped) return; tick(); arm(); }, 60_000 - (Date.now() % 60_000) + 20);
+        timer = window.setTimeout(() => { if (stopped) return; tick(); arm(); }, 60_000 - (cardNow() % 60_000) + 20);
     };
     arm();
     return { stop() { stopped = true; clearTimeout(timer); }, rearm: arm };

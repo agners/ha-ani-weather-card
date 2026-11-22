@@ -30,6 +30,7 @@ import { dropView, openView, prepareView } from './fc-view';
 import { cloudFloor } from './cloud-band';
 import { shortDate } from './localize';
 import { precipitationUnit } from './units';
+import { cardNow, cardDate } from './clock';
 
 /** The share of a narrow card's height above which the row's first line can't sit (the light law) */
 const ROW_TOP_MIN = 0.43;
@@ -58,7 +59,7 @@ export function buildModel(host: ForecastHost, current?: number): Model {
     const W = fcWords(hass);
     const lang = (hass?.locale?.language || hass?.language || 'en');
     const entity = hass?.states[host.config().entity ?? ''];
-    const now = Date.now();
+    const now = cardNow();
     const fine = f.hourly?.length ? f.hourly : f.daily?.length ? f.daily : null;
     const type = f.hourly?.length ? 'hourly' : f.dailyType ?? 'daily';
     const tl = fine ? new Timeline(fine, type, now) : null;
@@ -129,7 +130,7 @@ export function valueText(m: Model, host: ForecastHost, slot: Slot | null): stri
     }
     const when = m.tl.unit === 'hour' ? timeText(slot.at, hass) : dayName(slot.at, hass, 'long');
     const chance = slot.precipitation_probability;
-    return `${when}, ${relative(slot.at.getTime() - Date.now(), hass, m.tl.unit === 'hour' ? 'hour' : 'day')}: ${name(slot.condition)}`
+    return `${when}, ${relative(slot.at.getTime() - cardNow(), hass, m.tl.unit === 'hour' ? 'hour' : 'day')}: ${name(slot.condition)}`
         + `${typeof slot.temperature === 'number' ? `, ${host.temperature(slot.temperature)}°` : ''}${typeof chance === 'number' && chance >= 20 ? `, ${fill(W.chance_of, { v: String(Math.round(chance)) })}` : ''}`;
 }
 
@@ -157,7 +158,7 @@ export function cardClock(host: ForecastHost, root: HTMLElement) {
         const place = loc.querySelector('.awc-place') as HTMLElement | null;
         const right = layoutLeft(loc) + loc.clientWidth + 1;
         const fits = (e: HTMLElement | null) => !e || e.hidden || layoutLeft(e) + e.offsetWidth <= right;
-        const forms = [shortDate(new Date(), host.hass(), true), shortDate(new Date(), host.hass())];
+        const forms = [shortDate(cardDate(), host.hass(), true), shortDate(cardDate(), host.hass())];
         if (place) place.hidden = false;
         for (const withPlace of [true, false]) {
             if (place) place.hidden = !withPlace;
@@ -178,11 +179,11 @@ export function cardClock(host: ForecastHost, root: HTMLElement) {
     };
     const date = () => {
         if (!dateEl) return;
-        const d = new Date().toDateString();
+        const d = cardDate().toDateString();
         if (d === day && dateEl.textContent) return;
         day = d;
-        dateEl.textContent = shortDate(new Date(), host.hass(), true);
-        dateEl.setAttribute('aria-label', dateText(new Date(), host.hass(), { weekday: 'long', day: 'numeric', month: 'long' }));
+        dateEl.textContent = shortDate(cardDate(), host.hass(), true);
+        dateEl.setAttribute('aria-label', dateText(cardDate(), host.hass(), { weekday: 'long', day: 'numeric', month: 'long' }));
         fitDate();
     };
     return { el: clockEl, big, show, date, fit: () => { fitDate(); fitBig(); }, finish: () => clock?.finish() };
@@ -200,7 +201,7 @@ function whenHtml(m: Model, host: ForecastHost, slot: Slot): string {
     const hass = host.hass();
     if (!m.tl || m.tl.unit !== 'hour') return esc(dayName(slot.at, hass, 'long'));
     const t = timeHtml(slot.at, hass);
-    const today = new Date();
+    const today = cardDate();
     return slot.at.getDate() === today.getDate() && slot.at.getTime() - today.getTime() < 24 * HOUR ? t : `${esc(dayName(slot.at, hass))} ${t}`;
 }
 
@@ -229,7 +230,7 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
         // A reading after the card was away just appears: nobody saw that minute change
         const seen = Date.now() - readAt < 70_000;
         readAt = Date.now();
-        clock.show(new Date(), animate && seen && !host.still());
+        clock.show(cardDate(), animate && seen && !host.still());
     }
     tickClock(false);
 
@@ -446,7 +447,7 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
             restore();
             if (madeRow && descRow && desc) { descRow.before(desc); descRow.remove(); descRow = null; madeRow = false; }
             delete root.dataset.awcAway;
-            if (clock.big) clock.show(new Date(), false);
+            if (clock.big) clock.show(cardDate(), false);
             away?.remove();
             writeLine(0);
             writeCompanionAway();
@@ -463,8 +464,8 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
         if (bigHour) clock.show(slot.at, false);
         if (away) {
             const at = away.querySelector('.awc-at') as HTMLElement, rel = away.querySelector('.awc-rel') as HTMLElement;
-            at.innerHTML = !bigHour ? whenHtml(m, host, slot) : slot.at.toDateString() === new Date().toDateString() ? '' : esc(dayName(slot.at, host.hass()));
-            rel.textContent = relative(slot.at.getTime() - Date.now(), host.hass(), m.tl?.unit === 'hour' ? 'hour' : 'day');
+            at.innerHTML = !bigHour ? whenHtml(m, host, slot) : slot.at.toDateString() === cardDate().toDateString() ? '' : esc(dayName(slot.at, host.hass()));
+            rel.textContent = relative(slot.at.getTime() - cardNow(), host.hass(), m.tl?.unit === 'hour' ? 'hour' : 'day');
             if (locShown && loc && away.parentElement !== loc) loc.append(away);
             // How far ahead is said only if it fits whole inside the line's tint limit
             rel.hidden = false;
@@ -642,10 +643,10 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
     };
 
     // ── The hour passing, and the clock ──
-    let hour = Math.floor(Date.now() / HOUR);
+    let hour = Math.floor(cardNow() / HOUR);
     const ticker = minuteTicker(() => {
         tickClock(true);
-        const h = Math.floor(Date.now() / HOUR);
+        const h = Math.floor(cardNow() / HOUR);
         if (h !== hour) {
             hour = h;
             if (slide?.active()) { pendingRebuild = true; slide.home(); return; }

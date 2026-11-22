@@ -31,6 +31,7 @@ import { dropView, openView, prepareView } from './fc-view';
 import { relativeLuminance, sampleSkyAt, type SkyCondition } from './sky';
 import { CONTAINER, LAYER_NAMES, classOf } from './fc-core';
 import { onHour } from './hour-link';
+import { cardNow, cardDate } from './clock';
 
 /** The corner light, as the forecast card paints it (fc-css.ts): its contrast is measured against this */
 export const FORECAST_GLOW = { rx: 0.30, ry: 0.34, cx: 0.94, cy: -0.12, fade: 0.70 };
@@ -56,7 +57,7 @@ export function attachForecastCard(host: ForecastHost): ForecastExtras {
         const line = model.lineAt(k);
         const hass = host.hass();
         const when = slot ? (model.tl?.unit === 'hour'
-            ? (new Date(slot.at).toDateString() === new Date().toDateString() ? timeHtml(slot.at, hass) : `${esc(dayName(slot.at, hass))} ${timeHtml(slot.at, hass)}`)
+            ? (new Date(slot.at).toDateString() === cardDate().toDateString() ? timeHtml(slot.at, hass) : `${esc(dayName(slot.at, hass))} ${timeHtml(slot.at, hass)}`)
             : esc(dayName(slot.at, hass, 'long'))) : '';
         const prefix = when ? `<span class="fc-at">${when}</span>` : '';
         // Full strength holds to 0.75 of the width under the corner light, and the Now control takes its own room
@@ -114,7 +115,7 @@ export function attachForecastCard(host: ForecastHost): ForecastExtras {
         const days = Math.max(0, Math.min(10, cfg().forecast_days ?? 7));
         if (!strip && days) {
             const f = host.forecast();
-            const wk = week(f.daily, f.dailyType === 'twice_daily' ? 'twice_daily' : 'daily', Date.now(), host.hass(), { count: days, current: host.current() });
+            const wk = week(f.daily, f.dailyType === 'twice_daily' ? 'twice_daily' : 'daily', cardNow(), host.hass(), { count: days, current: host.current() });
             const theme = cfg().color_palette === 'theme';
             let lum = 0;
             const st = host.hass()?.states[cfg().entity ?? '']?.state ?? 'sunny';
@@ -170,9 +171,9 @@ export function attachForecastCard(host: ForecastHost): ForecastExtras {
         return `${f.settled}|${f.hourly?.length}|${f.hourly?.[0]?.datetime}|${f.hourly?.map(e => `${e.temperature}${e.condition}${e.precipitation_probability}`).join()}|${f.daily?.map(e => `${e.temperature}${e.templow}${e.condition}`).join()}|${host.current()}|${wide()}`;
     }
     // The hour passing: the row steps one column, the new hour becomes "Now"
-    let hour = Math.floor(Date.now() / HOUR);
+    let hour = Math.floor(cardNow() / HOUR);
     const ticker = minuteTicker(() => {
-        const h = Math.floor(Date.now() / HOUR);
+        const h = Math.floor(cardNow() / HOUR);
         if (h === hour) return;
         hour = h;
         if (slide?.active()) { pending = true; slide.home(); return; }

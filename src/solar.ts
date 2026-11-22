@@ -2,6 +2,8 @@
 // sun at any hour and the demo's real sun use it, and the sun as Home Assistant's sun.sun reports it, so a card for
 // another place reads its own sun the way it reads yours. Good to a minute or so: sun.sun itself is computed.
 
+import { cardDate } from './clock';
+
 const RAD = Math.PI / 180;
 const MINUTE = 60_000;
 const DAY = 86_400_000;
@@ -56,7 +58,7 @@ export interface SolarState {
  * never sets or never rises those days (a polar day or night), there's no next sunrise or sunset; its place over
  * the horizon still says which.
  */
-export function solarState(latitude: number, longitude: number, now = new Date()): SolarState {
+export function solarState(latitude: number, longitude: number, now = cardDate()): SolarState {
     const t = now.getTime();
     const today = Math.floor(t / DAY) * DAY;
     const events: Record<'noon' | 'midnight' | 'rising' | 'setting' | 'dawn' | 'dusk', number[]> = { noon: [], midnight: [], rising: [], setting: [], dawn: [], dusk: [] };

@@ -21,6 +21,7 @@ import { FcWords, fcWords, fill } from './fc-words';
 import { MINUTE, TimeText, minuteTicker } from './fc-clock';
 import { scaleGradient } from './fc-row';
 import type { HomeAssistant } from './types';
+import { cardNow, cardDate } from './clock';
 
 /** The light at night: luminance 0.163 behind the time, 0.234 behind the words; 3.46:1 and 4.5:1 at least over the veiled sky */
 export const EMBER = { time: '#8b6a4d', words: '#a17e61' };
@@ -98,7 +99,7 @@ export function alertBefore(tl: Timeline | null, now: Date, wakeAt: Date, hass: 
 /** Today's row of the daily list, alone: the low, the day's range as one fill with the dot at now, the high */
 function rangeHtml(host: ForecastHost, W: FcWords, current: number | undefined): string {
     const f = host.forecast();
-    const wk = week(f.daily, f.dailyType === 'twice_daily' ? 'twice_daily' : 'daily', Date.now(), host.hass(), { count: 1, current });
+    const wk = week(f.daily, f.dailyType === 'twice_daily' ? 'twice_daily' : 'daily', cardNow(), host.hass(), { count: 1, current });
     const d = wk.days[0];
     if (!d || d.low === undefined || d.high === undefined || d.high <= d.low) return '';
     const fahrenheit = /F/.test(String(host.hass()?.states[host.config().entity ?? '']?.attributes?.temperature_unit ?? ''));
@@ -189,7 +190,7 @@ export function attachNightstand(host: ForecastHost): ForecastExtras {
     /** The time's widest at a size: as wide as the widest time it can show, so the weather never shifts at the minute */
     function measure(size: number) {
         ns.style.setProperty('--qn-size', `${size.toFixed(1)}px`);
-        const h12 = !!timeParts(new Date(), host.hass()).period;
+        const h12 = !!timeParts(cardDate(), host.hass()).period;
         const probe = document.createElement('span');
         probe.className = 'qn-time';
         probe.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap;display:inline;margin:0';
@@ -293,7 +294,7 @@ export function attachNightstand(host: ForecastHost): ForecastExtras {
         for (const l of lines.slice(2)) { l.style.display = ''; if (l.scrollWidth > zone.clientWidth + 0.5) l.style.display = 'none'; }
     }
     function render(animate = false, zone?: typeof ZONE.day) {
-        const now = new Date();
+        const now = cardDate();
         const hass = host.hass();
         const p = timeParts(now, hass, { bare: true });
         const changed = fig.set({ text: `${p.hour}:${p.minute}`, period: p.period }, { animate: animate && !host.still(), night: state.night });
@@ -378,10 +379,10 @@ export function attachNightstand(host: ForecastHost): ForecastExtras {
     }
 
     layout();
-    state.night = wantNight(new Date());
+    state.night = wantNight(cardDate());
     applyNight(state.night);
     render(false);
-    const ticker = minuteTicker(() => { const n = wantNight(new Date()); if (n !== state.night) setNight(n); render(true); });
+    const ticker = minuteTicker(() => { const n = wantNight(cardDate()); if (n !== state.night) setNight(n); render(true); });
     let roRaf = 0;
     const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => { cancelAnimationFrame(roRaf); roRaf = requestAnimationFrame(layout); }) : null;
     ro?.observe(root);
@@ -390,7 +391,7 @@ export function attachNightstand(host: ForecastHost): ForecastExtras {
     return {
         levels: () => [], setLevel() {}, levelOk: () => true, fitted() {},
         update() {
-            const n = wantNight(new Date());
+            const n = wantNight(cardDate());
             if (n !== state.night) setNight(n);
             // A sensor reading that has to be held: look again when it would count
             clearTimeout(sensorTimer);

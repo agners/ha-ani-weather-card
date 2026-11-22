@@ -1,5 +1,6 @@
 import { TimeOfDayConfig, TimeOfDayState, DayNightColors } from './types';
 import { TIME_THRESHOLDS } from './constants';
+import { cardDate } from './clock';
 
 /**
  * TimeOfDayManager - Centralized time-based logic for day/night animations
@@ -130,7 +131,7 @@ export class TimeOfDayManager {
      * Update current time state
      */
     private updateState(): void {
-        const now = new Date();
+        const now = cardDate();
         let currentHour: number;
         let currentMinutes: number;
 

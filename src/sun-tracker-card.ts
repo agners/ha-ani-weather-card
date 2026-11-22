@@ -38,6 +38,7 @@ import {
     SKY_TEXT, SKY_TEXT_SECONDARY_ALPHA, SKY_GLOW, skyGlowGradient,
     SKY_COLOR_PROPERTIES, SKY_DISSOLVE_SEC, SKY_DISSOLVE_EASE,
 } from './sky';
+import { cardDate } from './clock';
 
 export interface SunTrackerConfig {
     sun_entity?: string;
@@ -752,7 +753,7 @@ class AnimatedSunTrackerCard extends HTMLElement {
             return;
         }
 
-        const now = new Date();
+        const now = cardDate();
         const nowHour = hourOfDay(now, this._hass);
         const riseH = isoToHours(sun.sunrise, this._hass);
         const setH = isoToHours(sun.sunset, this._hass);

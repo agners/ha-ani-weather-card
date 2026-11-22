@@ -535,6 +535,8 @@ declare global {
         /** The card's own GSAP, bundled into animated-weather-card.js and set there; the planes bundle reads it too */
         AnimatedWeatherCardGsap: GSAP;
         customCards: CustomCardDefinition[];
+        /** The dev card's world, while it's on: how far it has moved the cards' clock (clock.ts) */
+        AnimatedWeatherCardDev?: import('./clock').DevClock;
         /** Set by the dev panel bundle (animated-weather-card-dev.js) when it loads */
         AnimatedWeatherCardDevPanel?: new (card: import('./dev-panel').DevPanelHost) => import('./dev-panel').DevPanel;
         /** Set by the note bundle (animated-weather-card-note.js) when it loads */

@@ -36,6 +36,7 @@ import {
     CONTAINER, LAYER_NAMES, LAYER_OF, Lab, Slot, Timeline, clamp, cssOf, haptic, isWet, labOf, phaseWeights, reducedMotion,
     rubber, smooth, spring, sunDrop, sunModel,
 } from './fc-core';
+import { cardNow } from './clock';
 
 export const SLIDE = {
     slopPx: 10, catchPx: 3, angle: 1.2,   // the claim; a caught slide tracks after 3 px
@@ -438,7 +439,7 @@ export function attachSlide(o: SlideOptions): Slide {
         const h = slotsAt(state.offset);
         linked = true;
         sendHour({
-            source: host.element, ...link, at: Date.now() + h * tl.slotMs, temperature: temperatureAt(h),
+            source: host.element, ...link, at: cardNow() + h * tl.slotMs, temperature: temperatureAt(h),
             sky: host.config().color_palette === 'theme' ? null : skyCss, weather: weatherShown(),
         });
     }
@@ -461,7 +462,7 @@ export function attachSlide(o: SlideOptions): Slide {
         else if (railRuler) railRuler.style.transform = `translate3d(${(-state.offset).toFixed(2)}px, 0, 0)`;
         stepSky(dt);
         emit();
-        if (o.onNeedle) { const h = slotsAt(state.offset); o.onNeedle(Date.now() + h * tl.slotMs, temperatureAt(h)); }
+        if (o.onNeedle) { const h = slotsAt(state.offset); o.onNeedle(cardNow() + h * tl.slotMs, temperatureAt(h)); }
         // On the way home the capsule counts the hours back as they pass under it, and is "Now" once the words have crossed
         if (rel) ext?.select?.(rel.swapped ? 0 : slotOf(state.offset));
         // The readout follows the needle: while held, while settling, and on the keys
@@ -736,7 +737,7 @@ export function attachSlide(o: SlideOptions): Slide {
         Object.assign(state, { settling: false, settleTau: 0, parked: false, v: 0 });
         clearTimeout(state.idleTimer);
         root.classList.add('awc-dial');
-        setRaw(clamp(((at - Date.now()) / tl.slotMs) * pxs, 0, maxPx()));
+        setRaw(clamp(((at - cardNow()) / tl.slotMs) * pxs, 0, maxPx()));
         kick();
     }
     const unfollow = link ? onHour(l => { if (l.source !== host.element && l.entity === link.entity) follow(l.at); }) : null;

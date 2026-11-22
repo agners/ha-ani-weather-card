@@ -12,6 +12,7 @@
 
 import type { HomeAssistant, HassEntity } from './types';
 import { solarState } from './solar';
+import { cardNow, cardDate } from './clock';
 
 /** A place's options, as a card's config has them */
 export interface PlaceConfig {
@@ -95,7 +96,7 @@ export function locate(hass: HomeAssistant, place: Place, sun?: HassEntity, weat
 }
 
 /** The place's sun now, as an entity like sun.sun */
-export function placeSun(place: Place, now = new Date()): HassEntity | undefined {
+export function placeSun(place: Place, now = cardDate()): HassEntity | undefined {
     if (!place.sunId || place.latitude === undefined || place.longitude === undefined) return undefined;
     const s = solarState(place.latitude, place.longitude, now);
     const at = now.toISOString();
@@ -126,7 +127,7 @@ export class PlaceView {
     /** Home Assistant as the card reads it: its own, or seen from the card's place */
     see(hass: HomeAssistant): HomeAssistant {
         if (!this.place) return hass;
-        const minute = Math.floor(Date.now() / 60_000);
+        const minute = Math.floor(cardNow() / 60_000);
         if (this.place.sunId && this.sun?.minute !== minute) {
             const entity = placeSun(this.place);
             this.sun = entity ? { minute, entity } : undefined;

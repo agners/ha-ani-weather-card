@@ -63,6 +63,7 @@ import { forecastTypes } from './forecast-data';
 import type { ForecastExtras, ForecastHost, Surface } from './forecast-host';
 import { HOUR_EVENT, type HourLink } from './hour-link';
 import { clearStarsFromWords, drawNight, starCount, wordBoxes } from './stars-animation';
+import { cardNow, cardDate } from './clock';
 
 registerSkyProperties();
 
@@ -714,7 +715,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
 
     /** The hero's time as the forecast bundle's clock writes it: "07:05", "7:05" and a smaller "AM" */
     private heroTime(): string {
-        const { time, period } = clockParts(new Date(), this._hass);
+        const { time, period } = clockParts(cardDate(), this._hass);
         return period ? `${escapeHtml(time)}<span class="awc-ampm">${escapeHtml(period)}</span>` : escapeHtml(time.replace(/^(\d)(\D)/, '0$1$2'));
     }
 
@@ -832,7 +833,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
         const note = this.config.note_entity ? readNote(this._hass, this.config) : this.writtenNote;
         const expires = note ? noteExpiresAt(note, this.config) : null;
         if (!note || expires === null) return note;
-        const left = expires - Date.now();
+        const left = expires - cardNow();
         if (left <= 0) return null;
         // setTimeout's ceiling is ~24.8 days; a later expiry is re-read on the next update
         if (left < 2 ** 31 - 1) this.noteExpiryTimer = setTimeout(() => this.updateNote(), left + 50);
@@ -1845,7 +1846,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard {
         const layer = card.querySelector('.animation-layer') as HTMLElement | null;
         if (!layer) return;
         const id = this.config?.moon_entity;
-        const cycle = moonCycle(new Date(), id ? this._hass?.states[id]?.state : undefined);
+        const cycle = moonCycle(cardDate(), id ? this._hass?.states[id]?.state : undefined);
         const southern = (this.latitude() ?? 0) < 0;
         const key = `${cycle.toFixed(3)}${southern ? 's' : 'n'}`;
         if (layer.dataset.moon === key) return;

@@ -30,6 +30,7 @@ import type { Metric } from './fc-data';
 import { cloudFloor } from './cloud-band';
 import { precipitationUnit } from './units';
 import type { AnimatedWeatherCardConfig, HomeAssistant } from './types';
+import { cardNow, cardDate } from './clock';
 
 export const VIEW = { grow: 420, shrink: 300, restFrom: 160, restStep: 28, restDur: 220, restRise: 6, restOut: 100, closeVelocity: 0.5, closeShare: 0.3 };
 const IN = css(CURVE.in), OUT = css(CURVE.out);
@@ -159,7 +160,7 @@ export function attachView(host: ForecastHost): ForecastExtras {
     let lum = 0;
     const st = host.hass()?.states[host.config().entity ?? '']?.state ?? 'sunny';
     for (const x of [0.12, 0.5, 0.88]) for (const y of [0.5, 0.7, 0.9]) lum = Math.max(lum, relativeLuminance(sampleSkyAt(classOf(st) as SkyCondition, host.phase(), x, y, SKY_GLOW)));
-    const wk = week(f.daily, f.dailyType === 'twice_daily' ? 'twice_daily' : 'daily', Date.now(), host.hass(), { count: tablet() ? 8 : 7, current: host.current() });
+    const wk = week(f.daily, f.dailyType === 'twice_daily' ? 'twice_daily' : 'daily', cardNow(), host.hass(), { count: tablet() ? 8 : 7, current: host.current() });
     daily = createDaily({ hass: host.hass(), W, week: wk, current: host.current(), theme, fahrenheit: model.fahrenheit, tints: theme ? null : litTints(45, false, lum), hours: model.hours, currentFeels: feelsNow(host), noun: model.noun, unit: model.unit, lang: model.lang, conditionName: c => conditionNoun(c, host.hass(), s => host.conditionName(s)) });
     if (metric !== 'temp') daily.setMetric(metric, { animate: false });
     list.append(daily.el);
@@ -221,7 +222,7 @@ export function attachView(host: ForecastHost): ForecastExtras {
     // The clock leads the location line, or it's the hero (hero: clock), and the date follows it (show_date)
     const clock = cardClock(host, root);
     let browsing = false;
-    const tick = () => { clock.date(); if (!(clock.big && browsing)) clock.show(new Date(), false); };
+    const tick = () => { clock.date(); if (!(clock.big && browsing)) clock.show(cardDate(), false); };
     tick();
     const ticker = minuteTicker(tick);
     if (hourly && model.tl) {
@@ -234,7 +235,7 @@ export function attachView(host: ForecastHost): ForecastExtras {
                 render(s);
                 // A hero clock goes to the hour, and back to now with the row
                 browsing = !!s && model.tl?.unit === 'hour';
-                if (clock.big) clock.show(browsing && s ? s.at : new Date(), false);
+                if (clock.big) clock.show(browsing && s ? s.at : cardDate(), false);
                 if (!s) { if (temp) temp.innerHTML = home.temp; if (desc) desc.innerHTML = home.desc; if (line) line.innerHTML = home.line; return; }
                 if (temp && typeof s.temperature === 'number') temp.textContent = host.temperature(s.temperature);
                 if (desc) desc.textContent = conditionNoun(s.condition ?? '', host.hass(), x => host.conditionName(x));
