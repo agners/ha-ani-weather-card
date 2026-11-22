@@ -410,6 +410,8 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard, DevCard {
         if (placeSunId) config = { ...config, sun_entity: placeSunId };
         // The readings as one list (readings.ts): with `readings`, the options it replaces are written from it
         config = compileReadings(config);
+        // The nightstand wins over compact, as in the editor's one Layout choice: a bedside clock, never the strip
+        if (config.layout === 'nightstand' && config.compact && this.surface === 'card') config = { ...config, compact: false };
         const readings = readingsOf(config);
         const rowChanged = JSON.stringify(readings) !== JSON.stringify(this.readingList)
             || ['show_attributes', 'show_attribute_labels', 'show_attribute_icons'].some(k => (this.config as Record<string, unknown> | undefined)?.[k] !== (config as Record<string, unknown>)[k]);
@@ -795,11 +797,13 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard, DevCard {
     /**
      * The note sits under the conditions on the full card; the one-line
      * strip has no room. Dev mode shows sample weather, which a real note
-     * wouldn't be about. The forecast card hides the card's own text, so it
-     * neither shows a note nor asks the AI for one.
+     * wouldn't be about. The forecast card hides the card's own text, and the
+     * nightstand draws its own lines, so neither shows a note nor asks the AI
+     * for one.
      */
     private noteEnabled(): boolean {
-        return !!(this.config?.note_entity || this.config?.show_note) && !this.config.compact && this.surface !== 'forecast';
+        return !!(this.config?.note_entity || this.config?.show_note) && !this.config.compact && this.surface !== 'forecast'
+            && this.config.layout !== 'nightstand';
     }
 
     /**

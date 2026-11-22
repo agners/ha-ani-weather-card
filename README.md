@@ -749,7 +749,7 @@ sunset_hour: 19
 | `forecast_graph` | `line` | The hours' graph, the same for every metric: `line`, `area` (the line over a soft fill), `bars`, or `none` (the values alone). The view on tap and the wall follow it; the forecast card has its own |
 | `show_days` | `false` | With `show_forecast`, the days under the hourly row and its chips. A row more for every two days in the sections view; in a shorter frame they give way first, from the end |
 | `forecast_days` | `7` | How many days `show_days` shows, 1 to 10 |
-| `layout` | `default` | `nightstand` makes the card a bedside clock, with the time as the hero. Six rows in the sections view |
+| `layout` | `default` | `nightstand` makes the card a bedside clock, with the time as the hero. Six rows in the sections view. It draws its own lines, so it has no note (`show_note` and `note_entity` are left alone, and nothing asks your AI), and it's never the compact strip |
 | `alarm_entity` | — | Nightstand: a timestamp sensor with your next alarm, such as the Android Companion app's next alarm sensor, or an input_datetime an iOS Shortcut sets. It's used when it's within 18 hours |
 | `wake_time` | `"07:00"` | Nightstand: when you get up without an alarm |
 | `bed_time` | 8 h 30 min before waking | Nightstand: when night begins without a light sensor. By default, 8 hours 30 minutes before the alarm, or before `wake_time` without one |
@@ -770,7 +770,7 @@ sunset_hour: 19
 
 | Option | Default | Description |
 | --- | --- | --- |
-| `show_note` | `false` | Write a note under the conditions with Home Assistant's AI Task, from the forecast. Needs Home Assistant 2025.8 or later and an AI integration. Five rows in the sections view |
+| `show_note` | `false` | Write a note under the conditions with Home Assistant's AI Task, from the forecast. Needs Home Assistant 2025.8 or later and an AI integration. Five rows in the sections view. Not on the compact strip or the nightstand |
 | `note_tone` | `snarky` | The note's voice: `snarky`, `calm`, `friendly` or `dry`. Serious weather always gets plain advice |
 | `note_ai_task_entity` | the default | The AI Task entity that writes it. Without it, the default from Settings → System → AI |
 | `note_calendar` | — | The calendar your hours out come from, or a list of them, for what to wear. The editor sets one; a list is set in YAML. Timed events count; all-day, cancelled and online ones don't. Only the times reach the AI |

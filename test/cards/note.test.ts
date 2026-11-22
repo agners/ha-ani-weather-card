@@ -201,6 +201,21 @@ describe('a note the card writes itself', () => {
         expect(card.getGridOptions().rows).toBe(5);
     });
 
+    it('writes none on a nightstand, which draws its own lines and never shows one', async () => {
+        await mount({ layout: 'nightstand' }, false);
+        expect(note()).toBeNull();
+        expect(document.querySelector('script[src*="animated-weather-card-note.js"]')).toBeNull();
+        card.remove();
+        await mount({ layout: 'nightstand' });
+        expect(FakeWriter.made).toHaveLength(0);
+        expect(card.getGridOptions().rows).toBe(6);
+        // compact beside the nightstand: the nightstand wins, as the editor's one Layout choice has it
+        card.remove();
+        await mount({ layout: 'nightstand', compact: true, show_note: false });
+        expect(card.getGridOptions()).toMatchObject({ rows: 6, min_rows: 3 });
+        expect(card.querySelector('.animated-weather-card')!.getAttribute('data-variant')).toBeNull();
+    });
+
     it('hands the writer the card, and shows what it writes', async () => {
         await mount({});
         const [writer] = FakeWriter.made;
