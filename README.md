@@ -785,6 +785,7 @@ sunset_hour: 19
 | --- | --- | --- |
 | `animate` | `true` | Set to `false` for a still sky: the condition's colour and light, no motion. The sun, and a clear night's moon and stars, stay, still |
 | `spill_particles` | `true` | Let rain, snow, sleet and leaves fall out of the card onto the dashboard, and clouds drift a little above its top edge. Turn it off to keep all weather inside the card |
+| `engine_mode` | `auto` | `auto` lets the weather set how much of it there is: rain and snow from your rain rate sensor or the forecast's hour, clouds from cloud cover, fog from visibility, leaves and swooshes from the wind and its gusts. `manual` uses the [weather engine](#weather-engine) settings below instead. A card that already sets `engine_settings` stays manual unless it says `auto` |
 | `disable_lightning_shake` | `false` | Turn off the card's small jolt on lightning strikes |
 | `auto_pause` | `false` | Also pause while the browser window is in the background. Cards always pause while the tab is hidden or the card is off-screen |
 | `dev_mode` | `false` | The card always runs on the [dev card](#the-dev-card)'s simulated weather, and needs no `entity`. It says **Simulated** in its corner. Without a dev card on the dashboard, it shows the weather the dev card was last set to in this browser (partly cloudy until then) at the real time; set to Live, a card with an `entity` of its own shows it. Needs `animated-weather-card-dev.js` |

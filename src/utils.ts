@@ -1,6 +1,6 @@
 // Utility functions for Animated Weather Card
 
-import { DEFAULT_ENGINE_SETTINGS, DAY_NIGHT_ANIMATION_COLORS } from './constants';
+import { DEFAULT_ENGINE_SETTINGS, DAY_NIGHT_ANIMATION_COLORS, ENGINE_RANGES } from './constants';
 import type { 
     AnimatedWeatherCardConfig, 
     WeatherEngineSettings, 
@@ -199,7 +199,32 @@ export function devLog(enabled: boolean | undefined, message: string, ...args: r
 }
 
 /**
- * Get weather engine settings with defaults and type validation
+ * Whether a card's engine_settings tune anything: a value in its range that isn't the default, as the editor counts a
+ * change. An old editor wrote a slider dragged back to its default, so that alone isn't tuning.
+ */
+export function hasEngineTuning(config: Partial<AnimatedWeatherCardConfig> | undefined): boolean {
+    const settings = config?.engine_settings as Record<string, unknown> | undefined;
+    if (!settings || typeof settings !== 'object') return false;
+    return (Object.keys(DEFAULT_ENGINE_SETTINGS) as Array<keyof typeof DEFAULT_ENGINE_SETTINGS>).some((key) => {
+        const value = settings[key];
+        const [min, max] = ENGINE_RANGES[key];
+        return isValidNumber(value, min, max) && Math.abs(value - DEFAULT_ENGINE_SETTINGS[key]) > 1e-9;
+    });
+}
+
+/**
+ * The weather engine's mode: `engine_mode` when it says one; else manual for a card tuned by hand (its engine_settings
+ * are respected) and auto for the rest, where the weather's own values set the amounts and the settings are ignored.
+ */
+export function engineMode(config: Partial<AnimatedWeatherCardConfig> | undefined): 'auto' | 'manual' {
+    const mode = config?.engine_mode;
+    if (mode === 'auto' || mode === 'manual') return mode;
+    return hasEngineTuning(config) ? 'manual' : 'auto';
+}
+
+/**
+ * Get weather engine settings with defaults and type validation. In auto mode the card's engine_settings are ignored:
+ * every amount is its default here, and the weather's own values move them (engine.ts)
  * @param config - The card configuration
  * @param realWindSpeed - Actual wind speed from weather data (optional)
  * @throws {Error} If configuration contains invalid values
@@ -208,7 +233,7 @@ export function getWeatherSettings(
     config: AnimatedWeatherCardConfig, 
     realWindSpeed?: number
 ): WeatherEngineSettings {
-    const engineSettings = config.engine_settings || {};
+    const engineSettings: Partial<WeatherEngineSettings> = engineMode(config) === 'manual' ? (config.engine_settings || {}) : {};
     
     // Validate engine settings with type checking
     const validateSetting = (value: unknown, defaultValue: number, min: number, max: number): number => {

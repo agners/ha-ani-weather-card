@@ -31,6 +31,12 @@ export const DEFAULT_ENGINE_SETTINGS = {
     splashBounce: 80
 };
 
+/** The ranges engine settings are taken in from YAML; outside them a value falls back to its default (the editor's sliders offer less) */
+export const ENGINE_RANGES: Readonly<Record<keyof typeof DEFAULT_ENGINE_SETTINGS, readonly [number, number]>> = {
+    windSpeed: [0.1, 15], rainCount: [0.1, 10], leafCount: [0.1, 10], snowCount: [0.1, 10],
+    cloudBaseSize: [0.3, 2.5], cloudCount: [1, 20], splashBounce: [40, 120],
+};
+
 // Animation timing constants
 
 // Time of day thresholds

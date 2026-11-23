@@ -218,3 +218,24 @@ describe('a clear sky by day and by night', () => {
         expect(getWeatherClass('clear-night', 7, 19, 'UTC', { clock: true, night: true })).toBe('clear-night');
     });
 });
+
+describe('the engine\'s mode', () => {
+    it('is auto unless engine_settings tune something, and engine_mode always wins', async () => {
+        const { engineMode, hasEngineTuning, getWeatherSettings } = await import('../../src/utils');
+        expect(engineMode({})).toBe('auto');
+        expect(engineMode({ engine_settings: {} })).toBe('auto');
+        // An old editor wrote a slider dragged back to its default: not tuning
+        expect(engineMode({ engine_settings: { rainCount: 1, cloudCount: 3 } })).toBe('auto');
+        // Out of range, or not a number, the card ignores it: not tuning either
+        expect(hasEngineTuning({ engine_settings: { rainCount: 12 } as never })).toBe(false);
+        expect(hasEngineTuning({ engine_settings: { rainCount: 'lots' } as never })).toBe(false);
+        expect(engineMode({ engine_settings: { rainCount: 2 } })).toBe('manual');
+        expect(engineMode({ engine_settings: { rainCount: 2 }, engine_mode: 'auto' })).toBe('auto');
+        expect(engineMode({ engine_mode: 'manual' })).toBe('manual');
+        expect(engineMode({ engine_mode: 'sideways' as never })).toBe('auto');
+        // In auto the settings are ignored, in manual they're the card's
+        expect(getWeatherSettings({ type: 'x', engine_settings: { rainCount: 2 }, engine_mode: 'auto' } as never).rainCount).toBe(1);
+        expect(getWeatherSettings({ type: 'x', engine_settings: { rainCount: 2 } } as never).rainCount).toBe(2);
+        expect(getWeatherSettings({ type: 'x', engine_settings: { windSpeed: 4 }, engine_mode: 'auto' } as never, 10).windSpeed).toBe(2);
+    });
+});

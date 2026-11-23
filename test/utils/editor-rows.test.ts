@@ -20,7 +20,7 @@ function sample(key: string): unknown {
         layout: 'nightstand', color_palette: 'theme', hero: 'clock', forecast_metric: 'chance', forecast_graph: 'bars',
         indoor_style: 'icon', flight_label: 'route', night: 'on', wake_time: '06:30', note_tone: 'calm', note_attribute: 'summary',
         sun_entity: 'sun.elsewhere', latitude: 0, longitude: 151.2, time_zone: 'Australia/Sydney', note_calendar: ['calendar.a', 'calendar.b'],
-        readings: ['wind'], uv_levels: '2, 5, 7, 10', aqi_levels: [40, 90, 140, 190, 290], metrics: ['uv'], show_sun: false,
+        readings: ['wind'], uv_levels: '2, 5, 7, 10', aqi_levels: [40, 90, 140, 190, 290], metrics: ['uv'], show_sun: false, engine_mode: 'manual',
         tap_action: { action: 'navigate', navigation_path: '/x' }, hold_action: { action: 'toggle' }, double_tap_action: { action: 'more-info' },
     };
     if (key in special) return special[key];

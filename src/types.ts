@@ -331,6 +331,8 @@ export interface AnimatedWeatherCardConfig {
     spill_particles?: boolean;
     color_palette?: 'default' | 'theme';
     custom_colors?: Partial<CustomColorConfig>;
+    /** auto: the weather's own values set how much rain, snow, cloud, fog and wind there is; manual: engine_settings do. Auto unless engine_settings tune something */
+    engine_mode?: 'auto' | 'manual';
     engine_settings?: Partial<WeatherEngineSettings>;
     // Day/night cycle settings
     enable_day_night_cycle?: boolean;

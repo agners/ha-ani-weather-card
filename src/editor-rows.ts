@@ -10,6 +10,7 @@
 
 import type { AnimatedWeatherCardConfig } from './types';
 import { DEFAULT_ENGINE_SETTINGS } from './constants';
+import { engineMode } from './utils';
 import { REPLACED_OPTIONS, isDefaultList, readingsOf } from './readings';
 
 type Config = AnimatedWeatherCardConfig;
@@ -37,6 +38,7 @@ export const DEFAULTS: Readonly<Record<string, unknown>> = {
     enable_day_night_cycle: false, sunrise_hour: 6, sunset_hour: 20,
     night: 'auto', night_red: true, night_lux: 5, wake_time: '07:00',
     show_note: false, note_tone: 'snarky', note_attribute: 'note', note_max_age: 180, sun_entity: 'sun.sun',
+    engine_mode: 'auto',
 };
 
 const empty = (v: unknown) => v === undefined || v === null || (typeof v === 'string' && !v.trim()) || (Array.isArray(v) && !v.length);
@@ -166,6 +168,8 @@ export const ROWS: Readonly<Record<string, RowSpec>> = {
     day_hours: { tier: 'all', keys: ['sunrise_hour', 'sunset_hour'], when: c => !!c.enable_day_night_cycle },
     sun_entity: { tier: 'all', keys: ['sun_entity'] },
     moon_entity: { tier: 'all', keys: ['moon_entity'] },
+    // Auto unless the card's engine_settings tune something, so a tuned card counts as changed without saying manual
+    engine_mode: { tier: 'all', keys: ['engine_mode'], when: animated, changed: c => engineMode(c) === 'manual' },
     amounts: { tier: 'all', keys: ENGINE_KEYS, when: animated },
 
     // Custom colors
@@ -197,7 +201,7 @@ export const SECTIONS: Readonly<Record<string, readonly string[]>> = {
     forecast: ['why_forecast_nightstand', 'show_forecast', 'forecast_days', 'forecast_metric', 'forecast_graph', 'time_date', 'hero'],
     note: ['note', 'why_note_compact', 'why_note_nightstand', 'note_tone', 'note_ai_task_entity', 'note_calendar', 'note_entity', 'note_attribute', 'note_max_age'],
     readings: ['show_attributes', 'readings', 'reading_style', 'indoor_temperature_entity', 'indoor_humidity_entity', 'indoor_line'],
-    sky: ['animate', 'spill_particles', 'lightning', 'auto_pause', 'sky_follows', 'day_hours', 'sun_entity', 'moon_entity', 'amounts'],
+    sky: ['animate', 'spill_particles', 'lightning', 'auto_pause', 'sky_follows', 'day_hours', 'sun_entity', 'moon_entity', 'engine_mode', 'amounts'],
     colors: ['sky_colors', 'why_sky_colors_theme', 'ink_colors'],
     planes: ['flights_entity', 'plane_tags', 'plane_speed', 'planes_on_load'],
     interactions: ['actions'],
