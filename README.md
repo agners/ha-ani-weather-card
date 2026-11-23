@@ -976,6 +976,7 @@ Planes only fly in a few cases:
 - Planes on the ground wait until they take off.
 - Flights that arrive while the card is paused are skipped.
 - At most three planes cross at once.
+- Flightradar24 limits how often the integration can ask it. When it does, the integration pauses for up to 15 minutes and Home Assistant's log says `rate limited (HTTP 429)`, so no new flights arrive. Set the integration's scan interval to 20–60 seconds, as [its own README](https://github.com/AlexandrErohin/home-assistant-flightradar24#notes) advises. A shorter interval, a bigger radius, or several Flightradar24 entries on one internet connection make it happen more often.
 - On a manual install, `animated-weather-card-planes.js` has to sit next to `animated-weather-card.js`. The browser console says so if it can't load.
 
 To check the setup, the [dev card](#the-dev-card)'s **Fly a plane** button sends one across every weather card on the dashboard.
