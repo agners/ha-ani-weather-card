@@ -5,7 +5,7 @@
 // over the old one. Each room is lit by its card's own sky.
 
 import {
-    AHEAD_ROWS, CARD_ROWS, CONDITIONS, DASHBOARD, DEVICES, ENGINE, ENTITIES, NOTE_FORECASTS, NOTE_VOICES, OPEN_METEO, PAINTS, PALETTES, PHASES, QUIET,
+    AHEAD_ROWS, AWAY, CARD_ROWS, CONDITIONS, DASHBOARD, DEVICES, ENGINE, ENTITIES, NOTE_FORECASTS, NOTE_VOICES, OPEN_METEO, PAINTS, PALETTES, PHASES, QUIET,
     STATION, SUN_TIMES, aheadYaml, buildHass, colorsYaml, conditionIcon, configYaml, customColors, dashboardLayout, dashboardYaml,
     engineSettings, engineYaml, forgetNotes, formatEngineValue, liveReading, minutesFor, nextFlight, noteYaml, paletteOf,
     phaseForHour, phaseForSun, placeName, quietOptions, rowsHeight,
@@ -1137,9 +1137,9 @@ copyButton($('#copy'), () => yamlText, yaml);
 
 // ── The dashboard: a sections view at 1:1, on the screen you pick ──────
 // Home Assistant's own layout (HA and dashboardLayout in scene.mjs) lays
-// three sections round the cards: the card full size in a section that
-// spans two columns, and as a compact strip over the compact sun tracker,
-// among tile cards. Each screen is a scene of its own, chrome and all,
+// four sections round the cards: the card full size in a section that
+// spans two columns, as a compact strip over the compact sun tracker, and
+// the same pair for Sydney, on its own sun and clock, among tile cards. Each screen is a scene of its own, chrome and all,
 // mounted at its width and hidden until every card has drawn; then the
 // outline morphs to the new width on --inset (the frame's CSS) while the
 // screens cross-fade. The desktop is the page's own width.
@@ -1219,10 +1219,21 @@ const dash = (() => {
             type: 'custom:animated-sun-tracker-card', sun_entity: ENTITIES.sun, moon_entity: ENTITIES.moon,
             weather_entity: ENTITIES.weather, compact: true, color_palette: palette,
         });
+        // Another place: its own weather entity, and its sun and clock from its coordinates and time zone
+        const place = { latitude: AWAY.latitude, longitude: AWAY.longitude, time_zone: AWAY.time_zone };
+        const away = make('animated-weather-card', {
+            type: 'custom:animated-weather-card', entity: ENTITIES.awayWeather, name: AWAY.name, ...place,
+            compact: true, show_clock: true, show_sun: false, color_palette: palette,
+        });
+        const awayTracker = make('animated-sun-tracker-card', {
+            type: 'custom:animated-sun-tracker-card', ...place, weather_entity: ENTITIES.awayWeather, compact: true, color_palette: palette,
+        });
         el.querySelector('[data-card="weather"]').append(weather);
         el.querySelector('[data-card="compact"]').append(compact);
         el.querySelector('[data-card="tracker"]').append(tracker);
-        return { el, weather, tracker, cards, layout };
+        el.querySelector('[data-card="away"]').append(away);
+        el.querySelector('[data-card="awayTracker"]').append(awayTracker);
+        return { el, weather, tracker, away, cards, layout };
     }
 
     function announce() {
@@ -1261,8 +1272,8 @@ const dash = (() => {
         scenesEl.append(scene.el);
         const job = { scene, cancelled: false };
         view.pending = job;
-        // Three cards draw their skies here: give them longer than one
-        whenReady(scene, () => job.cancelled, 1200).then(() => {
+        // Five cards draw their skies here, and Sydney's clock comes with the forecast's bundle: give them longer than one
+        whenReady(scene, () => job.cancelled, 2500, s => !!s.away.querySelector(':scope > style.awc-fc-css')).then(() => {
             view.pending = null;
             show(scene);
         });

@@ -413,6 +413,9 @@ describe('the demo\'s sample world', () => {
         expect(rowsOf('animated-weather-card', { entity: 'weather.home', show_note: true })).toBe(CARD_ROWS.weather);
         expect(rowsOf('animated-weather-card', { entity: 'weather.home', compact: true })).toBe(CARD_ROWS.compact);
         expect(rowsOf('animated-sun-tracker-card', { sun_entity: 'sun.sun', compact: true })).toBe(CARD_ROWS.tracker);
+        // Sydney's pair: the compact card with its clock, and the compact tracker, for another place
+        expect(rowsOf('animated-weather-card', { entity: 'weather.sydney', compact: true, show_clock: true, latitude: -33.87, longitude: 151.21, time_zone: 'Australia/Sydney' })).toBe(CARD_ROWS.away);
+        expect(rowsOf('animated-sun-tracker-card', { compact: true, latitude: -33.87, longitude: 151.21 })).toBe(CARD_ROWS.awayTracker);
         const cards = DASHBOARD.flatMap(section => section.cards);
         for (const kind of Object.keys(CARD_ROWS)) expect(cards.filter(item => item.card === kind)).toHaveLength(1);
         for (const item of cards) {
@@ -435,24 +438,28 @@ describe('the demo\'s sample world', () => {
         expect(lines).toContain('        column_span: 2');
         expect(lines).toContain('          - type: heading');
         expect(lines).toContain('          - type: tile');
-        expect(lines.filter(line => line.includes('custom:animated-weather-card'))).toHaveLength(2);
-        expect(lines.filter(line => line.includes('custom:animated-sun-tracker-card'))).toHaveLength(1);
+        expect(lines.filter(line => line.includes('custom:animated-weather-card'))).toHaveLength(3);
+        expect(lines.filter(line => line.includes('custom:animated-sun-tracker-card'))).toHaveLength(2);
+        // Sydney: its own weather, and its sun and clock from its coordinates and time zone
+        expect(lines).toContain('            time_zone: Australia/Sydney');
+        expect(lines).toContain('            show_clock: true');
         expect(lines).toContain('            compact: true');
         expect(lines).toContain('            show_sun: false');
         expect(yaml).not.toContain('- #');
         // Each card's own options, checked against the card that takes them
         const items = yaml.split(/\n {10}- /).slice(1);
         const custom = items.filter(item => item.startsWith('type: custom:'));
-        expect(custom).toHaveLength(3);
+        expect(custom).toHaveLength(5);
         for (const item of custom) {
             const options = item.split('\n').slice(1).filter(line => /^ {12}[a-z_]+:/.test(line)).map(line => line.trim().split(':')[0]);
             expect(options.length).toBeGreaterThan(0);
             for (const option of options) {
-                if (item.includes('sun-tracker')) expect(tracker).toContain(`config.${option}`);
+                // The tracker reads some through place.ts: then its config type declares them
+                if (item.includes('sun-tracker')) expect(tracker.includes(`config.${option}`) || tracker.includes(`    ${option}?:`), option).toBe(true);
                 else expect(weather).toContain(`${option}?:`);
             }
         }
-        expect(dashboardYaml({ colors: 'theme' }).split('\n').filter(line => line.endsWith('color_palette: theme'))).toHaveLength(3);
+        expect(dashboardYaml({ colors: 'theme' }).split('\n').filter(line => line.endsWith('color_palette: theme'))).toHaveLength(5);
     });
 
     /** The forecast a hass answers with, as the cards subscribe to it. */

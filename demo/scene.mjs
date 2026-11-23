@@ -573,7 +573,12 @@ export const ENTITIES = {
     sun: 'sun.sun',
     moon: 'sensor.moon_phase',
     flights: 'sensor.flightradar24_current_in_area',
+    // Another place's weather: family in Sydney, on the dashboard
+    awayWeather: 'weather.sydney',
 };
+
+/** The dashboard's other place: its coordinates and time zone give its cards Sydney's own sun and clock */
+export const AWAY = { name: 'Sydney', latitude: -33.87, longitude: 151.21, time_zone: 'Australia/Sydney' };
 
 /**
  * The note under the conditions. On a dashboard Home Assistant's AI writes
@@ -890,12 +895,13 @@ export function dashboardLayout(width) {
 }
 
 /** How many rows each card takes in a section, as the cards declare (getGridOptions). */
-export const CARD_ROWS = { weather: 5, compact: 2, tracker: 2 };
+export const CARD_ROWS = { weather: 5, compact: 2, tracker: 2, away: 2, awayTracker: 2 };
 
 /**
- * The dashboard round the card: three sections, as a sections view lays
+ * The dashboard round the card: four sections, as a sections view lays
  * them out. Home spans two columns, so the card there is wide; Today has
- * the compact strip over the compact sun tracker; the rest is tile cards.
+ * the compact strip over the compact sun tracker; Sydney has the same pair
+ * for another place, on its own sun and clock; the rest is tile cards.
  */
 export const DASHBOARD = [
     { id: 'home', heading: 'Home', span: 2, cards: [
@@ -908,6 +914,10 @@ export const DASHBOARD = [
         { card: 'tracker' },
         { tile: 'sensor.garden_temperature', name: 'Garden', state: '18.4 °C', icon: 'mdi:thermometer', color: null },
         { tile: 'sensor.energy_today', name: 'Energy today', state: '6.2 kWh', icon: 'mdi:lightning-bolt', color: '#ffc107' },
+    ] },
+    { id: 'away', heading: 'Sydney', cards: [
+        { card: 'away' },
+        { card: 'awayTracker' },
     ] },
     { id: 'house', heading: 'Around the house', cards: [
         { tile: 'light.kitchen', name: 'Kitchen', state: 'Off', icon: 'mdi:ceiling-light', color: null },
@@ -934,7 +944,13 @@ export function dashboardYaml({ colors = 'sky' } = {}) {
         ['type: custom:animated-weather-card', 'entity: weather.forecast_home', 'sun_entity: sun.sun', 'compact: true', 'show_sun: false', ...theme],
         ['type: custom:animated-sun-tracker-card', 'sun_entity: sun.sun', 'weather_entity: weather.forecast_home', 'compact: true', ...theme],
     ]);
-    return ['views:', ...list([['type: sections', 'sections:', ...list([home, today], '  ')]], '  ')].join('\n') + '\n';
+    // Another place: its weather entity, and its coordinates and time zone for its sun and clock
+    const place = [`latitude: ${AWAY.latitude}`, `longitude: ${AWAY.longitude}`, `time_zone: ${AWAY.time_zone}`];
+    const away = section(AWAY.name, [], [
+        ['type: custom:animated-weather-card', 'entity: weather.sydney', `name: ${AWAY.name}`, ...place, 'compact: true', 'show_clock: true', 'show_sun: false', ...theme],
+        ['type: custom:animated-sun-tracker-card', ...place, 'weather_entity: weather.sydney', 'compact: true', ...theme],
+    ]);
+    return ['views:', ...list([['type: sections', 'sections:', ...list([home, today, away], '  ')]], '  ')].join('\n') + '\n';
 }
 
 /** The height a sections view gives a card of so many rows: the rows and the gaps between them. */
@@ -1084,6 +1100,19 @@ export function buildHass({
             // Daily and hourly forecasts, as most integrations have
             supported_features: 3,
         })),
+        // Another place's weather, on the dashboard: a clear day there, in your units
+        [ENTITIES.awayWeather]: entity(ENTITIES.awayWeather, 'sunny', {
+            temperature: reading.units.temperature === '°F' ? 75 : 24,
+            apparent_temperature: reading.units.temperature === '°F' ? 77 : 25,
+            humidity: 58,
+            pressure: reading.units.pressure === 'inHg' ? 29.97 : 1015,
+            // Open-Meteo writes mph as mp/h
+            wind_speed: /^mp/.test(reading.units.wind) ? 9 : 14,
+            wind_bearing: 120,
+            temperature_unit: reading.units.temperature, pressure_unit: reading.units.pressure, wind_speed_unit: reading.units.wind,
+            friendly_name: AWAY.name,
+            supported_features: 0,
+        }),
         [ENTITIES.sun]: entity(ENTITIES.sun, sun.elevation >= 0 ? 'above_horizon' : 'below_horizon', sun),
         [ENTITIES.moon]: entity(ENTITIES.moon, moonPhase(now), { friendly_name: 'Moon phase' }),
         [ENTITIES.flights]: entity(ENTITIES.flights, flights.length, { flights }),
