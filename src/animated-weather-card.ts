@@ -45,7 +45,7 @@ import type { NoteWriter, NoteStage } from './note-generator';
 // markup, styles, and entity-picker scaffolding.
 // Import weather data processing
 import { processWeatherData, readNote, noteExpiresAt, WeatherNote, temperatureDecimals, readUv, uvLevel, uvLevels, uvWord, rainLabel, rainSensor, formatRain } from './weather-data';
-import { compileReadings, readingEntities, readingsOf, rowReadings, type Reading } from './readings';
+import { compileReadings, readingEntities, readingsOf, rowReadings, REPLACED_OPTIONS, type Reading } from './readings';
 import { readingView, type ReadingView } from './reading-values';
 import { localizeString, formatTime, timeHtml, localeKey, clockParts } from './localize';
 import { ActionsConfig, bindActions, readActions, syncActionTarget } from './actions';
@@ -128,8 +128,21 @@ export const NOTE_FIT_STEPS: ReadonlyArray<readonly [string, 'long' | 'line' | '
     ...HEIGHT_STEPS.map(height => [height, 'none'] as const),
 ];
 
+/**
+ * Options a card already drawn takes in place, its weather left going: the gestures (syncActionTarget) and the readings
+ * with the options they replace (the row is drawn again, redrawRow). A new config that changes anything else draws the
+ * card again and starts its weather (setConfig).
+ */
+const IN_PLACE_OPTIONS: ReadonlySet<string> = new Set([
+    'tap_action', 'hold_action', 'double_tap_action',
+    'readings', 'uv_levels', 'aqi_levels', 'show_attributes', 'show_attribute_labels', 'show_attribute_icons', ...REPLACED_OPTIONS,
+]);
+
 class AnimatedWeatherCard extends HTMLElement implements LovelaceCard, DevCard {
     public config?: AnimatedWeatherCardConfig;
+    /** The config as it last came, before the card read it: the same again changes nothing (setConfig) */
+    private configGiven?: string;
+    private configBefore?: Record<string, unknown>;
     private _hass?: HomeAssistant;
     /** Home Assistant as it arrives; _hass is it as the card reads it: through the dev card's world, and from its place (latitude, longitude, time_zone) */
     private homeHass?: HomeAssistant;
@@ -489,6 +502,19 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard, DevCard {
             throw new Error(`sunset_hour must be a number between 0 and 23 (got ${config.sunset_hour})`);
         }
 
+        // The same config again changes nothing: some wrapper cards re-send theirs on every update, and starting the
+        // weather again each time would be a snap. Home Assistant's own cards hand a new object for a new config.
+        const given = JSON.stringify(config);
+        if (this.config && given === this.configGiven) return;
+        // Only options the card takes in place (the gestures, the readings) changed: it stays drawn and its weather
+        // keeps going. Anything else draws it again, below
+        const before = this.configBefore;
+        const inPlace = !!before && [...new Set([...Object.keys(before), ...Object.keys(config)])]
+            .filter(k => JSON.stringify(before[k]) !== JSON.stringify((config as Record<string, unknown>)[k]))
+            .every(k => IN_PLACE_OPTIONS.has(k));
+        this.configGiven = given;
+        this.configBefore = { ...config };
+
         // Another place: its own sun, under a key from its coordinates, and its time zone. The coordinates win over
         // sun_entity, which can only be your own sun.sun (Home Assistant has one), often set for the sunset reading
         const placeChanged = this.placeView.set(config);
@@ -532,7 +558,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard, DevCard {
         if (info) syncActionTarget(info, this.actionsConfig(), 'group');
 
         // Initialize or update animation controller
-        if (this.isConnected) {
+        if (this.isConnected && !inPlace) {
             // Initialize time of day manager first so the controller can use it
             this.initializeTimeOfDayManager();
 
@@ -570,6 +596,14 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard, DevCard {
         if (this.isConnected && !!config.auto_pause !== !!oldAutoPause) {
             this.removeVisibilityTracking();
             this.setupVisibilityTracking();
+        }
+
+        // A card already drawn: Home Assistant hands a card on the dashboard its new config in place (hui-card, when
+        // the dashboard changes on another screen), and so do wrapper cards. Draw it again with the new options and
+        // start its weather, as a new language does: the controller above is new and has nothing running.
+        if (!inPlace && this.isConnected && this._hass && this.querySelector('.animated-weather-card')) {
+            this.render();
+            this.initializeAnimations();
         }
     }
 

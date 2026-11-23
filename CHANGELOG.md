@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A weather card or forecast card given a new config while it was on the dashboard stopped its weather until the condition changed, and kept its old layout. Home Assistant does this when the dashboard is changed on another screen, and some wrapper cards do it on every update. The card now draws itself again with the new options and its weather carries on. A new readings list or new tap actions are taken in place without starting the weather again, and the same config sent again changes nothing.
 - After pouring rain, a storm or light rain, the next rain kept that intensity: a rainy sky after a downpour still poured, and plain rain after light rain stayed light, until the page was reloaded. Each condition now starts at its own.
 - A nightstand with the note on (`show_note: true`) kept asking your AI for notes it never showed, since the nightstand draws its own lines. It no longer loads the note writer, and asks for its six rows without the note's. A nightstand also set to `compact: true` asked for the compact strip's two rows; the nightstand wins, as the editor's one Layout choice has it.
 - `planes_on_load: true` flew nothing. The card took its first look at the flights as the dashboard opened, before the planes had loaded, and the planes already overhead were dropped. They now wait for the planes to load and for the card to be on screen, then the ones still up fly, as they report then ([#36](https://github.com/alexsto1an/ha-ani-weather-card/issues/36)).
