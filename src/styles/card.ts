@@ -179,6 +179,7 @@ ${iconBoxCss('animated-weather-card')}
           .sky { --awc-sky-glow-box: 100% min(100%, ${SKY_LIGHT_MAX_PX}px); }
         }
         .animated-weather-card[data-variant="compact"] .sky,
+        .animated-weather-card[data-wall-frame] .sky,
         .animated-weather-card[data-fw] .sky,
         .animated-weather-card[data-fc-view] .sky,
         .animated-weather-card[data-fc-card] .sky { --awc-sky-glow-box: 100% 100%; }
@@ -1013,8 +1014,8 @@ ${iconBoxCss('animated-weather-card')}
            breathing): low at dawn and dusk and below the horizon at night, so
            it sets downward and rises upward. A taller card keeps the sun and
            its setting where a five-row card has them; the slide's drop is a
-           share of the same track. The compact strip, the wall and the view
-           place the sun on the whole card. */
+           share of the same track. The compact strip, the wall (from the first
+           paint: data-wall-frame) and the view place the sun on the whole card. */
         .sun-track {
           position: absolute;
           top: 0;
@@ -1026,6 +1027,7 @@ ${iconBoxCss('animated-weather-card')}
           transition: transform ${SKY_DISSOLVE_SEC}s ${SKY_DISSOLVE_EASE};
         }
         .animated-weather-card[data-variant="compact"] .sun-track,
+        .animated-weather-card[data-wall-frame] .sun-track,
         .animated-weather-card[data-fw] .sun-track,
         .animated-weather-card[data-fc-view] .sun-track { max-height: none; }
         .animated-weather-card[data-phase="dusk"] .sun-track,
@@ -1119,6 +1121,7 @@ ${iconBoxCss('animated-weather-card')}
           opacity: 0;
           pointer-events: none;
         }
+        .animated-weather-card[data-wall-frame] .moon-gsap,
         .animated-weather-card[data-fw] .moon-gsap { top: ${pct(SUN_TOP)}; }
         .moon-gsap::after {
           content: '';

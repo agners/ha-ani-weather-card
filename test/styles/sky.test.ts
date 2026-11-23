@@ -189,8 +189,8 @@ describe('time-of-day dissolve', () => {
         // The moon, which isn't on the track, no lower; where min() isn't known, a fifth of the card as before
         expect(css).toMatch(new RegExp(`\\.moon-gsap \\{[^}]*top: ${top};\\s*top: min\\(${top}, ${+(SUN_TOP * SKY_LIGHT_MAX_PX).toFixed(1)}px\\);`));
         // The compact strip, the wall and the view place them on the whole card
-        expect(css).toMatch(/\[data-variant="compact"\] \.sun-track,\s*\.animated-weather-card\[data-fw\] \.sun-track,\s*\.animated-weather-card\[data-fc-view\] \.sun-track \{ max-height: none; \}/);
-        expect(css).toContain(`.animated-weather-card[data-fw] .moon-gsap { top: ${top}; }`);
+        expect(css).toMatch(/\[data-variant="compact"\] \.sun-track,\s*\.animated-weather-card\[data-wall-frame\] \.sun-track,\s*\.animated-weather-card\[data-fw\] \.sun-track,\s*\.animated-weather-card\[data-fc-view\] \.sun-track \{ max-height: none; \}/);
+        expect(css).toMatch(new RegExp(`\\[data-wall-frame\\] \\.moon-gsap,\\s*\\.animated-weather-card\\[data-fw\\] \\.moon-gsap \\{ top: ${top}; \\}`));
     });
 
     it('gives a card taller than five rows a five-row card\'s glow, and no more light below its centre than the suites test', () => {
@@ -199,7 +199,7 @@ describe('time-of-day dissolve', () => {
         // there; the compact strip, the wall, the view and the forecast card light the whole card
         expect(css).toContain('var(--awc-sky-glow-layer) 0 0 / var(--awc-sky-glow-box, 100% 100%) no-repeat,');
         expect(css).toMatch(new RegExp(`@supports \\(background-size: 100% min\\(100%, 1px\\)\\) \\{\\s*\\.sky \\{ --awc-sky-glow-box: 100% min\\(100%, ${SKY_LIGHT_MAX_PX}px\\); \\}`));
-        expect(css).toMatch(/\[data-variant="compact"\] \.sky,\s*\.animated-weather-card\[data-fw\] \.sky,\s*\.animated-weather-card\[data-fc-view\] \.sky,\s*\.animated-weather-card\[data-fc-card\] \.sky \{ --awc-sky-glow-box: 100% 100%; \}/);
+        expect(css).toMatch(/\[data-variant="compact"\] \.sky,\s*\.animated-weather-card\[data-wall-frame\] \.sky,\s*\.animated-weather-card\[data-fw\] \.sky,\s*\.animated-weather-card\[data-fc-view\] \.sky,\s*\.animated-weather-card\[data-fc-card\] \.sky \{ --awc-sky-glow-box: 100% 100%; \}/);
         // It fades out inside the box, so the box's foot never shows as an edge
         for (const g of [SKY_GLOW, SKY_GLOW_WIDE]) expect(g.cy + g.fade * g.ry).toBeLessThan(1);
         // Up to five rows, the glow is the one the suites read; taller, it's the five-row card's in px

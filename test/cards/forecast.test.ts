@@ -1195,6 +1195,31 @@ describe('the time as the big value (hero: clock), and the date (show_date)', ()
             if (ch) Object.defineProperty(proto, 'clientHeight', ch); else delete (proto as { clientHeight?: number }).clientHeight;
         }
     });
+
+    it('marks a frame the wall takes from the card\'s own fit, so its sun and light are the wall\'s before the wall arrives', async () => {
+        const proto = HTMLElement.prototype;
+        const cw = Object.getOwnPropertyDescriptor(proto, 'clientWidth'), ch = Object.getOwnPropertyDescriptor(proto, 'clientHeight');
+        let w = 1278, h = 758;
+        Object.defineProperty(proto, 'clientWidth', { configurable: true, get() { return this.classList?.contains('animated-weather-card') ? w : 0; } });
+        Object.defineProperty(proto, 'clientHeight', { configurable: true, get() { return this.classList?.contains('animated-weather-card') ? h : 0; } });
+        try {
+            const frame = async (config: object) => {
+                const root = mount(config).querySelector('.animated-weather-card') as HTMLElement;
+                await settle();
+                return root.hasAttribute('data-wall-frame');
+            };
+            expect(await frame({ show_forecast: true })).toBe(true);
+            expect(await frame({})).toBe(false);
+            expect(await frame({ show_forecast: true, layout: 'nightstand' })).toBe(false);
+            w = 600;
+            expect(await frame({ show_forecast: true })).toBe(false);
+            w = 1278; h = 500;
+            expect(await frame({ show_forecast: true })).toBe(false);
+        } finally {
+            if (cw) Object.defineProperty(proto, 'clientWidth', cw); else delete (proto as { clientWidth?: number }).clientWidth;
+            if (ch) Object.defineProperty(proto, 'clientHeight', ch); else delete (proto as { clientHeight?: number }).clientHeight;
+        }
+    });
 });
 
 describe('the clock', () => {

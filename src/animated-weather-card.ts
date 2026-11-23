@@ -51,7 +51,7 @@ import { ActionsConfig, bindActions, readActions, syncActionTarget } from './act
 import { loadEditorBundle, loadSiblingBundle } from './bundles';
 import { IconName, icon, setIcon } from './icons';
 // Sky palettes (condition × time of day) and their animatable properties
-import { registerSkyProperties, skyPhaseFromSun, SkyPhase, skyColors, SKY_TEXT, oklchToSrgb, toHex } from './sky';
+import { registerSkyProperties, skyPhaseFromSun, SkyPhase, skyColors, SKY_TEXT, oklchToSrgb, toHex, isWallFrame } from './sky';
 import { moonCycle, moonLook } from './moon';
 import { PlaceView } from './place';
 // Import color utilities
@@ -1903,6 +1903,9 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard, DevCard {
         const card = this.querySelector('.animated-weather-card') as HTMLElement | null;
         const info = card?.querySelector('.weather-info') as HTMLElement | null;
         if (!card || !info) return;
+        // A frame the forecast bundle makes the wall has the wall's sky from the first paint, its sun, moon and light
+        // on the whole card, so they don't move when that bundle arrives and the wall attaches (its own data-fw)
+        card.toggleAttribute('data-wall-frame', this.surface === 'card' && !!this.config?.show_forecast && this.config?.layout !== 'nightstand' && isWallFrame(card));
         // Once the words have settled where this fit puts them, no star stays behind one
         cancelAnimationFrame(this.starFrame);
         this.starFrame = requestAnimationFrame(() => clearStarsFromWords(card));

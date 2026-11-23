@@ -276,6 +276,13 @@ export const SKY_GLOW_COMPACT: GlowGeometry = { rx: 0.24, ry: 0.95, cx: 0.86, cy
  */
 export const SKY_LIGHT_MAX_PX = 312;
 
+/**
+ * A weather card with the forecast on in a frame at least this big is the wall (fc-wall.ts), which places the sky's
+ * light on the whole card. The forecast bundle swaps to it by this; the main bundle marks the frame by it
+ * (`data-wall-frame`), so the sky is the wall's from the first paint, before that bundle arrives.
+ */
+export const isWallFrame = (el: HTMLElement): boolean => el.clientWidth >= 640 && el.clientHeight >= 540;
+
 /** CSS radial-gradient for the glow, e.g. `skyGlowGradient(SKY_GLOW, 'var(--awc-sky-glow)')`. */
 export function skyGlowGradient(g: GlowGeometry, color: string): string {
     const pct = (n: number) => `${Math.round(n * 100)}%`;

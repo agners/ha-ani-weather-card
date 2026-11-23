@@ -28,12 +28,12 @@ import { litTints } from './fc-glyphs';
 import { Slide, attachSlide } from './fc-slide';
 import { TimeText, fitHeroTime, layoutLeft, minuteTicker } from './fc-clock';
 import { Model, buildModel, dayPeriods, iconTints, valueText } from './fc-weather';
-import { SKY_GLOW_WIDE } from './sky';
+import { SKY_GLOW_WIDE, isWallFrame } from './sky';
 import { dropView, openView } from './fc-view';
 import { cloudFloor } from './cloud-band';
 import { cardNow, cardDate } from './clock';
 
-export const isWall = (root: HTMLElement): boolean => root.clientWidth >= 640 && root.clientHeight >= 540;
+export const isWall = (root: HTMLElement): boolean => isWallFrame(root);
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
