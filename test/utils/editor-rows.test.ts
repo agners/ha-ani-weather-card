@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { DEFAULTS, DRAWERS, FORECAST_TABLE, ROWS, SECTIONS, TRACKER_TABLE, isChanged, rowChanged, rowShown, sectionShown, type RowContext, type RowTable } from '../../src/editor-rows';
 import { REPLACED_OPTIONS } from '../../src/readings';
-import { DEFAULT_ENGINE_SETTINGS } from '../../src/constants';
+import { DEFAULT_ENGINE_SETTINGS, ENGINE_RANGES } from '../../src/constants';
 
 // The editor's table of rows: every option belongs to one, and a value other than its default shows it in Basic
 
@@ -27,7 +27,8 @@ function sample(key: string): unknown {
     const d = DEFAULTS[key];
     if (typeof d === 'boolean') return !d;
     if (typeof d === 'number') return d + 1;
-    if (key.startsWith('engine_settings.')) return 0.7;
+    // The least the card takes, so it tunes (a value out of range is unset to the card, and leaves it in auto mode)
+    if (key.startsWith('engine_settings.')) return ENGINE_RANGES[key.slice(16) as keyof typeof ENGINE_RANGES][0];
     return key.endsWith('_entity') ? 'sensor.x' : 'something';
 }
 const withKey = (key: string): Record<string, unknown> => {

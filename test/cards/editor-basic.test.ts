@@ -196,6 +196,48 @@ describe('the editor\'s resets and drawers', () => {
         expect(last()).not.toHaveProperty('engine_settings');
     });
 
+    it('let the amounts follow the weather by default, the sliders showing only when they don\'t', async () => {
+        await open({});
+        expect($('#engine_auto').hasAttribute('checked')).toBe(true);
+        expect(shown('engine_mode')).toBe(true);
+        expect(shown('amounts')).toBe(false);
+        expect($('[data-summary="sky"]').textContent).toBe('Moving · amounts follow the weather');
+        flip('#engine_auto', false);
+        expect(last()).toMatchObject({ engine_mode: 'manual' });
+        expect(shown('amounts')).toBe(true);
+        expect($('[data-summary="sky"]').textContent).toBe('Moving · amounts set by hand');
+        flip('#engine_auto', true);
+        expect(last()).not.toHaveProperty('engine_mode');
+        expect(shown('amounts')).toBe(false);
+    });
+
+    it('keep a tuned card on its sliders, as the card does, and keep the tuning when it turns to the weather', async () => {
+        await open({ engine_settings: { rainCount: 2.5 } });
+        expect($('#engine_auto').hasAttribute('checked')).toBe(false);
+        expect(shown('amounts')).toBe(true);
+        flip('#engine_auto', true);
+        expect(last()).toMatchObject({ engine_mode: 'auto', engine_settings: { rainCount: 2.5 } });
+        expect(shown('amounts')).toBe(false);
+        flip('#engine_auto', false);
+        expect(last()).toMatchObject({ engine_mode: 'manual', engine_settings: { rainCount: 2.5 } });
+        expect(shown('amounts')).toBe(true);
+    });
+
+    it('keep a card on its sliders when the last goes back to its default, or the amounts are reset', async () => {
+        await open({ engine_settings: { rainCount: 2.5 } });
+        const rain = $('#rainCount');
+        rain.value = '1';
+        rain.dispatchEvent(new Event('change'));
+        expect(last()).toMatchObject({ engine_mode: 'manual' });
+        expect(last()).not.toHaveProperty('engine_settings');
+        expect(shown('amounts')).toBe(true);
+        editor.remove();
+        await open({ engine_settings: { snowCount: 2 } });
+        $('.reset-engine-btn').click();
+        expect(last()).toMatchObject({ engine_mode: 'manual' });
+        expect(shown('amounts')).toBe(true);
+    });
+
     it('keep the open drawers and the mode when a YAML edit draws the editor again, without playing a reveal', async () => {
         await open({});
         $('[data-drawer="planes"]').click();

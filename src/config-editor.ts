@@ -12,7 +12,7 @@ import { HomeAssistant, LovelaceCardEditor, AnimatedWeatherCardConfig } from './
 import { DEFAULT_ENGINE_SETTINGS } from './constants';
 import { getConfigEditorStyles } from './styles/editor';
 import { skyColors, oklchToSrgb, toHex, SKY_TEXT } from './sky';
-import { escapeHtml, textField } from './utils';
+import { engineMode, escapeHtml, hasEngineTuning, textField } from './utils';
 import { mountReadingsEditor, readingLabel, type ReadingsEditor } from './readings-editor';
 import { bindPlaceFields, placeFieldsHtml, PLACE_FIELDS_CSS } from './place-editor';
 import { ActionConfig, readActions } from './actions';
@@ -274,6 +274,7 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
             row('day_hours', `<div class="pair">${textField({ id: 'sunrise_hour', label: 'Day begins at', type: 'number', min: 0, max: 23, placeholder: '6', value: c.sunrise_hour !== undefined ? String(c.sunrise_hour) : '' })}${textField({ id: 'sunset_hour', label: 'Night begins at', type: 'number', min: 0, max: 23, placeholder: '20', value: c.sunset_hour !== undefined ? String(c.sunset_hour) : '' })}</div>`),
             row('sun_entity', picker('sun_entity', 'Sun', c.sun_entity, 'Sets the sky\'s time of day and the sunset reading. Usually sun.sun')),
             row('moon_entity', picker('moon_entity', 'Moon phase', c.moon_entity, 'The Moon integration\'s sensor. Else, worked out from the date')),
+            row('engine_mode', sw('engine_auto', 'Amounts follow the weather', engineMode(c) === 'auto', 'How hard it rains or snows, the cloud cover, how far you can see, and the wind and its gusts. Off, you set the amounts')),
             row('amounts', `<p class="sub-h">Amounts</p><div class="amt">${AMOUNTS.map(([key, label, input]) => {
                 const value = engine[key] ?? DEFAULT_ENGINE_SETTINGS[key];
                 return `<div class="amt-o"><label for="${key}">${label}</label><output for="${key}" data-out="${key}">${AnimatedWeatherCardEditor.formatEngineValue(key, value)}</output>${input} value="${escapeHtml(value)}" /></div>`;
@@ -495,6 +496,13 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
         on('#animate', 'change', el => this._set({ animate: el.checked ? undefined : false }));
         on('#spill_particles', 'change', el => this._set({ spill_particles: el.checked ? undefined : false }));
         on('#lightning_shake', 'change', el => this._set({ disable_lightning_shake: el.checked ? undefined : true }));
+        // Auto is the default unless engine_settings tune something, so a tuned card says auto to turn it on; manual
+        // keeps the tuning, and auto keeps it too, for the day the card goes back
+        on('#engine_auto', 'change', el => {
+            const c = this._config ?? {};
+            if (el.checked) this.pinned.delete('amounts');
+            this._set({ engine_mode: el.checked ? (hasEngineTuning(c) ? 'auto' : undefined) : 'manual' });
+        });
         on('#auto_pause', 'change', el => this._set({ auto_pause: el.checked || undefined }));
         radios('sky_follows', value => this._set({ enable_day_night_cycle: value === 'hours' || undefined }));
         for (const [key, def] of [['sunrise_hour', 6], ['sunset_hour', 20]] as const) {
@@ -631,8 +639,10 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
         if (key === 'sky') {
             if (c.animate === false) return 'Still';
             const amounts = Object.keys(DEFAULT_ENGINE_SETTINGS).filter(k => isChanged(c, `engine_settings.${k}`)).length;
-            return ['Moving', c.spill_particles === false ? 'inside the card' : '', c.enable_day_night_cycle ? 'set hours' : '',
-                amounts ? `${amounts} ${amounts === 1 ? 'amount' : 'amounts'} changed` : ''].filter(Boolean).join(' · ');
+            const engine = engineMode(c) === 'auto' ? 'amounts follow the weather'
+                : amounts ? `${amounts} ${amounts === 1 ? 'amount' : 'amounts'} changed` : 'amounts set by hand';
+            return ['Moving', c.spill_particles === false ? 'inside the card' : '', c.enable_day_night_cycle ? 'set hours' : '', engine]
+                .filter(Boolean).join(' · ');
         }
         if (key === 'colors') {
             const n = Object.values(c.custom_colors || {}).filter(Boolean).length;
@@ -775,7 +785,16 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
         const c = this._config ??= {};
         const engine = { ...(c.engine_settings || {}) } as Record<string, number>;
         if (value === (DEFAULT_ENGINE_SETTINGS as Record<string, number>)[key]) delete engine[key]; else engine[key] = value;
-        this._set({ engine_settings: Object.keys(engine).length ? engine : undefined });
+        this._set({ engine_settings: Object.keys(engine).length ? engine : undefined, ...this.staysManual(engine) });
+    }
+
+    /**
+     * The sliders are manual's. A card is manual without saying so while its engine_settings tune something, so the
+     * last slider back at its default says manual, or the card would turn to the weather's own amounts under the finger.
+     */
+    private staysManual(engine: Record<string, unknown>): { engine_mode?: 'manual' } {
+        const c = this._config ?? {};
+        return c.engine_mode === undefined && !hasEngineTuning({ ...c, engine_settings: engine }) ? { engine_mode: 'manual' } : {};
     }
 
     /** Every slider back to its default, in place: nothing is drawn again, and the drawer stays open */
@@ -790,7 +809,7 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
             const out = this.querySelector(`[data-out="${key}"]`);
             if (out) out.textContent = AnimatedWeatherCardEditor.formatEngineValue(key, value);
         }
-        this._set({ engine_settings: undefined });
+        this._set({ engine_settings: undefined, ...this.staysManual({}) });
         (this.querySelector('#windSpeed') as HTMLElement | null)?.focus();
     }
 

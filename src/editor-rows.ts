@@ -170,7 +170,11 @@ export const ROWS: Readonly<Record<string, RowSpec>> = {
     moon_entity: { tier: 'all', keys: ['moon_entity'] },
     // Auto unless the card's engine_settings tune something, so a tuned card counts as changed without saying manual
     engine_mode: { tier: 'all', keys: ['engine_mode'], when: animated, changed: c => engineMode(c) === 'manual' },
-    amounts: { tier: 'all', keys: ENGINE_KEYS, when: animated },
+    // The sliders are manual's: auto ignores them, so they show only in manual, though the card keeps them
+    amounts: {
+        tier: 'all', keys: ENGINE_KEYS, when: c => animated(c) && engineMode(c) === 'manual',
+        changed: c => engineMode(c) === 'manual' && ENGINE_KEYS.some(k => isChanged(c, k)),
+    },
 
     // Custom colors
     sky_colors: { tier: 'all', keys: SKY_COLOR_KEYS, when: c => c.color_palette !== 'theme' },
