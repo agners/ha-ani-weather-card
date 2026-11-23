@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- After pouring rain, a storm or light rain, the next rain kept that intensity: a rainy sky after a downpour still poured, and plain rain after light rain stayed light, until the page was reloaded. Each condition now starts at its own.
 - A nightstand with the note on (`show_note: true`) kept asking your AI for notes it never showed, since the nightstand draws its own lines. It no longer loads the note writer, and asks for its six rows without the note's. A nightstand also set to `compact: true` asked for the compact strip's two rows; the nightstand wins, as the editor's one Layout choice has it.
 - `planes_on_load: true` flew nothing. The card took its first look at the flights as the dashboard opened, before the planes had loaded, and the planes already overhead were dropped. They now wait for the planes to load and for the card to be on screen, then the ones still up fly, as they report then ([#36](https://github.com/alexsto1an/ha-ani-weather-card/issues/36)).
 - A weather card with the forecast on that was resized past 640 px wide, such as to 24 columns in a two-column section, showed the hours in the top right corner, the readings over the temperature and the temperature cut off: it kept the hours where a narrower card has them. The hours now move to the hero's column when the card grows past 640 px, and back under the readings when it shrinks ([#32](https://github.com/alexsto1an/ha-ani-weather-card/issues/32)).

@@ -80,7 +80,8 @@ export class WeatherAnimationController {
             return;
         }
 
-        const intensity = config?.intensity ?? animationState.intensity ?? 1;
+        // Each start says its own intensity, or 1: rain after pouring, a storm or light rain is plain rain again
+        const intensity = config?.intensity ?? 1;
         const startGeneration = this.generation;
 
         animationState.isActive = true;
@@ -124,6 +125,7 @@ export class WeatherAnimationController {
         this.setAnimationLayerVisibility(type, false);
         animationState.isActive = false;
         animationState.isPaused = false;
+        animationState.intensity = 1;
     }
 
     public pauseAnimation(type: AnimationStateKey): void {

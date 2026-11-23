@@ -93,6 +93,21 @@ describe('WeatherAnimationController — lifecycle', () => {
         expect(states.rain.intensity).toBe(2);
     });
 
+    it('starts each condition at its own intensity: rain after pouring, a storm or light rain is plain rain', async () => {
+        for (const before of ['pouring', 'stormy', 'light-rain']) {
+            await controller.applyWeatherCondition(before);
+            expect(controller.getAnimationStates().rain.intensity, before).not.toBe(1);
+            await controller.applyWeatherCondition('rainy');
+            expect(controller.getAnimationStates().rain.intensity, `rainy after ${before}`).toBe(1);
+            await controller.applyWeatherCondition('snowy-rainy');
+            expect(controller.getAnimationStates().rain.intensity, `snowy-rainy after ${before}`).toBe(1);
+        }
+        // The sun after partly cloudy is the full sun again
+        await controller.applyWeatherCondition('partly-cloudy');
+        await controller.applyWeatherCondition('sunny');
+        expect(controller.getAnimationStates().sun.intensity).toBe(1);
+    });
+
     it('stops everything via stopAllAnimations', async () => {
         await controller.applyWeatherCondition('rainy');
         expect(controller.getAnimationStates().rain.isActive).toBe(true);
