@@ -1031,6 +1031,40 @@ export const rowsHeight = (rows) => rows * HA.rowHeight + (rows - 1) * HA.gridGa
  */
 export const AHEAD_ROWS = { hours: 8, days: 4, card: 7, compact: 2, strip: 2 };
 
+/**
+ * The weather card's presets, as the editor offers them (src/presets.ts, which a test holds this copy to): each a
+ * name, what it gives you, and the options it writes. Only the Wall sets a size: it needs two sections columns.
+ */
+export const PRESETS = [
+    { id: 'standard', label: 'Standard', description: 'The sky, the temperature and four readings', options: {} },
+    { id: 'simple', label: 'Simple', description: 'The sky, the temperature and the condition, nothing else', options: { show_attributes: false } },
+    { id: 'forecast', label: 'Forecast', description: 'The next hours under the readings; drag through them', options: { show_forecast: true } },
+    {
+        id: 'full', label: 'Full info', description: 'The time and date, the hours and the week',
+        options: { show_forecast: true, show_days: true, show_clock: true, show_date: true },
+    },
+    { id: 'strip', label: 'Strip', description: 'One line, to sit under other cards', options: { compact: true } },
+    { id: 'bedside', label: 'Bedside', description: 'A clock that goes red on black at night', options: { layout: 'nightstand' } },
+    {
+        id: 'wall', label: 'Wall', description: 'A panel to read across the room',
+        options: { show_forecast: true, show_clock: true, show_date: true, grid_options: { columns: 'full', rows: 10 } },
+    },
+];
+/** The wall's frame, below which the card is the forecast with the time and date */
+export const WALL_MIN = { width: 640, height: 540 };
+
+/** A preset's card as YAML, with the theme's line when the page follows the theme */
+export function presetYaml(id, { colors = 'sky' } = {}) {
+    const preset = PRESETS.find(p => p.id === id) ?? PRESETS[0];
+    const lines = ['type: custom:animated-weather-card', 'entity: weather.forecast_home', 'sun_entity: sun.sun'];
+    for (const [key, value] of Object.entries(preset.options)) {
+        if (value && typeof value === 'object') lines.push(`${key}:`, ...Object.entries(value).map(([k, v]) => `  ${k}: ${v}`));
+        else lines.push(`${key}: ${value}`);
+    }
+    if (colors === 'theme') lines.push('color_palette: theme  # follows your Home Assistant theme');
+    return lines.join('\n') + '\n';
+}
+
 /** Each of the forecast section's cards as YAML, with the theme's line when the page follows the theme. */
 export function aheadYaml(slot, { colors = 'sky', hero = false, days = false } = {}) {
     const theme = colors === 'theme' ? ['color_palette: theme  # follows your Home Assistant theme'] : [];

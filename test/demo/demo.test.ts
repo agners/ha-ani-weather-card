@@ -14,8 +14,9 @@ import {
     formatEngineValue, liveReading, minutesFor, moonPhase, nextFlight, paletteOf, phaseForHour, phaseForSun, placeName,
     noteFor, quietOptions, solarAt, solarElevation, solarTimes, stationStates, sunAt, sunAttributes, trackerYaml, weatherState,
     wmoCondition, SUN_TIMES, SAMPLE_PLACE, trackerHass, STATION_OPTIONS, stationReadings,
-    WEATHER_INPUTS, WEATHER_READINGS, formatWeatherInput, weatherInputs, weatherYaml,
+    WEATHER_INPUTS, WEATHER_READINGS, formatWeatherInput, weatherInputs, weatherYaml, PRESETS as DEMO_PRESETS, WALL_MIN as DEMO_WALL_MIN, presetYaml,
 } from '../../demo/scene.mjs';
+import { PRESETS, WALL_MIN, presetOf } from '../../src/presets';
 import { READING_TYPES } from '../../src/readings';
 import { PAGE_FILES, iconNames, resolveIcons } from '../../demo/build.mjs';
 import { LOGO_PHASES, logoSvg } from '../../demo/logo.mjs';
@@ -369,6 +370,28 @@ describe('the demo\'s sample world', () => {
         expect(amounts()?.rain.kind).toBe('pouring');
         card.remove();
         vi.useRealTimers();
+    });
+
+    it('offers the editor\'s presets, as the card has them, each as YAML the card reads back as that preset', () => {
+        expect(DEMO_PRESETS).toEqual(PRESETS);
+        expect(DEMO_WALL_MIN).toEqual(WALL_MIN);
+        for (const preset of DEMO_PRESETS) {
+            const yaml = presetYaml(preset.id);
+            expect(yaml).toContain('type: custom:animated-weather-card');
+            // The YAML, read back: the options it writes and nothing else of the preset's
+            const lines = yaml.trimEnd().split('\n').slice(3);
+            const read: Record<string, unknown> = {};
+            let block: Record<string, unknown> | null = null;
+            for (const line of lines) {
+                const [key, value] = line.trim().split(': ');
+                if (line.startsWith('  ')) block![key] = isNaN(Number(value)) ? value : Number(value);
+                else if (value === undefined) { block = {}; read[key.replace(':', '')] = block; }
+                else read[key] = value === 'true' ? true : value === 'false' ? false : value;
+            }
+            expect(read, preset.id).toEqual(preset.options);
+            expect(presetOf(read), preset.id).toBe(preset.id);
+        }
+        expect(presetYaml('standard', { colors: 'theme' })).toContain('color_palette: theme');
     });
 
     it('writes only the engine settings and quiet switches that change something', () => {

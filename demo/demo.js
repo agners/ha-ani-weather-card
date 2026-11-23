@@ -5,7 +5,7 @@
 // over the old one. Each room is lit by its card's own sky.
 
 import {
-    AHEAD_ROWS, AWAY, CARD_ROWS, CONDITIONS, DASHBOARD, DEVICES, ENGINE, ENTITIES, NOTE_FORECASTS, NOTE_VOICES, OPEN_METEO, PAINTS, PALETTES, PHASES, QUIET,
+    AHEAD_ROWS, AWAY, CARD_ROWS, CONDITIONS, DASHBOARD, DEVICES, ENGINE, ENTITIES, HA, NOTE_FORECASTS, NOTE_VOICES, OPEN_METEO, PAINTS, PALETTES, PHASES, PRESETS, QUIET, WALL_MIN, presetYaml,
     STATION, SUN_TIMES, aheadYaml, buildHass, colorsYaml, conditionIcon, configYaml, customColors, dashboardLayout, dashboardYaml,
     engineSettings, engineYaml, forgetNotes, formatEngineValue, liveReading, minutesFor, nextFlight, noteYaml, paletteOf,
     phaseForHour, phaseForSun, placeName, quietOptions, rowsHeight, WEATHER_INPUTS, WEATHER_READINGS, formatWeatherInput, weatherInputs, weatherYaml,
@@ -1397,6 +1397,163 @@ const dash = (() => {
 // bundle loads with the first of them), then dissolve over the old ones.
 // Each card lights its own patch of wall, and the light follows its sky
 // as you drag it through the hours.
+// ── Start from a layout: the editor's presets ─────────────────────────
+// One card, set up as the chosen preset's YAML says, as wide as a sections
+// column (the wall two of them where the page has room, else what it is in
+// one column) and as tall as the rows the card itself asks for, as a
+// section's grid gives it.
+const layouts = (() => {
+    const section = $('#layouts');
+    const slotEl = section.querySelector('.layouts-slot');
+    const scenesEl = slotEl.querySelector('.layouts-scenes');
+    const light = slotEl.querySelector('.stage-light');
+    const caption = $('#layouts-caption');
+    const code = $('#layouts-yaml');
+    const render = snippetRenderer(code);
+    const view = { near: false, visible: false, revealed: false, stale: true, job: null, current: null, pick: 'full', text: '' };
+    copyButton($('#layouts-copy'), () => view.text, code);
+
+    $('#layout-chips').innerHTML = PRESETS.map(p => `
+        <label class="layout-chip"><input type="radio" name="layout-preset" value="${p.id}"${p.id === view.pick ? ' checked' : ''}><span>${p.label}</span></label>`).join('');
+
+    /** A sections column on this page: at most 500 px, and a phone's own width */
+    const column = () => Math.min(HA.columnMax, scenesEl.clientWidth || HA.columnMax);
+    /** Two columns and their gap, where the page has room for the wall */
+    const wallWidth = () => Math.min(2 * HA.columnMax + HA.columnGap, scenesEl.clientWidth || 0);
+    const wallFits = () => wallWidth() >= WALL_MIN.width;
+
+    function build() {
+        const preset = PRESETS.find(p => p.id === view.pick) ?? PRESETS[0];
+        const el = document.createElement('div');
+        el.className = 'scene layouts-scene';
+        el.innerHTML = '<div class="cards"></div>';
+        const box = document.createElement('div');
+        box.className = 'layouts-box';
+        const card = document.createElement('animated-weather-card');
+        card.setConfig({
+            type: 'custom:animated-weather-card', entity: ENTITIES.weather, sun_entity: ENTITIES.sun,
+            color_palette: state.colors === 'sky' ? 'default' : 'theme', ...preset.options,
+        });
+        box.append(card);
+        el.firstElementChild.append(box);
+        const wall = preset.id === 'wall' && wallFits();
+        return { el, box, card, wall, weather: card, cards: [card] };
+    }
+    /** The box the card is given: the size it asks for, the wall's at two columns */
+    function size(scene) {
+        const rows = scene.card.config?.grid_options?.rows ?? scene.card.getGridOptions?.().rows ?? 4;
+        scene.box.style.width = `${scene.wall ? wallWidth() : column()}px`;
+        scene.box.style.height = `${rowsHeight(rows)}px`;
+    }
+    function captionFor(scene) {
+        const preset = PRESETS.find(p => p.id === view.pick) ?? PRESETS[0];
+        if (preset.id !== 'wall') return `${preset.description}.`;
+        return scene.wall
+            ? `${preset.description}: in a section of Double width, ten rows tall, or a panel view.`
+            : `On a screen this narrow it's the forecast with the time and date. The wall needs ${WALL_MIN.width} × ${WALL_MIN.height} px: a section of Double width, or a panel view.`;
+    }
+    function renderYaml() {
+        view.text = presetYaml(view.pick, { colors: state.colors === 'sky' ? 'sky' : 'theme' });
+        render(view.text);
+    }
+    /** The forecast's bundle has drawn on a card that has its parts */
+    const drawn = (scene) => !(scene.card.config?.show_forecast || scene.card.config?.show_clock || scene.card.config?.layout === 'nightstand')
+        || !!scene.card.querySelector(':scope > style.awc-fc-css');
+
+    /** Set the card up again. Far from view it only notes that it's out of date. */
+    function mount() {
+        if (!view.near) {
+            view.stale = true;
+            return;
+        }
+        view.stale = false;
+        if (view.job) {
+            view.job.cancelled = true;
+            view.job.scene.el.remove();
+        }
+        const scene = build();
+        scene.el.style.opacity = '0';
+        scene.el.inert = true;
+        feed(scene, hass());
+        size(scene);
+        scenesEl.append(scene.el);
+        const job = { scene, cancelled: false };
+        view.job = job;
+        whenReady(scene, () => job.cancelled, 4000, drawn).then(() => {
+            view.job = null;
+            show(scene);
+        });
+    }
+    function show(scene) {
+        const old = view.current;
+        view.current = scene;
+        scene.el.inert = false;
+        if (old) old.el.inert = true;
+        caption.textContent = captionFor(scene);
+        if (!view.revealed) {
+            old?.el.remove();
+            reveal();
+            return;
+        }
+        scene.el.style.opacity = '';
+        lightCard(light, scene.el.querySelector('.cards'), slotEl);
+        watchSky();
+        const remove = () => old?.el.remove();
+        if (reduceMotion) {
+            scene.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200 });
+            old?.el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, fill: 'forwards' }).finished.then(remove, remove);
+            return;
+        }
+        scene.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 320, easing: EASE.outQuart }).onfinish = () => {
+            old?.el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 120, easing: EASE.inSoft, fill: 'forwards' }).finished.then(remove, remove);
+        };
+    }
+    /** Once, when the card starts to come into view and has drawn: it rises in, and its light comes up */
+    function reveal() {
+        if (view.revealed || !view.visible || !view.current) return;
+        view.revealed = true;
+        const { el } = view.current;
+        lightCard(light, el.querySelector('.cards'), slotEl, true);
+        slotEl.classList.add('is-shown');
+        watchSky();
+        el.style.opacity = '';
+        if (reduceMotion) {
+            el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200 });
+            return;
+        }
+        el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 700, easing: EASE.outQuart });
+        el.animate([{ transform: 'translateY(16px)' }, { transform: 'none' }], { duration: 1000, easing: EASE.outExpo });
+    }
+
+    section.querySelector('#layout-chips').addEventListener('change', (event) => {
+        view.pick = event.target.value;
+        renderYaml();
+        mount();
+    });
+    // The card mounts half a screen before you reach it, so it's drawn by then
+    new IntersectionObserver(([entry]) => {
+        view.near = entry.isIntersecting;
+        if (view.near && view.stale) mount();
+    }, { rootMargin: '0px 0px 50% 0px' }).observe(slotEl);
+    new IntersectionObserver(([entry]) => {
+        view.visible = entry.intersectionRatio >= 0.15;
+        reveal();
+    }, { threshold: [0, 0.15] }).observe(slotEl);
+    // A new width: the card takes a column's, and the wall shows where it fits
+    let lastWidth = 0;
+    new ResizeObserver(() => {
+        const width = scenesEl.clientWidth;
+        if (!view.current || Math.abs(width - lastWidth) < 1) return;
+        lastWidth = width;
+        if (view.current.wall !== (view.pick === 'wall' && wallFits())) mount();
+        else { size(view.current); lightCard(light, view.current.el.querySelector('.cards'), slotEl); }
+    }).observe(scenesEl);
+    addRoom({ stage: slotEl, sky: () => view.current?.card.querySelector('.animated-weather-card'), storm: () => !!view.current && state.conditionId === 'lightning-rainy' });
+
+    renderYaml();
+    return { stage: slotEl, mount, renderYaml };
+})();
+
 const ahead = (() => {
     const section = $('#ahead');
     const stage = section.querySelector('.ahead-stage');
@@ -1922,7 +2079,7 @@ form.addEventListener('change', (event) => {
         // Between the two themes only the theme's variables change.
         const wasSky = state.colors === 'sky';
         state.colors = value;
-        for (const room of [stage, dash.stage, sunFrame.stage, tuneLab.stage, ...ahead.rooms]) {
+        for (const room of [stage, dash.stage, sunFrame.stage, tuneLab.stage, layouts.stage, ...ahead.rooms]) {
             room.dataset.colors = value === 'sky' ? 'sky' : 'theme';
             room.dataset.dashboard = value === 'light' ? 'light' : 'dark';
         }
@@ -1930,12 +2087,14 @@ form.addEventListener('change', (event) => {
             mountScene();
             dash.mount();
             ahead.mount();
+            layouts.mount();
             sunFrame.mount();
             tuneLab.mount();
         }
         renderYaml();
         dash.renderYaml();
         ahead.renderYaml();
+        layouts.renderYaml();
     }
 });
 
@@ -2453,6 +2612,7 @@ function remountFollowers() {
     mountScene();
     dash.mount();
     ahead.mount();
+    layouts.mount();
     sunFrame.mount();
 }
 async function goLive() {

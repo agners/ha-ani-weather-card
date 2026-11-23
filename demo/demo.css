@@ -940,6 +940,76 @@ a { color: inherit; }
     color: var(--text-3);
 }
 
+/* ── Start from a layout: the editor's presets ───────────────────────
+   The real card for each, as wide as a sections column (the wall two of
+   them, where the page has room) and as tall as the rows it asks for. */
+.layouts {
+    --console: 352px;
+    max-width: var(--page);
+    margin: var(--section) auto 0;
+    padding: 0 var(--gutter);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) var(--console);
+    column-gap: 64px;
+    align-items: end;
+}
+.layouts-title { grid-column: 1; }
+.layouts-copy { grid-column: 2; }
+.layouts-copy .section-lede { margin: 0; }
+.layouts-picker { grid-column: 1 / -1; min-width: 0; margin: 56px 0 0; padding: 0; border: 0; }
+.layout-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.layout-chip { position: relative; display: block; }
+.layout-chip input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.layout-chip span {
+    display: block;
+    padding: 9px 16px;
+    border-radius: 999px;
+    background: var(--raised);
+    color: var(--text-2);
+    font-size: 15px;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: background-color 0.18s ease, color 0.18s ease, transform 0.2s var(--ease-out-quart);
+}
+.layout-chip input:checked + span { background: var(--button); color: var(--button-ink); }
+.layout-chip:active span { transform: scale(0.97); transition-duration: 0.18s, 0.18s, 0.08s; }
+.layout-chip input:focus-visible + span { outline: 2px solid var(--text); outline-offset: 2px; }
+@media (hover: hover) and (pointer: fine) {
+    .layout-chip:hover input:not(:checked) + span { background: var(--high); color: var(--text); }
+}
+.layouts-slot {
+    grid-column: 1 / -1;
+    position: relative;
+    min-width: 0;
+    margin: 40px 0 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+}
+/* The scenes stack in one cell, so a new layout dissolves over the old */
+.layouts-scenes {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    width: 100%;
+    justify-items: center;
+    overflow-x: clip;
+    overflow-clip-margin: 12px;
+}
+.layouts-scene { grid-area: 1 / 1; width: auto; max-width: 100%; justify-self: center; }
+.layouts-scene .cards { align-items: center; }
+.layouts-box { max-width: 100%; }
+.layouts-box > * { display: block; height: 100%; }
+.layouts-caption,
+.layouts-slot .snippet-slot { position: relative; z-index: 1; width: min(100%, 560px); }
+.layouts-caption { margin: 18px 0 0; font-size: 14px; color: var(--text-3); text-wrap: pretty; }
+.layouts-slot:has(.snippet-slot[data-open]) .code-toggle-icon svg { transform: rotate(180deg); }
+.layouts-slot .stage-light { transition: opacity 1.6s var(--ease-in-out-sine) 0.2s, transform 0.52s var(--ease-out-quint); }
+.layouts-slot .stage-light.is-placing { transition: opacity 1.6s var(--ease-in-out-sine) 0.2s; }
+.layouts-caption,
+.layouts-slot .snippet-slot { transition: opacity 0.6s var(--ease-out-quart) 0.35s; }
+.js .layouts-slot:not(.is-shown) :is(.stage-light, .layouts-caption, .snippet-slot) { opacity: 0; }
+
 /* ── The hours ahead: the forecast and the clock ─────────────────────
    Three cards at a phone's size (a sections column is 353 px wide, and
    each card is as tall as the rows it asks for), side by side where they
@@ -1662,7 +1732,7 @@ a { color: inherit; }
 
 /* ── Narrower screens ────────────────────────────────────────────────── */
 @media (max-width: 1199px) {
-    .hero, .dash, .ahead, .tracker { --console: 312px; column-gap: 48px; }
+    .hero, .dash, .ahead, .tracker, .layouts { --console: 312px; column-gap: 48px; }
     .instrument { column-gap: 48px; }
 }
 
@@ -1682,11 +1752,13 @@ a { color: inherit; }
 }
 
 @media (max-width: 900px) {
-    .hero, .dash, .ahead, .tracker { grid-template-columns: minmax(0, 1fr); }
+    .hero, .dash, .ahead, .tracker, .layouts { grid-template-columns: minmax(0, 1fr); }
     .dash-title, .dash-copy, .frame-stage,
+    .layouts-title, .layouts-copy,
     .ahead-title, .ahead-copy, .ahead-stage,
     .tracker-title, .tracker-copy { grid-column: 1 / -1; }
-    .dash-copy, .ahead-copy, .tracker-copy { margin-top: 22px; }
+    .dash-copy, .ahead-copy, .tracker-copy, .layouts-copy { margin-top: 22px; }
+    .layouts-picker { margin-top: 36px; }
     .ahead-stage { margin-top: 44px; row-gap: 48px; }
     .station-title, .station-copy, .readings, .station-stage { grid-column: 1 / -1; grid-row: auto; }
     .station-copy { margin-top: 22px; }
@@ -1788,10 +1860,12 @@ a { color: inherit; }
     .code-fold .snippet,
     .code-toggle-icon svg,
     .button-quiet span { transition: none !important; }
-    .glyph, .plane-button, .button-primary, .copy, .chip, .swatch, .slider-thumb { transform: none !important; }
+    .glyph, .plane-button, .button-primary, .copy, .chip, .swatch, .slider-thumb, .layout-chip span { transform: none !important; }
     .lab-stage.is-shown .stage-light,
-    .ahead-slot .stage-light { transition: opacity 0.2s ease !important; }
-    .ahead-caption, .ahead-slot .snippet-slot, .ahead-hero { transition-duration: 0.2s; transition-delay: 0s; }
+    .ahead-slot .stage-light,
+    .layouts-slot .stage-light { transition: opacity 0.2s ease !important; }
+    .ahead-caption, .ahead-slot .snippet-slot, .ahead-hero,
+    .layouts-caption, .layouts-slot .snippet-slot { transition-duration: 0.2s; transition-delay: 0s; }
     .reading-dot, .reading-value { transition-delay: 0ms !important; }
     .weather-live.is-finding .glyph svg { animation: none; opacity: 0.6; }
     .stage.is-ready .stage-light { transition: opacity 0.2s ease !important; }

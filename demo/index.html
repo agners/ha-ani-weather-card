@@ -108,6 +108,38 @@
             </div>
         </section>
 
+        <section class="layouts" id="layouts" aria-labelledby="layouts-title">
+            <h2 class="section-title layouts-title" id="layouts-title">
+                <span>Start from a layout.</span>
+                <span class="title-quiet">Seven looks, one tap each in the card's editor.</span>
+            </h2>
+            <div class="layouts-copy">
+                <p class="section-lede">The editor opens on seven layouts to start from, each a few ordinary options you can keep changing. Pick one here and the card is the one you'd get, at the size it asks for on a dashboard.</p>
+            </div>
+            <fieldset class="layouts-picker" id="layout-picker">
+                <legend class="visually-hidden">Layout</legend>
+                <div class="layout-chips" id="layout-chips"></div>
+            </fieldset>
+            <figure class="layouts-slot room" id="layouts-slot" data-dashboard="dark" role="region" aria-label="Live preview of the layout">
+                <div class="stage-light" aria-hidden="true"></div>
+                <div class="layouts-scenes"></div>
+                <figcaption class="layouts-caption"><span class="caption-text" id="layouts-caption"></span> <button type="button" class="code-toggle" aria-expanded="false" aria-controls="layouts-code"><span class="code-toggle-label">View code</span><span class="code-toggle-icon" aria-hidden="true"></span></button></figcaption>
+                <div class="snippet-slot" id="layouts-code">
+                    <div class="code-fold">
+                        <div class="code-fold-inner">
+                        <div class="snippet">
+                            <div class="snippet-bar">
+                                <span class="code-name">card.yaml</span>
+                                <button type="button" class="copy" id="layouts-copy"><span class="copy-icon" aria-hidden="true"></span><span class="copy-label">Copy</span></button>
+                            </div>
+                            <pre><code id="layouts-yaml"></code></pre>
+                        </div>
+                        </div>
+                    </div>
+                </div>
+            </figure>
+        </section>
+
         <section class="dash" id="dash" aria-labelledby="dash-title">
             <h2 class="section-title dash-title" id="dash-title">
                 <span>At home on your dashboard.</span>
