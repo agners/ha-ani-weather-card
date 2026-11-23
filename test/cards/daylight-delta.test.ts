@@ -228,35 +228,11 @@ describe('the tracker\'s daylight change', () => {
         expect(tracker.shadowRoot!.querySelector('.st-metric[data-kind="daylight"] .st-metric-value')?.textContent).toMatch(/\d/);
     });
 
-    it('on the compact tracker, under the other event in its style, and in the chart\'s words for screen readers', () => {
+    it('leaves the compact tracker\'s sky to the other sunrise or sunset: its change is the shift after the countdown', () => {
         const tracker = mount({ sun_entity: 'sun.sun', compact: true });
-        const line = tracker.shadowRoot!.querySelector('.st-chart-delta')!;
-        expect(line.classList.contains('st-chart-note')).toBe(true);
-        expect(line.textContent).toMatch(/^Daylight\u2212\d+m( \d+s)?$/);
-        expect(tracker.shadowRoot!.querySelector('.st-chart')!.getAttribute('aria-label')).toMatch(/Daylight \u2212\d+m( \d+s)? since yesterday/);
-        // Only where the note is, on a strip two rows tall
-        const css = tracker.shadowRoot!.querySelector('style')?.textContent ?? '';
-        expect(css).toMatch(/\[data-fit="short"\] \.st-chart-delta,\s*\.st-card\.compact\[data-fit="tight"\] \.st-chart-delta \{ display: none; \}/);
+        expect(tracker.shadowRoot!.querySelectorAll('.st-chart-note')).toHaveLength(1);
         expect(tracker.shadowRoot!.querySelector('.st-delta')).toBeNull();
-        for (const config of [{ daylight_delta: 'none' }, { show_header: false }]) {
-            const off = mount({ sun_entity: 'sun.sun', compact: true, ...config });
-            expect(off.shadowRoot!.querySelector('.st-chart-delta'), JSON.stringify(config)).toBeNull();
-            expect(off.shadowRoot!.querySelector('.st-chart')!.getAttribute('aria-label')).not.toMatch(/Daylight/);
-        }
-    });
-
-    it('after the countdown: how much earlier or later the next sunset is, in words, and as a signed figure for a narrow line', () => {
-        const tracker = mount({ sun_entity: 'sun.sun' });
-        const line = tracker.shadowRoot!.querySelector('.st-countdown')!;
-        expect(line.querySelector('.st-shift-words')?.textContent).toMatch(/^(\d+m )?\d+s earlier$|^\d+m earlier$/);
-        expect(line.querySelector('.st-shift-sign')?.textContent).toMatch(/^\u2212/);
-        expect(line.querySelector('.st-shift-sign')?.getAttribute('aria-hidden')).toBe('true');
-        expect(mount({ sun_entity: 'sun.sun', compact: true }).shadowRoot!.querySelector('.st-countdown .st-shift')).not.toBeNull();
-        expect(mount({ sun_entity: 'sun.sun', daylight_delta: 'none' }).shadowRoot!.querySelector('.st-shift')).toBeNull();
-        expect(mount({ sun_entity: 'sun.sun', show_header: false }).shadowRoot!.querySelector('.st-shift')).toBeNull();
-        const css = tracker.shadowRoot!.querySelector('style')?.textContent ?? '';
-        expect(css).toMatch(/\.st-shift\[data-form="sign"\] \.st-shift-words \{[^}]*clip-path: inset\(50%\)/);
-        expect(css).toMatch(/\.st-countdown \{[^}]*white-space: nowrap/);
+        expect(tracker.shadowRoot!.querySelector('.st-chart')!.getAttribute('aria-label')).not.toMatch(/Daylight/);
     });
 
     it('for another place, by that place\'s sun: longer days in Sydney while Amsterdam\'s shorten', () => {

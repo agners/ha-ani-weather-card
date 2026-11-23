@@ -627,11 +627,6 @@ const STYLES = `
         font-variant-numeric: tabular-nums;
     }
     .st-chart-note .st-ampm { font-size: 1em; margin-left: 0.2em; font-weight: 500; }
-    /* The daylight's change, under the note in its style: only on a strip two rows tall, where the sky has room */
-    .st-chart-note.st-chart-delta { top: 31px; }
-    .st-chart-note.st-chart-delta[hidden] { display: none; }
-    .st-card.compact[data-fit="short"] .st-chart-delta,
-    .st-card.compact[data-fit="tight"] .st-chart-delta { display: none; }
     @container st (max-width: 419px) {
         .st-chart-note { display: none; }
     }
@@ -803,7 +798,6 @@ class AnimatedSunTrackerCard extends HTMLElement implements DevCard {
                 if (over()) delta.dataset.words = 'off';
                 if (over()) delta.hidden = true;
             }
-            this._clearDeltaOfPath(card);
             if (card.scrollHeight <= card.clientHeight + 1) return;
         }
     }
@@ -832,34 +826,6 @@ class AnimatedSunTrackerCard extends HTMLElement implements DevCard {
             if (line.scrollWidth <= room + 0.5) return;
         }
         shift.hidden = true;
-    }
-
-    /**
-     * The compact tracker's daylight change sits in the chart's sky, under the note, where a narrow strip's arc can
-     * rise to meet it: it shows only where the path stays clear of it all the way across, and the sun where it is now
-     * (the minute's render looks again).
-     */
-    private _clearDeltaOfPath(card: HTMLElement): void {
-        const line = card.querySelector('.st-chart-delta') as HTMLElement | null;
-        const svg = card.querySelector('.st-chart svg') as SVGElement | null;
-        if (!line || !svg || !this._path) return;
-        line.hidden = false;
-        if (getComputedStyle(line).display === 'none') return;
-        const r = line.getBoundingClientRect(), box = svg.getBoundingClientRect();
-        if (!box.width || !box.height) return;
-        const { riseH, setH, rtl } = this._path;
-        // The path a little clear of it, and the sun where it is now, with its glow
-        const clear = 5;
-        for (let h = 0; h <= 24; h += 0.05) {
-            const x = box.left + hourFrac(h, rtl) * box.width;
-            if (x < r.left - clear || x > r.right + clear) continue;
-            const y = box.top + (yFor(pathElevation(h, riseH, setH), COMPACT_PATH) / VH) * box.height;
-            if (y - clear < r.bottom) { line.hidden = true; return; }
-        }
-        const dot = card.querySelector('.st-dot')?.getBoundingClientRect();
-        // Its glow reaches past its disc
-        const air = 8;
-        if (dot && dot.right + air > r.left && dot.left - air < r.right && dot.bottom + air > r.top && dot.top - air < r.bottom) line.hidden = true;
     }
 
     /** The gestures' actions, against the sun entity: a tap opens its more-info dialog unless told otherwise */
@@ -1029,16 +995,13 @@ class AnimatedSunTrackerCard extends HTMLElement implements DevCard {
                     <div class="st-metric-value${wrap ? ' wrap' : ''}">${valueHtml}</div>
                 </div>`;
         const showDetails = !compact && this.config.show_details !== false;
-        const showNote = compact && showHeader;
-        // The daylight's change: on the daylight's line, its words where they fit, the figure alone where they don't
-        // (_fit); on the compact tracker, under the note, as the note says the other event
-        const d = showDetails || showNote ? daylightDelta(hass, this.config.daylight_delta, now) : null;
+        // The daylight's change, quiet on its line: its words where they fit, the figure alone where they don't (_fit)
+        const d = showDetails ? daylightDelta(hass, this.config.daylight_delta, now) : null;
         const words = (text: string) => (text.trim() ? `<span class="st-delta-words">${escapeHtml(text)}</span>` : '');
-        const deltaHtml = d && showDetails ? `<span class="st-delta">${words(d.before)}<span class="st-delta-figure">${escapeHtml(d.figure)}</span>${words(d.after)}</span>` : '';
-        // Compact: the other event, small, in the chart's open sky, and under it the daylight's change where there's room
-        const noteHtml = showNote ? `
-                        <div class="st-chart-note">${t(nextIsSunset ? 'sunrise' : 'sunset')}<span class="st-chart-note-time">${time(nextIsSunset ? sun.sunrise : sun.sunset)}</span></div>${d ? `
-                        <div class="st-chart-note st-chart-delta">${t('daylight')}<span class="st-chart-note-time">${escapeHtml(d.figure)}</span></div>` : ''}` : '';
+        const deltaHtml = d ? `<span class="st-delta">${words(d.before)}<span class="st-delta-figure">${escapeHtml(d.figure)}</span>${words(d.after)}</span>` : '';
+        // Compact: the other event, small, in the chart's open sky
+        const noteHtml = compact && showHeader ? `
+                        <div class="st-chart-note">${t(nextIsSunset ? 'sunrise' : 'sunset')}<span class="st-chart-note-time">${time(nextIsSunset ? sun.sunrise : sun.sunset)}</span></div>` : '';
         const detailsHtml = showDetails ? `
             <div class="st-metrics">
                 ${nextIsSunset
@@ -1058,8 +1021,6 @@ class AnimatedSunTrackerCard extends HTMLElement implements DevCard {
         const summary = [
             `${localizeString(hass, 'sunrise')} ${formatTime(sun.sunrise, hass)}`,
             `${localizeString(hass, 'sunset')} ${formatTime(sun.sunset, hass)}`,
-            // The compact tracker's change sits in the chart, which is one image to a screen reader: in words here
-            showNote && d ? `${localizeString(hass, 'daylight')} ${d.before}${d.figure}${d.after}` : '',
             sunState,
         ].filter(Boolean).join(' · ');
 
