@@ -217,6 +217,9 @@ describe('the tracker\'s daylight change', () => {
     it('sits under the daylight, quiet, since yesterday unless set', () => {
         expect(delta(mount({ sun_entity: 'sun.sun' }))).toMatch(/^−\d+m( \d+s)? since yesterday$/);
         expect(delta(mount({ sun_entity: 'sun.sun', daylight_delta: 'month' }))).toMatch(/since last month$/);
+        // Its words as its tooltip too, for a phone, where only the figure shows
+        const daylight = mount({ sun_entity: 'sun.sun' }).shadowRoot!.querySelector('.st-delta')!;
+        expect(daylight.getAttribute('title')).toBe(daylight.textContent);
     });
 
     it('leaves the daylight alone when off, without details, on the compact tracker or without coordinates', () => {
@@ -226,6 +229,25 @@ describe('the tracker\'s daylight change', () => {
         // The daylight itself is still there
         const tracker = mount({ sun_entity: 'sun.sun', daylight_delta: 'none' });
         expect(tracker.shadowRoot!.querySelector('.st-metric[data-kind="daylight"] .st-metric-value')?.textContent).toMatch(/\d/);
+    });
+
+    it('after the countdown: how much earlier or later the next sunset is, in words, and as a signed figure for a narrow line', () => {
+        const tracker = mount({ sun_entity: 'sun.sun' });
+        const line = tracker.shadowRoot!.querySelector('.st-countdown')!;
+        expect(line.querySelector('.st-shift-words')?.textContent).toMatch(/^(\d+m )?\d+s earlier$|^\d+m earlier$/);
+        expect(line.querySelector('.st-shift-sign')?.textContent).toMatch(/^\u2212/);
+        expect(line.querySelector('.st-shift-sign')?.getAttribute('aria-hidden')).toBe('true');
+        // What it's compared with: its tooltip, and the end of the phrase screen readers hear
+        expect(line.querySelector('.st-shift')?.getAttribute('title')).toMatch(/^(\d+m )?\d+s earlier than yesterday$|^\d+m earlier than yesterday$/);
+        expect(line.querySelector('.st-shift-period')?.textContent).toBe(' than yesterday');
+        expect(mount({ sun_entity: 'sun.sun', daylight_delta: 'week' }).shadowRoot!.querySelector('.st-shift')?.getAttribute('title')).toMatch(/earlier than last week$/);
+        expect(mount({ sun_entity: 'sun.sun', daylight_delta: 'month' }).shadowRoot!.querySelector('.st-shift')?.getAttribute('title')).toMatch(/earlier than last month$/);
+        expect(mount({ sun_entity: 'sun.sun', compact: true }).shadowRoot!.querySelector('.st-countdown .st-shift')).not.toBeNull();
+        expect(mount({ sun_entity: 'sun.sun', daylight_delta: 'none' }).shadowRoot!.querySelector('.st-shift')).toBeNull();
+        expect(mount({ sun_entity: 'sun.sun', show_header: false }).shadowRoot!.querySelector('.st-shift')).toBeNull();
+        const css = tracker.shadowRoot!.querySelector('style')?.textContent ?? '';
+        expect(css).toMatch(/\.st-shift-period,\s*\.st-shift\[data-form="sign"\] \.st-shift-words \{[^}]*clip-path: inset\(50%\)/);
+        expect(css).toMatch(/\.st-countdown \{[^}]*white-space: nowrap/);
     });
 
     it('leaves the compact tracker\'s sky to the other sunrise or sunset: its change is the shift after the countdown', () => {

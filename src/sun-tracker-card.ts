@@ -388,9 +388,11 @@ const STYLES = `
         opacity: var(--st-secondary-opacity);
     }
     /* How much earlier or later the sunrise or sunset is, after the countdown: in words, or the signed figure where
-       they don't fit (the words kept for screen readers), or nothing (_fit). Never cut short, never on a second line */
+       they don't fit, or nothing (_fit). What it's compared with is its tooltip, and screen readers hear it all.
+       Never cut short, never on a second line */
     .st-shift-sign { display: none; }
     .st-shift[data-form="sign"] .st-shift-sign { display: inline; }
+    .st-shift-period,
     .st-shift[data-form="sign"] .st-shift-words {
         position: absolute;
         width: 1px;
@@ -803,6 +805,22 @@ class AnimatedSunTrackerCard extends HTMLElement implements DevCard {
     }
 
     /**
+     * The shift's markup: "1m 6s earlier" on the line, "−1m 6s" where that doesn't fit, and what it's compared with
+     * ("than yesterday") as its tooltip and for screen readers, who hear the whole phrase in either form.
+     */
+    private _shiftHtml(shift: number, hass: HomeAssistant | undefined): string {
+        const mode = this.config.daylight_delta;
+        const words = localizeString(hass, shift < 0 ? 'shift_earlier' : 'shift_later', { delta: formatDaylightChange(shift, hass, false) });
+        const mark = '\u0000';
+        const full = localizeString(hass, mode === 'week' ? 'shift_week' : mode === 'month' ? 'shift_month' : 'shift_day', { shift: mark });
+        const [before = '', after = ''] = full.split(mark);
+        const period = (text: string) => (text ? `<span class="st-shift-period">${escapeHtml(text)}</span>` : '');
+        return `<span class="st-shift" title="${escapeHtml(before + words + after)}"><span class="st-shift-sep" aria-hidden="true"> · </span>`
+            + `${period(before)}<span class="st-shift-words">${escapeHtml(words)}</span>${period(after)}`
+            + `<span class="st-shift-sign" aria-hidden="true">${escapeHtml(formatDaylightChange(shift, hass))}</span></span>`;
+    }
+
+    /**
      * The sunrise's or sunset's shift after the countdown, in the longest form that fits on its one line: its words,
      * else the signed figure, else nothing. On the regular tracker the line has the card's width; on the compact one
      * the headline is as wide as its words, so the shift may widen it only a little (8% of the card, 40 px at most),
@@ -948,7 +966,7 @@ class AnimatedSunTrackerCard extends HTMLElement implements DevCard {
         // After it, how much earlier or later that sunrise or sunset is: in words where there's room, else the signed
         // figure (the words kept for screen readers), else nothing (_fit)
         const shift = countdown && this.config.show_header !== false ? sunShift(hass, this.config.daylight_delta, nextIsSunset ? 'set' : 'rise', nextIso) : null;
-        const shiftHtml = shift === null ? '' : `<span class="st-shift"><span class="st-shift-sep" aria-hidden="true"> · </span><span class="st-shift-words">${escapeHtml(localizeString(hass, shift < 0 ? 'shift_earlier' : 'shift_later', { delta: formatDaylightChange(shift, hass, false) }))}</span><span class="st-shift-sign" aria-hidden="true">${escapeHtml(formatDaylightChange(shift, hass))}</span></span>`;
+        const shiftHtml = shift === null ? '' : this._shiftHtml(shift, hass);
 
         // Sky for the current phase
         const phase = skyPhaseFromSun(sun.elevation, sun.rising, sun.aboveHorizon);
@@ -998,7 +1016,7 @@ class AnimatedSunTrackerCard extends HTMLElement implements DevCard {
         // The daylight's change, quiet on its line: its words where they fit, the figure alone where they don't (_fit)
         const d = showDetails ? daylightDelta(hass, this.config.daylight_delta, now) : null;
         const words = (text: string) => (text.trim() ? `<span class="st-delta-words">${escapeHtml(text)}</span>` : '');
-        const deltaHtml = d ? `<span class="st-delta">${words(d.before)}<span class="st-delta-figure">${escapeHtml(d.figure)}</span>${words(d.after)}</span>` : '';
+        const deltaHtml = d ? `<span class="st-delta" title="${escapeHtml(d.before + d.figure + d.after)}">${words(d.before)}<span class="st-delta-figure">${escapeHtml(d.figure)}</span>${words(d.after)}</span>` : '';
         // Compact: the other event, small, in the chart's open sky
         const noteHtml = compact && showHeader ? `
                         <div class="st-chart-note">${t(nextIsSunset ? 'sunrise' : 'sunset')}<span class="st-chart-note-time">${time(nextIsSunset ? sun.sunrise : sun.sunset)}</span></div>` : '';

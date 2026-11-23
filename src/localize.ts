@@ -14,7 +14,7 @@ export type CardString =
     | 'first_light' | 'last_light' | 'moon'
     | 'in_duration'
     | 'daylight_day' | 'daylight_week' | 'daylight_month'
-    | 'shift_earlier' | 'shift_later'
+    | 'shift_earlier' | 'shift_later' | 'shift_day' | 'shift_week' | 'shift_month'
     | 'note_reading' | 'note_writing'
     | 'uv_index' | 'uv_low' | 'uv_moderate' | 'uv_high' | 'uv_very_high' | 'uv_extreme'
     | 'rain_today' | 'rain_now'
@@ -29,6 +29,7 @@ const NB: Partial<Record<CardString, string>> = {
     in_duration: 'om {duration}',
     daylight_day: '{delta} siden i går', daylight_week: '{delta} siden forrige uke', daylight_month: '{delta} siden forrige måned',
     shift_earlier: '{delta} tidligere', shift_later: '{delta} senere',
+    shift_day: '{shift} enn i går', shift_week: '{shift} enn forrige uke', shift_month: '{shift} enn forrige måned',
     note_reading: 'Leser værmeldingen', note_writing: 'Skriver notatet',
     uv_index: 'UV-indeks',
     uv_low: 'Lav', uv_moderate: 'Moderat', uv_high: 'Høy', uv_very_high: 'Svært høy', uv_extreme: 'Ekstrem',
@@ -46,6 +47,7 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         in_duration: 'in {duration}',
         daylight_day: '{delta} since yesterday', daylight_week: '{delta} since last week', daylight_month: '{delta} since last month',
         shift_earlier: '{delta} earlier', shift_later: '{delta} later',
+        shift_day: '{shift} than yesterday', shift_week: '{shift} than last week', shift_month: '{shift} than last month',
         note_reading: 'Reading the forecast', note_writing: 'Writing the note',
         uv_index: 'UV index',
         uv_low: 'Low', uv_moderate: 'Moderate', uv_high: 'High', uv_very_high: 'Very high', uv_extreme: 'Extreme',
@@ -60,6 +62,7 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         in_duration: 'in {duration}',
         daylight_day: '{delta} seit gestern', daylight_week: '{delta} seit letzter Woche', daylight_month: '{delta} seit letztem Monat',
         shift_earlier: '{delta} früher', shift_later: '{delta} später',
+        shift_day: '{shift} als gestern', shift_week: '{shift} als letzte Woche', shift_month: '{shift} als letzten Monat',
         note_reading: 'Vorhersage wird gelesen', note_writing: 'Notiz wird geschrieben',
         uv_index: 'UV-Index',
         uv_low: 'Niedrig', uv_moderate: 'Mäßig', uv_high: 'Hoch', uv_very_high: 'Sehr hoch', uv_extreme: 'Extrem',
@@ -74,6 +77,7 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         in_duration: 'en {duration}',
         daylight_day: '{delta} desde ayer', daylight_week: '{delta} desde la semana pasada', daylight_month: '{delta} desde el mes pasado',
         shift_earlier: '{delta} antes', shift_later: '{delta} después',
+        shift_day: '{shift} que ayer', shift_week: '{shift} que la semana pasada', shift_month: '{shift} que el mes pasado',
         note_reading: 'Leyendo el pronóstico', note_writing: 'Escribiendo la nota',
         uv_index: 'Índice UV',
         uv_low: 'Bajo', uv_moderate: 'Moderado', uv_high: 'Alto', uv_very_high: 'Muy alto', uv_extreme: 'Extremo',
@@ -88,6 +92,7 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         in_duration: 'dans {duration}',
         daylight_day: '{delta} depuis hier', daylight_week: '{delta} depuis la semaine dernière', daylight_month: '{delta} depuis le mois dernier',
         shift_earlier: '{delta} plus tôt', shift_later: '{delta} plus tard',
+        shift_day: '{shift} qu’hier', shift_week: '{shift} que la semaine dernière', shift_month: '{shift} que le mois dernier',
         note_reading: 'Lecture des prévisions', note_writing: 'Rédaction de la note',
         uv_index: 'Indice UV',
         uv_low: 'Faible', uv_moderate: 'Modéré', uv_high: 'Élevé', uv_very_high: 'Très élevé', uv_extreme: 'Extrême',
@@ -102,6 +107,7 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         in_duration: 'tra {duration}',
         daylight_day: '{delta} da ieri', daylight_week: '{delta} dalla settimana scorsa', daylight_month: '{delta} dal mese scorso',
         shift_earlier: '{delta} prima', shift_later: '{delta} dopo',
+        shift_day: '{shift} rispetto a ieri', shift_week: '{shift} rispetto alla settimana scorsa', shift_month: '{shift} rispetto al mese scorso',
         note_reading: 'Lettura delle previsioni', note_writing: 'Scrittura della nota',
         uv_index: 'Indice UV',
         uv_low: 'Basso', uv_moderate: 'Moderato', uv_high: 'Alto', uv_very_high: 'Molto alto', uv_extreme: 'Estremo',
@@ -116,6 +122,7 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         in_duration: 'over {duration}',
         daylight_day: '{delta} sinds gisteren', daylight_week: '{delta} sinds vorige week', daylight_month: '{delta} sinds vorige maand',
         shift_earlier: '{delta} eerder', shift_later: '{delta} later',
+        shift_day: '{shift} dan gisteren', shift_week: '{shift} dan vorige week', shift_month: '{shift} dan vorige maand',
         note_reading: 'Verwachting lezen', note_writing: 'Notitie schrijven',
         uv_index: 'UV-index',
         uv_low: 'Laag', uv_moderate: 'Matig', uv_high: 'Hoog', uv_very_high: 'Zeer hoog', uv_extreme: 'Extreem',
@@ -130,6 +137,7 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         in_duration: 'za {duration}',
         daylight_day: '{delta} od wczoraj', daylight_week: '{delta} od zeszłego tygodnia', daylight_month: '{delta} od zeszłego miesiąca',
         shift_earlier: '{delta} wcześniej', shift_later: '{delta} później',
+        shift_day: '{shift} niż wczoraj', shift_week: '{shift} niż w zeszłym tygodniu', shift_month: '{shift} niż w zeszłym miesiącu',
         note_reading: 'Czytanie prognozy', note_writing: 'Pisanie notatki',
         uv_index: 'Indeks UV',
         uv_low: 'Niski', uv_moderate: 'Umiarkowany', uv_high: 'Wysoki', uv_very_high: 'Bardzo wysoki', uv_extreme: 'Ekstremalny',
@@ -144,6 +152,7 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         in_duration: 'em {duration}',
         daylight_day: '{delta} desde ontem', daylight_week: '{delta} desde a semana passada', daylight_month: '{delta} desde o mês passado',
         shift_earlier: '{delta} mais cedo', shift_later: '{delta} mais tarde',
+        shift_day: '{shift} do que ontem', shift_week: '{shift} do que na semana passada', shift_month: '{shift} do que no mês passado',
         note_reading: 'Leitura da previsão', note_writing: 'Escrita da nota',
         uv_index: 'Índice UV',
         uv_low: 'Baixo', uv_moderate: 'Moderado', uv_high: 'Alto', uv_very_high: 'Muito alto', uv_extreme: 'Extremo',
@@ -158,6 +167,7 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         in_duration: 'în {duration}',
         daylight_day: '{delta} față de ieri', daylight_week: '{delta} față de săptămâna trecută', daylight_month: '{delta} față de luna trecută',
         shift_earlier: 'cu {delta} mai devreme', shift_later: 'cu {delta} mai târziu',
+        shift_day: '{shift} decât ieri', shift_week: '{shift} decât săptămâna trecută', shift_month: '{shift} decât luna trecută',
         note_reading: 'Citesc prognoza', note_writing: 'Scriu nota',
         uv_index: 'Indice UV',
         uv_low: 'Scăzut', uv_moderate: 'Moderat', uv_high: 'Ridicat', uv_very_high: 'Foarte ridicat', uv_extreme: 'Extrem',
@@ -176,6 +186,7 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         in_duration: 'через {duration}',
         daylight_day: '{delta} з учорашнього дня', daylight_week: '{delta} з минулого тижня', daylight_month: '{delta} з минулого місяця',
         shift_earlier: 'на {delta} раніше', shift_later: 'на {delta} пізніше',
+        shift_day: '{shift}, ніж учора', shift_week: '{shift}, ніж минулого тижня', shift_month: '{shift}, ніж минулого місяця',
         note_reading: 'Аналіз прогнозу', note_writing: 'Підготовка нотатки',
         uv_index: 'УФ-індекс',
         uv_low: 'Низький', uv_moderate: 'Помірний', uv_high: 'Високий', uv_very_high: 'Дуже високий', uv_extreme: 'Екстремальний',
