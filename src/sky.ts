@@ -269,10 +269,26 @@ export const SKY_GLOW_WIDE: GlowGeometry = { rx: 0.40, ry: 0.64, cx: 0.86, cy: 0
  */
 export const SKY_GLOW_COMPACT: GlowGeometry = { rx: 0.24, ry: 0.95, cx: 0.86, cy: 0.5, fade: 0.64 };
 
+/**
+ * The sky's light is placed as on a card this tall at most: a five-row card in a sections view. A taller card (the
+ * forecast with its days) keeps its sun, moon and glow where that card has them, beside the temperature, instead of
+ * carrying them down its height. The compact strip, the wall, the view and the forecast card place their own.
+ */
+export const SKY_LIGHT_MAX_PX = 312;
+
 /** CSS radial-gradient for the glow, e.g. `skyGlowGradient(SKY_GLOW, 'var(--awc-sky-glow)')`. */
 export function skyGlowGradient(g: GlowGeometry, color: string): string {
     const pct = (n: number) => `${Math.round(n * 100)}%`;
     return `radial-gradient(${pct(g.rx)} ${pct(g.ry)} at ${pct(g.cx)} ${pct(g.cy)}, ${color}, transparent ${pct(g.fade)})`;
+}
+
+/**
+ * The glow as drawn on a card `heightPx` tall, in fractions of that card. The card paints it in a box as wide as the
+ * card and no taller than SKY_LIGHT_MAX_PX, from the top, so past that height it's a five-row card's in px.
+ */
+export function glowOn(g: GlowGeometry, heightPx: number): GlowGeometry {
+    const k = Math.min(1, SKY_LIGHT_MAX_PX / heightPx);
+    return { ...g, ry: g.ry * k, cy: g.cy * k };
 }
 
 function parseRgba(rgba: string): { rgb: [number, number, number]; alpha: number } {

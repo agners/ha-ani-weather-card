@@ -4,7 +4,7 @@
 // (the wall's figures, the nightstand's time) 3:1, the icons 3.2:1.
 import { describe, it, expect, vi } from 'vitest';
 import {
-    SKY_CONDITIONS, SKY_PHASES, SKY_TEXT, SKY_GLOW, SKY_GLOW_WIDE, GlowGeometry,
+    SKY_CONDITIONS, SKY_PHASES, SKY_TEXT, SKY_GLOW, SKY_GLOW_WIDE, GlowGeometry, glowOn,
     sampleSky, sampleSkyAt, oklchToSrgb, composite, contrastRatio, relativeLuminance, skyColors, type SkyPhase,
 } from '../../src/sky';
 import { litTints, GLYPH_CONTRAST } from '../../src/fc-glyphs';
@@ -72,6 +72,19 @@ describe('the forecast on the weather card', () => {
         check('days, lows', grid(range(0.02, 0.98, 0.04), range(0.57, 0.99, 0.04)), at(SKY_GLOW), 0.8);
         check('days, wide', grid(range(0.02, 0.6, 0.04), range(0.45, 0.99, 0.04)), at(SKY_GLOW_WIDE));
         check('days, wide, lows', grid(range(0.02, 0.6, 0.04), range(0.45, 0.99, 0.04)), at(SKY_GLOW_WIDE), 0.8);
+    });
+    it('on a card taller than five rows (the hours and their days), the hero\'s lines under a five-row card\'s light', () => {
+        // The light stops growing at five rows (glowOn), so the hero's lines, which sit at the same px on any card, are
+        // checked in px on tall cards: the location line (and the clock and away line) tinted to 80 px, the condition's
+        // line and the turning line full strength to 260 px, the big value 3:1. Below, see sky.test.ts.
+        for (const h of [504, 760, 1000]) {
+            const px = (from: number, to: number) => range(from, to, 8).map(y => +(y / h).toFixed(4));
+            check(`location line, ${h} px`, grid(range(0.04, 0.57, 0.03), px(12, 84)), at(glowOn(SKY_GLOW, h)), 0.8);
+            check(`condition line, ${h} px`, grid(range(0.04, 0.68, 0.04), px(84, 260)), at(glowOn(SKY_GLOW, h)));
+            check(`hero clock, ${h} px`, grid(range(0.04, 0.68, 0.04), px(16, 260)), at(glowOn(SKY_GLOW, h)), 1, 3);
+            check(`wide hero column, ${h} px`, grid(range(0.02, 0.6, 0.04), px(84, h - 12)), at(glowOn(SKY_GLOW_WIDE, h)));
+            check(`wide location line, ${h} px`, grid(range(0.02, 0.57, 0.03), px(12, 84)), at(glowOn(SKY_GLOW_WIDE, h)), 0.8);
+        }
     });
 });
 

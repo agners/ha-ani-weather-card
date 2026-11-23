@@ -10,7 +10,7 @@
 // Weather always moves behind the words.
 
 import { iconBoxCss } from './icon-box';
-import { generateSkyCss, oklchToSrgb, toHex, SKY_TEXT, SKY_TEXT_SECONDARY_ALPHA, SKY_MID_STOP, SKY_SCRIM_START, SKY_GLOW, SKY_GLOW_WIDE, SKY_GLOW_COMPACT, skyGlowGradient, dissolveTransition, SKY_DISSOLVE_SEC, SKY_DISSOLVE_EASE } from '../sky';
+import { generateSkyCss, oklchToSrgb, toHex, SKY_TEXT, SKY_TEXT_SECONDARY_ALPHA, SKY_MID_STOP, SKY_SCRIM_START, SKY_GLOW, SKY_GLOW_WIDE, SKY_GLOW_COMPACT, SKY_LIGHT_MAX_PX, skyGlowGradient, dissolveTransition, SKY_DISSOLVE_SEC, SKY_DISSOLVE_EASE } from '../sky';
 
 /** The dev_mode marker: light text on a dark pill that holds 4.5:1 over any sky or theme, white included */
 export const DEV_MARKER = { text: '#f4f6fa', fill: 'rgba(12, 16, 24, 0.62)', alpha: 0.62, ink: [12, 16, 24] as const };
@@ -30,11 +30,10 @@ export const CLOUD_OVERHANG_PX = 48;
 
 /**
  * The sun sits this far down its track, and the moon as far down the sky, as fractions of the card's height, up to a
- * card SUN_TRACK_MAX_PX tall: a five-row card. A taller card (the forecast with its days) keeps them where that card
- * has them, beside the temperature, instead of carrying them down beside the readings.
+ * card SKY_LIGHT_MAX_PX tall (sky.ts): a five-row card. A taller card (the forecast with its days) keeps them where that
+ * card has them, beside the temperature, instead of carrying them down beside the readings.
  */
 export const SUN_TOP = 0.2;
-export const SUN_TRACK_MAX_PX = 312;
 
 /**
  * The UV reading's icon, by level, on the sky palette: the WHO's green, yellow, orange, red and violet, each as light as
@@ -161,7 +160,7 @@ ${iconBoxCss('animated-weather-card')}
           pointer-events: none;
           --awc-sky-glow-layer: ${skyGlowGradient(SKY_GLOW, 'var(--awc-sky-glow)')};
           --awc-sky-layers:
-            var(--awc-sky-glow-layer),
+            var(--awc-sky-glow-layer) 0 0 / var(--awc-sky-glow-box, 100% 100%) no-repeat,
             linear-gradient(180deg, transparent ${pct(SKY_SCRIM_START)}, var(--awc-sky-scrim) 100%),
             linear-gradient(180deg, var(--awc-sky-top) 0%, var(--awc-sky-mid) ${pct(SKY_MID_STOP)}, var(--awc-sky-bottom) 100%);
           background: var(--awc-sky-override, var(--awc-sky-layers));
@@ -170,6 +169,19 @@ ${iconBoxCss('animated-weather-card')}
         @container awc (min-width: 640px) {
           .sky { --awc-sky-glow-layer: ${skyGlowGradient(SKY_GLOW_WIDE, 'var(--awc-sky-glow)')}; }
         }
+        /* A card taller than five rows keeps a five-row card's glow, around the
+           sun beside the temperature, rather than a long streak down its side:
+           the light is painted in a box no taller than that card, from the top
+           (it fades out well inside it). Behind @supports, since a browser that
+           can't read min() there would drop the whole sky. The compact strip,
+           the wall, the view and the forecast card light the whole card. */
+        @supports (background-size: 100% min(100%, 1px)) {
+          .sky { --awc-sky-glow-box: 100% min(100%, ${SKY_LIGHT_MAX_PX}px); }
+        }
+        .animated-weather-card[data-variant="compact"] .sky,
+        .animated-weather-card[data-fw] .sky,
+        .animated-weather-card[data-fc-view] .sky,
+        .animated-weather-card[data-fc-card] .sky { --awc-sky-glow-box: 100% 100%; }
 
         /* Edge falloff: the frame darkens slightly, like a lens */
         .sky::before {
@@ -1009,7 +1021,7 @@ ${iconBoxCss('animated-weather-card')}
           left: 0;
           right: 0;
           height: 100%;
-          max-height: ${SUN_TRACK_MAX_PX}px;
+          max-height: ${SKY_LIGHT_MAX_PX}px;
           pointer-events: none;
           transition: transform ${SKY_DISSOLVE_SEC}s ${SKY_DISSOLVE_EASE};
         }
@@ -1096,7 +1108,7 @@ ${iconBoxCss('animated-weather-card')}
           position: absolute;
           left: 84%;
           top: ${pct(SUN_TOP)};
-          top: min(${pct(SUN_TOP)}, ${+(SUN_TOP * SUN_TRACK_MAX_PX).toFixed(1)}px);
+          top: min(${pct(SUN_TOP)}, ${+(SUN_TOP * SKY_LIGHT_MAX_PX).toFixed(1)}px);
           width: 34px;
           height: 34px;
           border-radius: 50%;
