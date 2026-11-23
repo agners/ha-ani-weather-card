@@ -113,21 +113,24 @@ describe('the editor\'s rows', () => {
         }
     });
 
-    it('show a new card six controls: the weather, its name, the layout, the colors, the forecast and the note', () => {
+    it('show a new card six controls: a preset to start from, the weather, its name, the colors, the forecast and the note', () => {
         const fresh = { type: 'custom:animated-weather-card', entity: 'weather.home', sun_entity: 'sun.sun' };
         const shown = Object.keys(ROWS).filter(id => !ROWS[id].reason && rowShown(id, fresh as never, basic, new Set()));
-        expect(shown).toEqual(['entity', 'name', 'layout', 'color_palette', 'show_forecast', 'note']);
+        expect(shown).toEqual(['preset', 'entity', 'name', 'color_palette', 'show_forecast', 'note']);
         const sections = Object.keys(SECTIONS).filter(s => sectionShown(SECTIONS[s], fresh as never, basic, new Set()));
-        expect(sections).toEqual(['weather', 'look', 'forecast', 'note']);
-        // All settings: every section but the nightstand's
+        expect(sections).toEqual(['start', 'weather', 'look', 'forecast', 'note']);
+        // All settings: every section but the nightstand's, and the layout among them
         const all = Object.keys(SECTIONS).filter(s => sectionShown(SECTIONS[s], fresh as never, { ...basic, all: true }, new Set()));
-        expect(all).toEqual(['weather', 'look', 'forecast', 'note', 'readings', 'sky', 'colors', 'planes', 'interactions', 'dev']);
+        expect(all).toEqual(['start', 'weather', 'look', 'forecast', 'note', 'readings', 'sky', 'colors', 'planes', 'interactions', 'dev']);
+        expect(rowShown('layout', fresh as never, { ...basic, all: true }, new Set())).toBe(true);
     });
 
     it('give a nightstand its alarm and wake time, and keep the forecast and the note out of Basic there', () => {
         const stand = { entity: 'weather.home', layout: 'nightstand' };
-        const shown = Object.keys(ROWS).filter(id => rowShown(id, stand as never, basic, new Set()));
-        expect(shown).toEqual(['entity', 'name', 'layout', 'color_palette', 'alarm_entity', 'wake_time', 'why_forecast_nightstand', 'why_note_nightstand']);
+        // As the editor pins every row the config has changed: the layout shows, though it's no longer a basic
+        const pinned = new Set(Object.keys(ROWS).filter(id => rowChanged(id, stand as never)));
+        const shown = Object.keys(ROWS).filter(id => rowShown(id, stand as never, basic, pinned));
+        expect(shown).toEqual(['preset', 'entity', 'name', 'layout', 'color_palette', 'alarm_entity', 'wake_time', 'why_forecast_nightstand', 'why_note_nightstand']);
         expect(sectionShown(SECTIONS.forecast, stand as never, basic, new Set())).toBe(false);
         // With all settings, every row is there with its reason above it
         expect(rowShown('show_forecast', stand as never, { ...basic, all: true }, new Set())).toBe(true);

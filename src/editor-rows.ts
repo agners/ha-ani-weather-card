@@ -104,6 +104,8 @@ const animated = (c: Config) => c.animate !== false;
 
 /** Every row, in the editor's order */
 export const ROWS: Readonly<Record<string, RowSpec>> = {
+    // Start from (presets.ts): its tiles write the options the rows below hold, so it owns none of its own
+    preset: { tier: 'basic', keys: [] },
     // Weather
     entity: { tier: 'basic', keys: ['entity'] },
     name: { tier: 'basic', keys: ['name'] },
@@ -114,7 +116,8 @@ export const ROWS: Readonly<Record<string, RowSpec>> = {
     place_fields: { tier: 'all', keys: ['latitude', 'longitude', 'time_zone'], when: (_, x) => x.place },
 
     // Layout and colors
-    layout: { tier: 'basic', keys: ['compact', 'layout'] },
+    // The presets stand in for it among the basics; it shows there once a card is a strip or a nightstand
+    layout: { tier: 'all', keys: ['compact', 'layout'] },
     color_palette: { tier: 'basic', keys: ['color_palette'] },
     temperature_decimals: { tier: 'all', keys: ['temperature_decimals'] },
 
@@ -199,6 +202,7 @@ export const ROWS: Readonly<Record<string, RowSpec>> = {
  * them hold only rows for all settings, and are closed until opened
  */
 export const SECTIONS: Readonly<Record<string, readonly string[]>> = {
+    start: ['preset'],
     weather: ['entity', 'name', 'show_location', 'outdoor_sensor_entity', 'feels_like_entity', 'another_place', 'place_fields'],
     look: ['layout', 'color_palette', 'temperature_decimals'],
     nightstand: ['why_nightstand_only', 'alarm_entity', 'wake_time', 'night', 'night_sensor', 'night_lux', 'bed_time', 'night_red'],

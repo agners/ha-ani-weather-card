@@ -17,7 +17,9 @@ import { mountReadingsEditor, readingLabel, type ReadingsEditor } from './readin
 import { bindPlaceFields, placeFieldsHtml, PLACE_FIELDS_CSS } from './place-editor';
 import { ActionConfig, readActions } from './actions';
 import { mountActionsEditor, updateActionsEditor } from './action-editor';
-import { DRAWERS, WEATHER_TABLE, isChanged, tapDefault, type RowContext } from './editor-rows';
+import { DRAWERS, ROWS, WEATHER_TABLE, isChanged, tapDefault, type RowContext } from './editor-rows';
+import { PRESETS, PRESET_KEYS, WALL_MIN, presetById, presetOf, type PresetId } from './presets';
+import { PRESET_ART } from './preset-art';
 import { CHEVRON, INFO, allSaid, allSwitch, picker, raf, reveal, row, section, seg as kitSeg, select, storeAll, storedAll, sw, syncRows, why } from './editor-kit';
 import { readingsOf } from './readings';
 
@@ -201,9 +203,17 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
             + `<span class="drw-tx"><span class="drw-t">${title}</span><span class="drw-s" data-summary="${key}"></span></span>${CHEVRON}</button></h3>`
             + `<div class="rv drw-c" id="awc-${key}-${id}" role="region" aria-label="${title}"><div class="rv-in"><div class="drw-in">${body}</div></div></div></div></div></section>`;
 
+        // Start from: the presets, a radio each, the one the card matches checked (none for a look of your own)
+        const current = presetOf(c);
+        const presets = `<fieldset class="pre" id="preset"><legend class="vh">Start from a preset</legend><div class="pre-grid">${PRESETS.map(p =>
+            `<label class="pre-t"><input type="radio" name="awc-preset-${id}" value="${p.id}"${p.id === current ? ' checked' : ''}><span class="pre-c">${PRESET_ART[p.id]}<span class="pre-n">${p.label}</span></span></label>`).join('')}</div>`
+            + `<p class="help" data-help="preset"></p><p class="why" data-wall hidden>${INFO}<span>The wall needs the card at least ${WALL_MIN.width} × ${WALL_MIN.height} px: give its section Double width (the section's settings, Width), or put it in a panel view. Smaller, it's the forecast with the time and date.</span></p></fieldset>`;
+
         this.innerHTML = `
       <div class="card-config" data-instant>
         ${allSwitch(this.all)}
+
+        ${section('start', 'Start from', row('preset', presets))}
 
         ${section('weather', 'Weather', [
             row('entity', `${picker('entity', 'Weather entity', c.entity)}<p class="status" role="status" data-status="entity" hidden>${INFO}<span>Pick a weather entity to start.</span></p>`),
@@ -326,6 +336,9 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
             const live = this.querySelector('[data-live]');
             if (live) live.textContent = allSaid(this.all, true);
         });
+
+        // Start from: a preset writes its options over the ones it owns
+        radios('preset', value => this.pickPreset(value as PresetId));
 
         // Weather
         on('#entity', 'value-changed', el => this._set({ entity: el.value }));
@@ -614,6 +627,11 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
         if (list) reveal(list, drawers, instant);
 
         const set = (selector: string, text: string) => { const el = this.querySelector(selector); if (el && el.textContent !== text) el.textContent = text; };
+        // The preset the card matches now, whatever changed it: a tile, another control or YAML
+        const preset = presetOf(c);
+        this.querySelectorAll<HTMLInputElement>('#preset input[type="radio"]').forEach(r => { r.checked = r.value === preset; });
+        set('[data-help="preset"]', preset ? presetById(preset)!.description : 'Your own mix. Pick one to start again from it');
+        this.querySelector('[data-wall]')?.toggleAttribute('hidden', preset !== 'wall');
         const layout = c.layout === 'nightstand' ? 'nightstand' : c.compact ? 'compact' : 'default';
         set('[data-help="layout"]', { default: 'The sky, the temperature and your readings', compact: 'One line, to sit under other cards', nightstand: 'A bedside clock that goes dark at night' }[layout]);
         set('[data-help="color_palette"]', c.color_palette === 'theme' ? 'Your dashboard theme\'s colors, light or dark' : 'Colors from the weather and the time of day');
@@ -774,6 +792,21 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
             else c[key] = value;
         }
         this._fireConfigChanged();
+    }
+
+    /**
+     * A preset: the options it owns taken back to its own, the rest as they were (presets.ts). Its options reach
+     * controls in several sections at once (the layout, the forecast's switches, the readings), so the editor is drawn
+     * again, as for a YAML edit, keeping the open drawers and Show all settings, and the tile keeps the focus. The rows
+     * of the options a preset owns are let go, so the next preset's basics are as tidy as a new card's.
+     */
+    private pickPreset(id: PresetId): void {
+        const preset = presetById(id);
+        if (!preset) return;
+        for (const [row, spec] of Object.entries(ROWS)) if (spec.keys.some(k => (PRESET_KEYS as readonly string[]).includes(k))) this.pinned.delete(row);
+        this._patchConfig({ ...Object.fromEntries(PRESET_KEYS.map(k => [k, undefined])), ...preset.options });
+        this.render();
+        (this.querySelector(`#preset input[value="${id}"]`) as HTMLElement | null)?.focus();
     }
 
     _updateConfig(key: string, value: unknown) {

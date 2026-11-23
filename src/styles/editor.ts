@@ -242,6 +242,65 @@ ${iconBoxCss('.card-config')}
         .seg-track input:checked + span::before { opacity: 0.14; }
         .seg-track input:focus-visible + span { outline: 2px solid var(--primary-color); outline-offset: 1px; }
 
+        /* ── Start from: the presets, a small drawing of each layout ─────── */
+        .pre { min-width: 0; margin: 0; padding: 0; border: 0; }
+        /* Four across at most, so seven sit four over three; fewer where a tile would go under 76 px */
+        .pre-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(max(76px, calc((100% - 18px) / 4)), 1fr)); gap: 6px; }
+        .pre-t { position: relative; min-width: 0; cursor: pointer; }
+        .pre-t input {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          margin: 0;
+          opacity: 0;
+          cursor: pointer;
+        }
+        .pre-c {
+          position: relative;
+          isolation: isolate;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 4px;
+          padding: 8px 4px 7px;
+          border: 1px solid var(--divider-color, rgba(127, 127, 127, 0.3));
+          border-radius: 10px;
+          color: var(--secondary-text-color);
+          pointer-events: none;
+          transition: color 120ms var(--awc-press), border-color 120ms var(--awc-press);
+        }
+        .pre-c::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          z-index: -1;
+          border-radius: inherit;
+          background: var(--primary-color);
+          opacity: 0;
+          transition: opacity 120ms var(--awc-press);
+        }
+        @media (hover: hover) {
+          .pre-t input:not(:checked):hover + .pre-c::before { opacity: 0.06; }
+        }
+        .pre-t input:checked + .pre-c { color: var(--primary-text-color); border-color: var(--primary-color); }
+        .pre-t input:checked + .pre-c::before { opacity: 0.14; }
+        .pre-t input:focus-visible + .pre-c { outline: 2px solid var(--primary-color); outline-offset: 1px; }
+        .pre-n { font-size: 13px; line-height: 16px; font-weight: 500; text-align: center; }
+        .pre-art { display: block; width: 100%; max-width: 64px; height: auto; }
+        .pre-art .card { fill: var(--primary-color); fill-opacity: 0.18; }
+        .pre-art .ink { fill: currentColor; fill-opacity: 0.85; }
+        .pre-art .q { fill: currentColor; fill-opacity: 0.45; }
+        .pre-art .bar { fill: currentColor; fill-opacity: 0.3; }
+        .pre-art .sun { fill: currentColor; fill-opacity: 0.3; }
+        .pre-art .line { fill: none; stroke: currentColor; stroke-opacity: 0.7; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+        /* The nightstand's own night: black, and its red */
+        .pre-art .night { fill: #0b0b0c; stroke: currentColor; stroke-opacity: 0.25; stroke-width: 1; }
+        .pre-art .red { fill: #c21f17; }
+        .pre-art .red-q { fill: #eb261c; fill-opacity: 0.7; }
+        .pre .help { margin: 8px 0 0; }
+        .pre .why { margin-top: 6px; }
+
         /* ── Why something doesn't apply, and what's missing ─────────────── */
         .why, .status {
           display: flex;

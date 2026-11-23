@@ -38,10 +38,10 @@ beforeEach(() => localStorage.removeItem(STORE));
 afterEach(() => { editor?.remove(); localStorage.removeItem(STORE); });
 
 describe('the editor\'s basics', () => {
-    it('show a new card six controls in four sections, and none of the drawers', async () => {
+    it('show a new card six controls in five sections, and none of the drawers', async () => {
         await open({ sun_entity: 'sun.sun' });
-        expect(openRows()).toEqual(['entity', 'name', 'layout', 'color_palette', 'show_forecast', 'note']);
-        expect(openSections()).toEqual(['weather', 'look', 'forecast', 'note']);
+        expect(openRows()).toEqual(['preset', 'entity', 'name', 'color_palette', 'show_forecast', 'note']);
+        expect(openSections()).toEqual(['start', 'weather', 'look', 'forecast', 'note']);
         expect($('[data-drawers]').hasAttribute('data-open')).toBe(false);
         expect($('#all_settings').hasAttribute('checked')).toBe(false);
         // Nothing is dimmed, and the nightstand's fields aren't on a regular card
@@ -57,8 +57,8 @@ describe('the editor\'s basics', () => {
         expect(sent).toEqual([]);
         expect($('#entity')).toBe(entity);
         expect($('.card-config').hasAttribute('data-all')).toBe(true);
-        expect(openSections()).toEqual(['weather', 'look', 'forecast', 'note', 'readings', 'sky', 'colors', 'planes', 'interactions', 'dev']);
-        for (const id of ['outdoor_sensor_entity', 'show_location', 'temperature_decimals', 'time_date', 'hero', 'animate', 'flights_entity', 'actions', 'dev_mode']) expect(shown(id), id).toBe(true);
+        expect(openSections()).toEqual(['start', 'weather', 'look', 'forecast', 'note', 'readings', 'sky', 'colors', 'planes', 'interactions', 'dev']);
+        for (const id of ['layout', 'outdoor_sensor_entity', 'show_location', 'temperature_decimals', 'time_date', 'hero', 'animate', 'flights_entity', 'actions', 'dev_mode']) expect(shown(id), id).toBe(true);
         // The forecast's own rows wait for the forecast
         expect(shown('forecast_graph')).toBe(false);
         flip('#show_forecast', true);
@@ -77,7 +77,7 @@ describe('the editor\'s basics', () => {
         expect(shown('outdoor_sensor_entity')).toBe(true);
         expect(shown('animate')).toBe(false);
         expect(shown('show_location')).toBe(false);
-        expect(openSections()).toEqual(['weather', 'look', 'forecast', 'note']);
+        expect(openSections()).toEqual(['start', 'weather', 'look', 'forecast', 'note']);
         const picker = $('#outdoor_sensor_entity');
         picker.value = '';
         picker.dispatchEvent(new Event('value-changed'));
@@ -165,6 +165,58 @@ describe('the editor\'s merged controls', () => {
         expect(shown('place_fields')).toBe(false);
         flip('#another_place', true);
         expect(last()).toMatchObject({ latitude: -33.87, longitude: 151.21, time_zone: 'Australia/Sydney' });
+    });
+});
+
+describe('the editor\'s presets', () => {
+    const tiles = () => [...editor.querySelectorAll<HTMLInputElement>('#preset input[type="radio"]')];
+    const picked = () => tiles().find(t => t.checked)?.value ?? null;
+    const pick = (id: string) => { const t = $(`#preset input[value="${id}"]`); t.checked = true; t.dispatchEvent(new Event('change')); };
+
+    it('offer seven to start from, each drawn, in one group, the one the card matches picked', async () => {
+        await open({ sun_entity: 'sun.sun' });
+        expect(tiles().map(t => t.value)).toEqual(['standard', 'simple', 'forecast', 'full', 'strip', 'bedside', 'wall']);
+        expect(new Set(tiles().map(t => t.name)).size).toBe(1);
+        expect(editor.querySelectorAll('#preset .pre-art')).toHaveLength(7);
+        expect(picked()).toBe('standard');
+        expect($('[data-help="preset"]').textContent).toBe('The sky, the temperature and four readings');
+        editor.remove();
+        await open({ show_forecast: true, hero: 'clock' });
+        expect(picked()).toBeNull();
+        expect($('[data-help="preset"]').textContent).toMatch(/^Your own mix/);
+    });
+
+    it('write a preset over the options it owns, keep the rest, and draw the editor again with the focus on it', async () => {
+        await open({ name: 'Garden', compact: true, hero: 'clock', color_palette: 'theme', show_note: true });
+        pick('full');
+        expect(last()).toEqual({
+            type: 'custom:animated-weather-card', entity: 'weather.home', name: 'Garden', color_palette: 'theme', show_note: true,
+            show_forecast: true, show_days: true, show_clock: true, show_date: true,
+        });
+        expect(picked()).toBe('full');
+        expect(document.activeElement).toBe($('#preset input[value="full"]'));
+        // The controls the preset reaches say so: the forecast's switch, its days
+        expect($('#show_forecast').hasAttribute('checked')).toBe(true);
+        expect(shown('forecast_days')).toBe(true);
+        // Back to Standard: its options go, and so do their rows, as on a new card
+        pick('standard');
+        for (const key of ['show_forecast', 'show_days', 'show_clock', 'show_date', 'compact', 'hero']) expect(last(), key).not.toHaveProperty(key);
+        expect(shown('forecast_days')).toBe(false);
+        expect(shown('layout')).toBe(false);
+    });
+
+    it('size the Wall and say what it needs, and follow the card when another control changes it', async () => {
+        await open({});
+        expect($('[data-wall]').hasAttribute('hidden')).toBe(true);
+        pick('wall');
+        expect(last()).toMatchObject({ show_forecast: true, show_clock: true, show_date: true, grid_options: { columns: 'full', rows: 10 } });
+        expect($('[data-wall]').hasAttribute('hidden')).toBe(false);
+        expect($('[data-wall]').textContent).toContain('Double width');
+        // A strip from the Layout choice is the Strip
+        pick('standard');
+        flip('#all_settings', true);
+        radio('layout', 'compact');
+        expect(picked()).toBe('strip');
     });
 });
 
