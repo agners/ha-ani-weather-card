@@ -20,7 +20,7 @@ It's free, open source and made for Home Assistant. You can [try it live](https:
 
 ## Weather you can see.
 
-Each condition has its own sky and its own motion, and both follow what your weather entity reports. Rain falls at a steady pace and splashes on the card's lower edge. Snow drifts with the wind, the smaller flakes farther away. Fog drifts in layers, leaves blow across on windy days, and lightning lights the sky from above. The live wind speed sets how fast it all moves.
+Each condition has its own sky and its own motion, and both follow what your weather entity reports. Rain falls at a steady pace and splashes on the card's lower edge. Snow drifts with the wind, the smaller flakes farther away. Fog drifts in layers, leaves blow across on windy days, and lightning lights the sky from above. The live wind speed sets how fast it all moves, and the weather's own values set how much of it there is: rain and snow by how hard they fall, from your rain rate sensor or the forecast's hour, clouds by the cover, fog by how far you can see, and leaves and gusts by the wind.
 
 ![Eight compact cards: rainy, pouring, snowy, snow and rain, cloudy, fog, windy and hail](docs/images/conditions.webp)
 
@@ -38,7 +38,7 @@ Turn on `show_note` and the card hands Home Assistant's AI the hours ahead: when
 
 ## Drag through the hours.
 
-Turn on `show_forecast` and the card adds today's high and low, a line on what turns ("Rain from 17:00 to 19:00", "Dry all day") and the next hours in a row at its foot, drawn as a line, a soft area or bars. Drag the card sideways and its sky, its weather, the temperature and the readings go to the hour you stop at, and stay there until you come back to now. A forecast card, a sun tracker or another weather card on the same weather goes there with it. A tap opens the whole forecast: the hours, the week and every reading your weather entity reports. The forecast also comes as a card of its own, the card can show the time and the date or make the time its big value, and it can be a bedside clock, red on black at night, or a panel you read across the room. [Set it up](#the-forecast-and-the-clock).
+Turn on `show_forecast` and the card adds today's high and low, a line on what turns ("Rain from 17:00 to 19:00", "Dry all day") and the next hours in a row at its foot, drawn as a line, a soft area or bars. Drag the card sideways and its sky, its weather (as much rain or cloud as that hour has), the temperature and the readings go to the hour you stop at, and stay there until you come back to now. A forecast card, a sun tracker or another weather card on the same weather goes there with it. A tap opens the whole forecast: the hours, the week and every reading your weather entity reports. The forecast also comes as a card of its own, the card can show the time and the date or make the time its big value, and it can be a bedside clock, red on black at night, or a panel you read across the room. [Set it up](#the-forecast-and-the-clock).
 
 ![The weather card with the forecast on a partly cloudy afternoon at 13:10, and the same card dragged to 17:00: rain falls behind the numbers, and the location line reads Now, 17:00, in 4 hr.](docs/images/forecast.webp)
 
@@ -548,7 +548,7 @@ cards:
 | `hold_action` | `none` | What a press of half a second or more does |
 | `double_tap_action` | `none` | What a double tap does |
 
-The weather card's `animate` and `custom_colors` work on it too, and with `weather_effects`, `spill_particles` and `engine_settings`, and with `outdoor_sensor_entity` its reading for now comes from your own sensor.
+The weather card's `animate` and `custom_colors` work on it too, and with `weather_effects`, `spill_particles`, `engine_mode` and `engine_settings`, and with `outdoor_sensor_entity` its reading for now comes from your own sensor.
 
 In the sections view it asks for 12 × 7, or 12 × 5 with three days or fewer. Without the hours, it asks for as many rows as its days need: five for a week.
 
@@ -672,11 +672,12 @@ my_theme:
 
 ### A stormier sky
 
-The weather engine scales the animation. For the editor's slider ranges and what YAML accepts, see [Weather engine](#weather-engine).
+In manual mode the weather engine's settings scale the animation, in place of the weather's own amounts. For the editor's slider ranges and what YAML accepts, see [Weather engine](#weather-engine).
 
 ```yaml
 type: custom:animated-weather-card
 entity: weather.forecast_home
+engine_mode: manual
 engine_settings:
   windSpeed: 3.5
   rainCount: 2
@@ -785,7 +786,7 @@ sunset_hour: 19
 | --- | --- | --- |
 | `animate` | `true` | Set to `false` for a still sky: the condition's colour and light, no motion. The sun, and a clear night's moon and stars, stay, still |
 | `spill_particles` | `true` | Let rain, snow, sleet and leaves fall out of the card onto the dashboard, and clouds drift a little above its top edge. Turn it off to keep all weather inside the card |
-| `engine_mode` | `auto` | `auto` lets the weather set how much of it there is: rain and snow from your rain rate sensor or the forecast's hour, clouds from cloud cover, fog from visibility, leaves and swooshes from the wind and its gusts. `manual` uses the [weather engine](#weather-engine) settings below instead. A card that already sets `engine_settings` stays manual unless it says `auto` |
+| `engine_mode` | `auto` | `auto` lets the weather set how much of it there is: rain and snow from your rain rate sensor or the forecast's hour under way, clouds from cloud cover, fog from visibility, leaves and swooshes from the wind and its gusts, and a clear night's stars thin under cloud. Each value comes from a reading's own sensor first, then the weather entity, then the forecast, and the condition sets the least: pouring always pours, and a cloudy sky keeps its clouds. Dragged through the hours, each hour shows its own. `manual` uses the [weather engine](#weather-engine) settings below instead. A card that already sets `engine_settings` stays manual unless it says `auto` |
 | `disable_lightning_shake` | `false` | Turn off the card's small jolt on lightning strikes |
 | `auto_pause` | `false` | Also pause while the browser window is in the background. Cards always pause while the tab is hidden or the card is off-screen |
 | `dev_mode` | `false` | The card always runs on the [dev card](#the-dev-card)'s simulated weather, and needs no `entity`. It says **Simulated** in its corner. Without a dev card on the dashboard, it shows the weather the dev card was last set to in this browser (partly cloudy until then) at the real time; set to Live, a card with an `entity` of its own shows it. Needs `animated-weather-card-dev.js` |
@@ -807,7 +808,7 @@ sunset_hour: 19
 
 #### Weather engine
 
-Set these under `engine_settings:`. The editor's sliders cover the useful range, and YAML accepts more. Values outside the YAML range fall back to the default.
+Set these under `engine_settings:`. They apply with `engine_mode: manual`, and to a card that sets them without saying `engine_mode: auto`; in auto the weather sets the amounts, and the card keeps them for the day it goes back. The editor's sliders cover the useful range, and YAML accepts more. Values outside the YAML range fall back to the default.
 
 | Option | Default | Editor | YAML | Description |
 | --- | --- | --- | --- | --- |
@@ -905,6 +906,8 @@ The card reads the standard Home Assistant conditions. It also understands free-
 | `windy`, `windy-variant` | Leaves on the wind | `weather-windy-background` |
 | `exceptional` | A clear sky | `weather-sunny-background` |
 
+How much rain, snow, cloud and fog each one shows follows the weather's own values (`engine_mode`), never less than the condition: `rainy` can be a drizzle or a downpour, `pouring` always pours, and `cloudy` and `partlycloudy` keep their clouds at 0 % cover.
+
 Free-text conditions can also reach these skies:
 
 | Free text | Sky | Theme variable |
@@ -1001,7 +1004,7 @@ The dev card drives every Animated Weather card on its dashboard: they read its 
 
 - **Condition:** any of Home Assistant's, with a clear sky sunny or a clear night by the sun.
 - **Time:** move the time of day and the date, and the sky, the sun, the moon, the clock, the forecast's hours, the tracker and the nightstand all follow. The sun is the real one where your Home Assistant is.
-- **Readings:** they fill the weather entity and every sensor a card names (temperature, humidity, wind, pressure, UV, rain, the moon), in your units.
+- **Readings:** they fill the weather entity and every sensor a card names (temperature, humidity, wind and gusts, pressure, cloud cover, visibility, UV, rain, the moon), in your units. The rain rate is also the forecast's hour under way, and with the cloud cover, visibility and gusts it sets how much weather a card in auto mode shows.
 - **Forecast:** hours and days, days only, or none.
 - **Notes:** sample notes, or your own AI Task. Either way they stay apart from the notes your other screens show.
 - **Live** gives the cards your own weather back. **Fly a plane** and **Pause all** work on both.

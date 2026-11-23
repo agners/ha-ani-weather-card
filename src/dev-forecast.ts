@@ -76,8 +76,8 @@ const SWING: Record<string, number> = { clear: 6, partlycloudy: 5, windy: 4, 'wi
 /** How much of the sky each weather covers (%), and how far you can see in it (km) */
 export const CLOUD: Record<string, number> = { clear: 4, partlycloudy: 45, windy: 30, 'windy-variant': 75, cloudy: 90, fog: 100, rainy: 95, pouring: 100, lightning: 85, 'lightning-rainy': 100, snowy: 95, 'snowy-rainy': 95, hail: 95, exceptional: 80 };
 export const VISIBILITY: Record<string, number> = { clear: 24, partlycloudy: 22, windy: 20, 'windy-variant': 18, cloudy: 16, fog: 0.4, rainy: 8, pouring: 3, lightning: 10, 'lightning-rainy': 4, snowy: 2, 'snowy-rainy': 4, hail: 5, exceptional: 6 };
-/** Millimetres an hour at the height of each kind of wet weather */
-export const RATE: Record<string, number> = { rainy: 1.4, pouring: 4.5, 'lightning-rainy': 6, snowy: 0.8, 'snowy-rainy': 1.2, hail: 2.5 };
+/** Millimetres an hour at the height of each kind of wet weather: where the card's auto amounts give each its usual look */
+export const RATE: Record<string, number> = { rainy: 1.4, pouring: 10, 'lightning-rainy': 4, snowy: 0.8, 'snowy-rainy': 1.2, hail: 1.2 };
 /** The wet weather that names a day with several, most serious first */
 const SEVERITY = ['lightning-rainy', 'hail', 'pouring', 'snowy-rainy', 'snowy', 'rainy'];
 

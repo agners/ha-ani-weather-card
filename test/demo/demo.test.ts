@@ -340,7 +340,7 @@ describe('the demo\'s sample world', () => {
         expect(engineSettings(defaults)).toEqual({});
         expect(engineYaml(defaults)).toBe('\n');
         expect(engineSettings({ ...defaults, rainCount: 2.6, cloudCount: 6 })).toEqual({ rainCount: 2.6, cloudCount: 6 });
-        expect(engineYaml({ ...defaults, rainCount: 2 })).toBe('engine_settings:\n  rainCount: 2\n');
+        expect(engineYaml({ ...defaults, rainCount: 2 })).toBe('engine_mode: manual\nengine_settings:\n  rainCount: 2\n');
         expect(quietOptions({})).toEqual({});
         expect(quietOptions({ still: true, numbers: true }))
             .toEqual({ animate: false, show_attribute_labels: false, show_attribute_icons: false });
@@ -383,6 +383,7 @@ describe('the demo\'s sample world', () => {
         expect(configYaml({})).not.toMatch(/engine_settings|custom_colors|animate: false/);
         const lines = configYaml({ engine: { rainCount: 2 }, paints: { sunny_bg: '#1f6f8b' }, quiet: { inside: true } }).split('\n');
         expect(lines).toContain('spill_particles: false');
+        expect(lines).toContain('engine_mode: manual');
         expect(lines).toContain('engine_settings:');
         expect(lines).toContain('  rainCount: 2');
         expect(lines).toContain('custom_colors:');

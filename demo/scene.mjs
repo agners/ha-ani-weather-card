@@ -290,7 +290,7 @@ const SWING = { clear: 6, partlycloudy: 5, windy: 4, cloudy: 3, fog: 2.5, rainy:
 const CLOUD = { clear: 4, partlycloudy: 45, windy: 30, cloudy: 90, fog: 100, rainy: 95, pouring: 100, 'lightning-rainy': 100, snowy: 95, 'snowy-rainy': 95, hail: 95 };
 const VISIBILITY = { clear: 24, partlycloudy: 22, windy: 20, cloudy: 16, fog: 0.4, rainy: 8, pouring: 3, 'lightning-rainy': 4, snowy: 2, 'snowy-rainy': 4, hail: 5 };
 /** Millimetres an hour at the height of each kind of wet weather. */
-const RATE = { rainy: 1.4, pouring: 4.5, 'lightning-rainy': 6, snowy: 0.8, 'snowy-rainy': 1.2, hail: 2.5 };
+const RATE = { rainy: 1.4, pouring: 10, 'lightning-rainy': 4, snowy: 0.8, 'snowy-rainy': 1.2, hail: 1.2 };
 /** The wet weather that names a day with several, most serious first. */
 const SEVERITY = ['lightning-rainy', 'hail', 'pouring', 'snowy-rainy', 'snowy', 'rainy'];
 
@@ -851,9 +851,16 @@ const block = (name, entries, quote = false) => (entries.length
     ? [`${name}:`, ...entries.map(([key, value]) => `  ${key}: ${quote ? `"${value}"` : value}`)]
     : []);
 
-/** `engine_settings:` for the settings that differ from the defaults, or nothing. */
+/**
+ * `engine_settings:` for the settings that differ from the defaults, or nothing. They're manual mode's: a card that
+ * sets them is manual unless it says otherwise, and the YAML says so.
+ */
+const engineLines = (settings) => {
+    const entries = Object.entries(engineSettings(settings));
+    return entries.length ? ['engine_mode: manual', ...block('engine_settings', entries)] : [];
+};
 export function engineYaml(settings) {
-    return block('engine_settings', Object.entries(engineSettings(settings))).join('\n') + '\n';
+    return engineLines(settings).join('\n') + '\n';
 }
 
 /** The note lab's options: the note, in the voice picked. */
@@ -1269,7 +1276,7 @@ export function configYaml({ layout = 'regular', colors = 'sky', station = false
         ]),
         ...(colors === 'theme' ? ['color_palette: theme  # follows your Home Assistant theme'] : []),
         ...Object.entries(quietOptions(quiet)).map(([key, value]) => `${key}: ${value}`),
-        ...block('engine_settings', Object.entries(engineSettings(engine))),
+        ...engineLines(engine),
         // Custom skies paint the sky palette only
         ...(colors === 'theme' ? [] : block('custom_colors', Object.entries(customColors(paints)), true)),
     ];

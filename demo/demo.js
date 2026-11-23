@@ -2095,7 +2095,11 @@ const tune = {
 const tuneLab = createLab({
     section: $('#tune'),
     condition: 'rainy',
-    config: () => ({ engine_settings: engineSettings(tune.settings), ...quietOptions(tune.quiet) }),
+    // The sliders are manual mode's, as the YAML says
+    config: () => {
+        const engine = engineSettings(tune.settings);
+        return { ...(Object.keys(engine).length ? { engine_mode: 'manual', engine_settings: engine } : {}), ...quietOptions(tune.quiet) };
+    },
 });
 const slidersEl = $('#sliders');
 const tuneReset = $('#tune-reset');

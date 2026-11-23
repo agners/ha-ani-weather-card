@@ -44,9 +44,13 @@ export interface DevState {
     bearing: number;
     /** hPa */
     pressure: number;
-    /** mm today, and mm an hour */
+    /** mm today, and mm an hour (also the hour under way's precipitation, which auto mode's rain reads) */
     rainToday: number;
     rainRate: number;
+    /** Set by hand: cloud cover (%), visibility (km) and gusts (km/h); null follows the weather */
+    cloud: number | null;
+    visibility: number | null;
+    gust: number | null;
     shape: DevShape;
     notes: DevNotes;
 }
@@ -58,6 +62,10 @@ export interface DevNow {
     state: string;
     reading: DevReading;
     uv: number;
+    /** Cloud cover (%), visibility (km) and gusts (km/h), set by hand or the weather's */
+    cloud: number;
+    visibility: number;
+    gust: number;
     day: boolean;
     elevation: number;
     rising: boolean;
@@ -121,8 +129,9 @@ export const CONVERT = {
 type Kind = keyof typeof CONVERT;
 
 /** Back to the world's metric from a unit the dev card shows */
-export function fromUnit(kind: Exclude<Kind, 'visibility'>, v: number, u: string): number {
+export function fromUnit(kind: Kind, v: number, u: string): number {
     if (kind === 'temperature') return u === '°F' ? (v - 32) * 5 / 9 : v;
+    if (kind === 'visibility') return u === 'mi' ? v * 1.609344 : u === 'm' ? v / 1000 : v;
     if (kind === 'wind') return u === 'mph' ? v * 1.609344 : u === 'm/s' ? v * 3.6 : u === 'kn' ? v * 1.852 : u === 'ft/s' ? v * 1.09728 : v;
     if (kind === 'pressure') return u === 'inHg' ? v / 0.02953 : u === 'mmHg' ? v / 0.750062 : u === 'kPa' ? v * 10 : u === 'psi' ? v / 0.0145038 : u === 'Pa' ? v / 100 : v;
     return u === 'in' ? v * 25.4 : u === 'cm' ? v * 10 : v;
@@ -158,9 +167,9 @@ const SENSORS: Record<string, { kind?: Kind; unit?: string; device?: string; rea
 const READING_SENSORS: Record<string, typeof SENSORS[string]> = {
     feels_like: SENSORS.feels_like_entity,
     dew_point: { kind: 'temperature', device: 'temperature', read: n => dewPoint(n.reading.temp, n.reading.humidity) },
-    visibility: { kind: 'visibility', device: 'distance', read: n => VISIBILITY[n.sky] ?? 16 },
-    cloud_cover: { unit: '%', read: n => CLOUD[n.sky] ?? 80 },
-    gust: { kind: 'wind', device: 'wind_speed', read: n => Number(n.forecast.hourly[0]?.wind_gust_speed ?? n.reading.wind * 1.5) },
+    visibility: { kind: 'visibility', device: 'distance', read: n => n.visibility },
+    cloud_cover: { unit: '%', read: n => n.cloud },
+    gust: { kind: 'wind', device: 'wind_speed', read: n => n.gust },
     // Air quality on the US EPA scale: clean after rain and wind, worst in still fog
     aqi: { device: 'aqi', read: n => AQI[n.sky] ?? 40 },
 };
@@ -178,7 +187,10 @@ export function defaultState(): DevState {
 export function withSky(s: DevState, sky: DevSky): DevState {
     const r = SAMPLE_READINGS[sky];
     const rate = RATE[sky] ?? 0;
-    return { ...s, sky, temp: null, feels: null, uv: null, humidity: r.humidity, wind: r.wind, bearing: r.bearing, pressure: r.pressure, rainToday: round(rate * 3, 1), rainRate: rate };
+    return {
+        ...s, sky, temp: null, feels: null, uv: null, humidity: r.humidity, wind: r.wind, bearing: r.bearing, pressure: r.pressure,
+        rainToday: round(rate * 3, 1), rainRate: rate, cloud: null, visibility: null, gust: null,
+    };
 }
 
 /** The connection the world's cards read through: the forecast and the notes' storage, the rest Home Assistant's */
@@ -427,17 +439,28 @@ export class World implements DevWorld {
             humidity: s.humidity, wind: s.wind, bearing: s.bearing, pressure: s.pressure,
         };
         const state = stateOf(s.sky, day);
-        const uv = s.uv ?? Math.max(0, Math.round(8 * Math.sin((Math.max(0, elevation) * Math.PI) / 180) * (1 - (0.7 * (CLOUD[s.sky] ?? 80)) / 100)));
+        const cloud = s.cloud ?? CLOUD[s.sky] ?? 80;
+        const uv = s.uv ?? Math.max(0, Math.round(8 * Math.sin((Math.max(0, elevation) * Math.PI) / 180) * (1 - (0.7 * cloud) / 100)));
         const dayTemp = sample.temp + (temp - auto);
         const fKey = [s.sky, state, round(temp, 1), round(reading.feels, 1), reading.humidity, reading.wind, reading.bearing, reading.pressure,
-            Math.floor(at.getTime() / HOUR), latitude, longitude].join('|');
+            s.rainRate, s.cloud, s.gust, Math.floor(at.getTime() / HOUR), latitude, longitude].join('|');
         let forecast = this.nowCache?.now.forecast;
         if (fKey !== this.forecastKey || !forecast) {
             forecast = devForecast({ sky: s.sky, state, reading, dayTemp, now: at, latitude, longitude });
+            // The hour under way says what the dev card does: its rain rate, and the cloud and gusts set by hand
+            const [hour, ...rest] = forecast.hourly;
+            if (hour) {
+                forecast = { ...forecast, hourly: [{
+                    ...hour, precipitation: s.rainRate,
+                    ...(s.cloud !== null ? { cloud_coverage: s.cloud } : {}), ...(s.gust !== null ? { wind_gust_speed: s.gust } : {}),
+                }, ...rest] };
+            }
             this.forecastKey = fKey;
             this.converted.clear();
         }
-        const now = { sky: s.sky, state, reading, uv, day, elevation, rising: sun.attributes.rising, forecast };
+        const gust = s.gust ?? Number(forecast.hourly[0]?.wind_gust_speed ?? reading.wind * 1.5);
+        const visibility = s.visibility ?? VISIBILITY[s.sky] ?? 16;
+        const now = { sky: s.sky, state, reading, uv, cloud, visibility, gust, day, elevation, rising: sun.attributes.rising, forecast };
         this.nowCache = { key, now };
         return now;
     }
@@ -461,7 +484,6 @@ export class World implements DevWorld {
         const u = unitsOf(hass, real);
         const n = this.nowAt(hass);
         const r = n.reading;
-        const gust = Number(n.forecast.hourly[0]?.wind_gust_speed ?? r.wind * 1.5);
         return this.stateObject(id, n.state, {
             temperature: CONVERT.temperature(r.temp, u.temperature),
             apparent_temperature: CONVERT.temperature(r.feels, u.temperature),
@@ -469,11 +491,11 @@ export class World implements DevWorld {
             humidity: r.humidity,
             pressure: CONVERT.pressure(r.pressure, u.pressure),
             wind_speed: CONVERT.wind(r.wind, u.wind),
-            wind_gust_speed: CONVERT.wind(gust, u.wind),
+            wind_gust_speed: CONVERT.wind(n.gust, u.wind),
             wind_bearing: r.bearing,
-            cloud_coverage: CLOUD[n.sky] ?? 80,
+            cloud_coverage: n.cloud,
             uv_index: n.uv,
-            visibility: CONVERT.visibility(VISIBILITY[n.sky] ?? 16, u.visibility),
+            visibility: CONVERT.visibility(n.visibility, u.visibility),
             temperature_unit: u.temperature, pressure_unit: u.pressure, wind_speed_unit: u.wind,
             precipitation_unit: u.precipitation, visibility_unit: u.visibility,
             supported_features: { full: 3, daily: 1, none: 0 }[this.state.shape],
@@ -623,7 +645,7 @@ export class World implements DevWorld {
             if (saved.shape === 'full' || saved.shape === 'daily' || saved.shape === 'none') out.shape = saved.shape;
             if (saved.notes === 'samples' || saved.notes === 'ai') out.notes = saved.notes;
             if (num(saved.offset, -60 * 24 * 400, 60 * 24 * 400)) out.offset = Math.round(saved.offset as number);
-            for (const [k, lo, hi] of [['temp', -60, 60], ['feels', -70, 70], ['uv', 0, 20]] as const) if (saved[k] === null || num(saved[k], lo, hi)) out[k] = saved[k] as number | null;
+            for (const [k, lo, hi] of [['temp', -60, 60], ['feels', -70, 70], ['uv', 0, 20], ['cloud', 0, 100], ['visibility', 0, 100], ['gust', 0, 300]] as const) if (saved[k] === null || num(saved[k], lo, hi)) out[k] = saved[k] as number | null;
             for (const [k, lo, hi] of [['humidity', 0, 100], ['wind', 0, 250], ['bearing', 0, 360], ['pressure', 850, 1090], ['rainToday', 0, 500], ['rainRate', 0, 200]] as const) if (num(saved[k], lo, hi)) out[k] = saved[k] as number;
             return out;
         } catch { /* a private window, or nothing saved */ }

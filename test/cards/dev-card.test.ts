@@ -306,11 +306,39 @@ describe('the dev card\'s world', () => {
         expect(dev.querySelector('style')?.textContent).toMatch(/\[data-awc-dev\] \.animated-weather-card::after \{[^}]*content: 'Simulated'/);
     });
 
+    it('sets the cloud cover, visibility and gusts by hand for auto mode, and the rain rate is the hour under way\'s', async () => {
+        const card = mount({ entity: 'weather.home', readings: [{ type: 'cloud_cover', entity: 'sensor.cloud' }] }, baseHass());
+        world.drive(all);
+        world.set({ sky: 'rainy' });
+        await frames();
+        const weather = () => card.hass!.states['weather.home'].attributes;
+        // The weather's own until set
+        expect(weather().cloud_coverage).toBe(95);
+        world.set({ cloud: 40, visibility: 0.5, gust: 70, rainRate: 6 });
+        await frames();
+        expect(weather()).toMatchObject({ cloud_coverage: 40, visibility: 0.5, wind_gust_speed: 70 });
+        expect(card.hass!.states['sensor.cloud'].state).toBe('40');
+        const got: { forecast: Array<Record<string, number>> }[] = [];
+        await card.hass!.connection!.subscribeMessage((m: unknown) => got.push(m as never), { type: 'weather/subscribe_forecast', entity_id: 'weather.home', forecast_type: 'hourly' });
+        expect(got[0].forecast[0]).toMatchObject({ precipitation: 6, cloud_coverage: 40, wind_gust_speed: 70 });
+        // Auto: the weather's again
+        world.set({ cloud: null });
+        await frames();
+        expect(weather().cloud_coverage).toBe(95);
+        // A new weather brings its own
+        world.set({ visibility: 3 });
+        world.set({ sky: 'fog' });
+        expect(world.state.visibility).toBeNull();
+    });
+
     it('survives a stale copy of itself in this browser', () => {
-        localStorage.setItem('animated-weather-card-dev', JSON.stringify({ sky: 'volcano', offset: 'soon', humidity: 400, source: 'live' }));
+        localStorage.setItem('animated-weather-card-dev', JSON.stringify({ sky: 'volcano', offset: 'soon', humidity: 400, source: 'live', cloud: 140, gust: 30, visibility: 'far' }));
         const W = world.constructor as new () => typeof world;
         const fresh = new W();
         expect(fresh.state.sky).toBe('partlycloudy');
+        expect(fresh.state.cloud).toBeNull();
+        expect(fresh.state.gust).toBe(30);
+        expect(fresh.state.visibility).toBeNull();
         expect(fresh.state.offset).toBe(0);
         expect(fresh.state.humidity).toBe(defaultState().humidity);
         expect(fresh.state.source).toBe('live');

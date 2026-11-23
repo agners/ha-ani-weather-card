@@ -33,8 +33,8 @@ const MOON_LABELS: Record<string, string> = {
     full_moon: 'Full moon', waning_gibbous: 'Waning gibbous', last_quarter: 'Last quarter', waning_crescent: 'Waning crescent',
 };
 
-type Reading = 'temp' | 'feels' | 'humidity' | 'wind' | 'bearing' | 'pressure' | 'uv' | 'rainToday' | 'rainRate';
-interface ReadingSpec { label: string; kind?: 'temperature' | 'wind' | 'pressure' | 'precipitation'; unit?: string; step: (u: string) => number; auto?: boolean; lo: number; hi: number; wrap?: boolean }
+type Reading = 'temp' | 'feels' | 'humidity' | 'wind' | 'bearing' | 'gust' | 'pressure' | 'cloud' | 'visibility' | 'uv' | 'rainToday' | 'rainRate';
+interface ReadingSpec { label: string; kind?: 'temperature' | 'wind' | 'pressure' | 'precipitation' | 'visibility'; unit?: string; step: (u: string) => number; auto?: boolean; lo: number; hi: number; wrap?: boolean }
 /** The readings, each stepped in the unit you read it in, and kept to a sensible range (metric) */
 const READINGS: Record<Reading, ReadingSpec> = {
     temp: { label: 'Temperature', kind: 'temperature', step: () => 1, auto: true, lo: -50, hi: 50 },
@@ -42,7 +42,10 @@ const READINGS: Record<Reading, ReadingSpec> = {
     humidity: { label: 'Humidity', unit: '%', step: () => 5, lo: 0, hi: 100 },
     wind: { label: 'Wind', kind: 'wind', step: u => (u === 'm/s' ? 1 : 5), lo: 0, hi: 200 },
     bearing: { label: 'From', unit: '°', step: () => 45, lo: 0, hi: 360, wrap: true },
+    gust: { label: 'Gusts', kind: 'wind', step: u => (u === 'm/s' ? 1 : 5), auto: true, lo: 0, hi: 250 },
     pressure: { label: 'Pressure', kind: 'pressure', step: u => (u === 'inHg' ? 0.05 : u === 'kPa' ? 0.2 : 2), lo: 950, hi: 1060 },
+    cloud: { label: 'Cloud cover', unit: '%', step: () => 10, auto: true, lo: 0, hi: 100 },
+    visibility: { label: 'Visibility', kind: 'visibility', step: u => (u === 'm' ? 500 : 1), auto: true, lo: 0.1, hi: 50 },
     uv: { label: 'UV index', step: () => 1, auto: true, lo: 0, hi: 14 },
     rainToday: { label: 'Rain today', kind: 'precipitation', step: u => (u === 'in' ? 0.02 : 0.5), lo: 0, hi: 300 },
     rainRate: { label: 'Rain rate', kind: 'precipitation', step: u => (u === 'in' ? 0.02 : 0.5), lo: 0, hi: 100 },
@@ -390,7 +393,7 @@ class DevPanel implements DevCardView {
             const spec = READINGS[id];
             const row = this.$(`.reading[data-r="${id}"]`);
             const auto = spec.auto && s[id] === null;
-            const value = id === 'temp' ? now.reading.temp : id === 'feels' ? now.reading.feels : id === 'uv' ? now.uv : s[id] as number;
+            const value = this.valueOf(id, now);
             text(row.querySelector('.r-value')!, this.show(id, value, units));
             row.toggleAttribute('data-auto', !!auto);
             const a = row.querySelector<HTMLButtonElement>('.r-auto');
@@ -421,8 +424,16 @@ class DevPanel implements DevCardView {
         const u = units[spec.kind];
         const v = CONVERT[spec.kind](value, u);
         const unit = spec.kind === 'temperature' ? '°' : ` ${u}${id === 'rainRate' ? '/h' : ''}`;
-        const digits = spec.kind === 'temperature' ? 0 : spec.kind === 'pressure' && u === 'inHg' ? 2 : spec.kind === 'precipitation' ? (u === 'in' ? 2 : 1) : 0;
+        const digits = spec.kind === 'temperature' ? 0 : spec.kind === 'pressure' && u === 'inHg' ? 2 : spec.kind === 'precipitation' ? (u === 'in' ? 2 : 1)
+            : spec.kind === 'visibility' ? (u === 'm' ? 0 : 1) : 0;
         return `${(spec.kind === 'temperature' ? Math.round(v) : v).toFixed(digits).replace(/^-/, '−')}${unit}`;
+    }
+
+    /** A reading as the world has it now: set by hand, or for the ones with Auto, the weather's and the hour's */
+    private valueOf(id: Reading, now: ReturnType<World['now']>): number {
+        if (id === 'temp' || id === 'feels') return now.reading[id];
+        if (id === 'uv' || id === 'cloud' || id === 'visibility' || id === 'gust') return now[id];
+        return this.world.state[id];
     }
 
     /** A reading one step up or down, in your units, kept to its range */
@@ -430,7 +441,7 @@ class DevPanel implements DevCardView {
         const w = this.world;
         const spec = READINGS[id];
         const now = w.now(this.hass());
-        const current = id === 'temp' ? now.reading.temp : id === 'feels' ? now.reading.feels : id === 'uv' ? now.uv : w.state[id] as number;
+        const current = this.valueOf(id, now);
         let next: number;
         if (spec.kind && this.hass()) {
             const u = unitsOf(this.hass()!)[spec.kind];
