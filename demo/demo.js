@@ -9,7 +9,7 @@ import {
     STATION, SUN_TIMES, aheadYaml, buildHass, colorsYaml, conditionIcon, configYaml, customColors, dashboardLayout, dashboardYaml,
     engineSettings, engineYaml, forgetNotes, formatEngineValue, liveReading, minutesFor, nextFlight, noteYaml, paletteOf,
     phaseForHour, phaseForSun, placeName, quietOptions, rowsHeight,
-    solarAt, solarTimes, stationStates, sunAt, trackerYaml, trackerHass, SAMPLE_PLACE, weatherState, wmoCondition,
+    solarAt, solarTimes, stationStates, stationReadings, STATION_OPTIONS, sunAt, trackerYaml, trackerHass, SAMPLE_PLACE, weatherState, wmoCondition,
 } from './scene.mjs';
 import { copyButton, highlight, svgIcon } from './code.mjs';
 
@@ -437,10 +437,13 @@ const LANDS_ON = {
     pressure: ['.attribute[data-kind="pressure"] .attribute-value'],
     windSpeed: ['.attribute[data-kind="wind"] .attribute-value'],
     windDirection: ['.attribute[data-kind="wind"] .wind-bearing-arrow'],
+    uv: ['.attribute[data-kind="uv"] .attribute-value'],
+    airQuality: ['.attribute[data-kind="aqi"] .attribute-value'],
+    co2: ['.attribute[data-kind="sensor"] .attribute-value'],
     indoorTemperature: ['.indoor-climate-inline'],
     indoorHumidity: ['.indoor-climate-inline'],
 };
-const LIMITS = { temperature: [-30, 45], pressure: [950, 1050], windSpeed: [0, 90] };
+const LIMITS = { temperature: [-30, 45], pressure: [950, 1050], windSpeed: [0, 90], uv: [0, 11], airQuality: [0, 300], co2: [400, 2000] };
 
 const station = {
     on: false,
@@ -497,18 +500,27 @@ function nameForecastOptions() {
 // so the rest fall back to the forecast, as they do in Home Assistant
 const stationCards = $('#station-cards');
 const stationCard = document.createElement('animated-weather-card');
-stationCard.setConfig({
+// Its readings grow as the UV index, air quality and CO₂ come on: the row redraws, the weather keeps going
+const stationConfig = () => ({
     type: 'custom:animated-weather-card',
     entity: ENTITIES.weather,
     sun_entity: ENTITIES.sun,
-    ...Object.fromEntries(STATION.map(row => [row.option, row.entity])),
+    ...Object.fromEntries(STATION_OPTIONS.map(row => [row.option, row.entity])),
+    readings: stationReadings(station.linked),
 });
+let stationSet = JSON.stringify(stationConfig());
+stationCard.setConfig(stationConfig());
 
 function stationHass() {
     const readings = Object.fromEntries([...station.linked].map(id => [id, station.readings[id]]));
     return buildHass({ conditionId: station.condition, phase: state.phase, sun: sunNow(state.minutes), sensors: stationStates(readings), sunTimes });
 }
 function pushStation() {
+    const config = stationConfig();
+    if (JSON.stringify(config) !== stationSet) {
+        stationSet = JSON.stringify(config);
+        stationCard.setConfig(config);
+    }
     stationCard.hass = stationHass();
     watchSky();
     // Values change width as they fade through; keep the rings on them

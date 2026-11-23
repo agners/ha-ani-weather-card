@@ -13,7 +13,7 @@ import {
     colorsYaml, conditionIcon, configYaml, customColors, dashboardLayout, dashboardYaml, engineSettings, engineYaml,
     formatEngineValue, liveReading, minutesFor, moonPhase, nextFlight, paletteOf, phaseForHour, phaseForSun, placeName,
     noteFor, quietOptions, solarAt, solarElevation, solarTimes, stationStates, sunAt, sunAttributes, trackerYaml, weatherState,
-    wmoCondition, SUN_TIMES, SAMPLE_PLACE, trackerHass,
+    wmoCondition, SUN_TIMES, SAMPLE_PLACE, trackerHass, STATION_OPTIONS, stationReadings,
 } from '../../demo/scene.mjs';
 import { PAGE_FILES, iconNames, resolveIcons } from '../../demo/build.mjs';
 import { LOGO_PHASES, logoSvg } from '../../demo/logo.mjs';
@@ -250,7 +250,10 @@ describe('the demo\'s sample world', () => {
     it('adds your sensors to the YAML only when they are on', () => {
         expect(configYaml({ station: false })).not.toContain('sensor.garden');
         const lines = configYaml({ station: true }).split('\n');
-        for (const row of STATION) expect(lines).toContain(`${row.option}: ${row.entity}`);
+        for (const row of STATION_OPTIONS) expect(lines).toContain(`${row.option}: ${row.entity}`);
+        expect(lines).toContain('readings:');
+        for (const row of STATION.filter(r => r.reading)) expect(lines.some(line => line.endsWith(`: ${row.entity}`))).toBe(true);
+        expect(lines).toContain('    name: CO₂');
     });
 
     it('writes the tracker at each size with options it really has', () => {
@@ -285,7 +288,25 @@ describe('the demo\'s sample world', () => {
 
     it('wires the station through real card options', () => {
         const types = readFileSync(join(process.cwd(), 'src/types.ts'), 'utf8');
-        for (const row of STATION) expect(types).toContain(`${row.option}?: string`);
+        for (const row of STATION_OPTIONS) expect(types).toContain(`${row.option}?: string`);
+        // The rest are readings, of types the card knows
+        const known = readFileSync(join(process.cwd(), 'src/readings.ts'), 'utf8');
+        for (const row of STATION.filter(r => !r.option)) expect(known).toContain(`'${row.reading}'`);
+        expect(STATION.every(row => !!row.option !== !!row.reading)).toBe(true);
+    });
+
+    it('shows the UV index, air quality and CO₂ only once their sensors are on, the default four before', () => {
+        expect(stationReadings(new Set())).toEqual([
+            { type: 'humidity', entity: 'sensor.garden_humidity' },
+            { type: 'wind', entity: 'sensor.garden_wind_speed', direction_entity: 'sensor.garden_wind_direction' },
+            { type: 'pressure', entity: 'sensor.garden_pressure' },
+            'sun',
+        ]);
+        expect(stationReadings(new Set(['uv', 'co2'])).slice(4)).toEqual([
+            { type: 'uv', entity: 'sensor.garden_uv_index' },
+            { type: 'sensor', entity: 'sensor.living_room_co2', name: 'CO₂' },
+        ]);
+        expect(stationReadings()).toHaveLength(7);
     });
 
     it('adds the station to hass only when it is on, so the card falls back to the forecast', () => {

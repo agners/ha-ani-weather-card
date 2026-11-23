@@ -716,13 +716,36 @@ export function noteFor(conditionId, phase, tone = 'snarky') {
 export const STATION = [
     { id: 'temperature', group: 'Outside', label: 'Temperature', option: 'outdoor_sensor_entity', entity: 'sensor.garden_temperature', value: 18.4, unit: '°C', decimals: 1, step: 1, deviceClass: 'temperature' },
     { id: 'feelsLike', group: 'Outside', label: 'Feels like', option: 'feels_like_entity', entity: 'sensor.garden_feels_like', value: 17.6, unit: '°C', decimals: 1, deviceClass: 'temperature' },
-    { id: 'humidity', group: 'Outside', label: 'Humidity', option: 'humidity_sensor_entity', entity: 'sensor.garden_humidity', value: 61, unit: '%', decimals: 0, deviceClass: 'humidity' },
-    { id: 'windSpeed', group: 'Outside', label: 'Wind speed', option: 'wind_speed_sensor_entity', entity: 'sensor.garden_wind_speed', value: 11, unit: 'km/h', decimals: 0, step: 5, deviceClass: 'wind_speed' },
-    { id: 'windDirection', group: 'Outside', label: 'Wind direction', option: 'wind_direction_sensor_entity', entity: 'sensor.garden_wind_direction', value: 300, unit: '°', decimals: 0, step: 45, wrap: 360, deviceClass: 'wind_direction' },
-    { id: 'pressure', group: 'Outside', label: 'Pressure', option: 'pressure_sensor_entity', entity: 'sensor.garden_pressure', value: 1019.0, unit: 'hPa', decimals: 1, step: 0.5, deviceClass: 'pressure' },
+    { id: 'humidity', group: 'Outside', label: 'Humidity', reading: 'humidity', entity: 'sensor.garden_humidity', value: 61, unit: '%', decimals: 0, deviceClass: 'humidity' },
+    { id: 'windSpeed', group: 'Outside', label: 'Wind speed', reading: 'wind', entity: 'sensor.garden_wind_speed', value: 11, unit: 'km/h', decimals: 0, step: 5, deviceClass: 'wind_speed' },
+    { id: 'windDirection', group: 'Outside', label: 'Wind direction', reading: 'wind', entity: 'sensor.garden_wind_direction', value: 300, unit: '°', decimals: 0, step: 45, wrap: 360, deviceClass: 'wind_direction' },
+    { id: 'pressure', group: 'Outside', label: 'Pressure', reading: 'pressure', entity: 'sensor.garden_pressure', value: 1019.0, unit: 'hPa', decimals: 1, step: 0.5, deviceClass: 'pressure' },
+    { id: 'uv', group: 'Outside', label: 'UV index', reading: 'uv', entity: 'sensor.garden_uv_index', value: 3, unit: 'UV index', decimals: 0, step: 1 },
+    { id: 'airQuality', group: 'Outside', label: 'Air quality', reading: 'aqi', entity: 'sensor.garden_air_quality', value: 38, unit: 'AQI', decimals: 0, step: 10, deviceClass: 'aqi' },
     { id: 'indoorTemperature', group: 'Indoors', label: 'Temperature', option: 'indoor_temperature_entity', entity: 'sensor.living_room_temperature', value: 21.8, unit: '°C', decimals: 1, deviceClass: 'temperature' },
     { id: 'indoorHumidity', group: 'Indoors', label: 'Humidity', option: 'indoor_humidity_entity', entity: 'sensor.living_room_humidity', value: 46, unit: '%', decimals: 0, deviceClass: 'humidity' },
+    { id: 'co2', group: 'Indoors', label: 'CO₂', reading: 'sensor', name: 'CO₂', entity: 'sensor.living_room_co2', value: 640, unit: 'ppm', decimals: 0, step: 50, deviceClass: 'carbon_dioxide' },
 ];
+
+/**
+ * The station card's readings: humidity, wind and pressure from their sensors (the weather entity's own while a sensor
+ * isn't there) and the next sunset, as the card shows by default; then the UV index, air quality and CO₂, each once
+ * its sensor is on (`linked`), since they have nothing to fall back to. All of them for the YAML.
+ */
+export function stationReadings(linked = new Set(STATION.map(row => row.id))) {
+    const row = (id) => STATION.find(r => r.id === id);
+    const reading = (id) => ({ type: row(id).reading, entity: row(id).entity, ...(row(id).name ? { name: row(id).name } : {}) });
+    return [
+        reading('humidity'),
+        { ...reading('windSpeed'), direction_entity: row('windDirection').entity },
+        reading('pressure'),
+        'sun',
+        ...['uv', 'airQuality', 'co2'].filter(id => linked.has(id)).map(reading),
+    ];
+}
+
+/** The station's options besides its readings: the temperatures and the indoor line */
+export const STATION_OPTIONS = STATION.filter(row => row.option);
 
 /**
  * The weather engine's settings, with the editor's ranges and defaults
@@ -952,8 +975,8 @@ export function stationStates(readings) {
     for (const row of STATION) {
         if (!(row.id in readings)) continue;
         states[row.entity] = entity(row.entity, Number(readings[row.id]).toFixed(row.decimals), {
-            unit_of_measurement: row.unit, device_class: row.deviceClass, state_class: 'measurement',
-            friendly_name: `${row.group === 'Indoors' ? 'Living room' : 'Garden'} ${row.label.toLowerCase()}`,
+            unit_of_measurement: row.unit, ...(row.deviceClass ? { device_class: row.deviceClass } : {}), state_class: 'measurement',
+            friendly_name: `${row.group === 'Indoors' ? 'Living room' : 'Garden'} ${row.name ?? row.label.toLowerCase()}`,
         });
     }
     return states;
@@ -1199,7 +1222,13 @@ export function configYaml({ layout = 'regular', colors = 'sky', station = false
         'type: custom:animated-weather-card',
         'entity: weather.forecast_home',
         'sun_entity: sun.sun',
-        ...(station ? STATION.map(row => `${row.option}: ${row.entity}`) : []),
+        ...(station ? [
+            ...STATION_OPTIONS.map(row => `${row.option}: ${row.entity}`),
+            '# The readings under the temperature, in order: your sensors, the next sunset, and any sensor you like',
+            'readings:',
+            ...stationReadings().flatMap(r => (typeof r === 'string' ? [`  - ${r}`]
+                : Object.entries(r).map(([key, value], i) => `${i ? '    ' : '  - '}${key}: ${value}`))),
+        ] : []),
         '# Planes fly over from the Flightradar24 integration, tagged with where they\'re going',
         'flights_entity: sensor.flightradar24_current_in_area',
         'flight_label: route',
