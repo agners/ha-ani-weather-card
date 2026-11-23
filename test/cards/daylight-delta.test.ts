@@ -172,11 +172,27 @@ describe('the tracker\'s daylight change', () => {
     it('leaves the daylight alone when off, without details, on the compact tracker or without coordinates', () => {
         expect(delta(mount({ sun_entity: 'sun.sun', daylight_delta: 'none' }))).toBeNull();
         expect(delta(mount({ sun_entity: 'sun.sun', show_details: false }))).toBeNull();
-        expect(delta(mount({ sun_entity: 'sun.sun', compact: true }))).toBeNull();
         expect(delta(mount({ sun_entity: 'sun.sun' }, homeHass({ time_zone: 'Europe/Amsterdam' })))).toBeNull();
         // The daylight itself is still there
         const tracker = mount({ sun_entity: 'sun.sun', daylight_delta: 'none' });
         expect(tracker.shadowRoot!.querySelector('.st-metric[data-kind="daylight"] .st-metric-value')?.textContent).toMatch(/\d/);
+    });
+
+    it('on the compact tracker, under the other event in its style, and in the chart\'s words for screen readers', () => {
+        const tracker = mount({ sun_entity: 'sun.sun', compact: true });
+        const line = tracker.shadowRoot!.querySelector('.st-chart-delta')!;
+        expect(line.classList.contains('st-chart-note')).toBe(true);
+        expect(line.textContent).toMatch(/^Daylight\u2212\d+m( \d+s)?$/);
+        expect(tracker.shadowRoot!.querySelector('.st-chart')!.getAttribute('aria-label')).toMatch(/Daylight \u2212\d+m( \d+s)? since yesterday/);
+        // Only where the note is, on a strip two rows tall
+        const css = tracker.shadowRoot!.querySelector('style')?.textContent ?? '';
+        expect(css).toMatch(/\[data-fit="short"\] \.st-chart-delta,\s*\.st-card\.compact\[data-fit="tight"\] \.st-chart-delta \{ display: none; \}/);
+        expect(tracker.shadowRoot!.querySelector('.st-delta')).toBeNull();
+        for (const config of [{ daylight_delta: 'none' }, { show_header: false }]) {
+            const off = mount({ sun_entity: 'sun.sun', compact: true, ...config });
+            expect(off.shadowRoot!.querySelector('.st-chart-delta'), JSON.stringify(config)).toBeNull();
+            expect(off.shadowRoot!.querySelector('.st-chart')!.getAttribute('aria-label')).not.toMatch(/Daylight/);
+        }
     });
 
     it('for another place, by that place\'s sun: longer days in Sydney while Amsterdam\'s shorten', () => {

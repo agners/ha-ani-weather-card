@@ -311,7 +311,8 @@ export const TRACKER_TABLE: RowTable<TrackerOptions> = {
         show_header: { tier: 'all', keys: ['show_header'] },
         show_details: { tier: 'all', keys: ['show_details'], when: full },
         moon_entity: { tier: 'all', keys: ['moon_entity'], when: c => full(c) && c.show_details !== false },
-        daylight_delta: { tier: 'all', keys: ['daylight_delta'], when: c => full(c) && c.show_details !== false },
+        // In the details, or under the compact tracker's note, which comes with its headline
+        daylight_delta: { tier: 'all', keys: ['daylight_delta'], when: c => (full(c) ? c.show_details !== false : c.show_header !== false) },
         direction: { tier: 'all', keys: ['direction'] },
         weather_entity: { tier: 'all', keys: ['weather_entity'] },
         another_place: { tier: 'all', keys: ['latitude', 'longitude', 'time_zone'] },
