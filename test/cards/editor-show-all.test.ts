@@ -98,7 +98,8 @@ describe('the sun tracker\'s editor', () => {
         flip('#show_details', false);
         expect(sent.at(-1)).toMatchObject({ show_details: false });
         expect(openRows()).not.toContain('moon_entity');
-        expect(openRows()).not.toContain('daylight_delta');
+        // The headline still shows the sunrise's or sunset's shift
+        expect(openRows()).toContain('daylight_delta');
         flip('#show_details', true);
         expect(sent.at(-1)).not.toHaveProperty('show_details');
         radio('layout', 'compact');

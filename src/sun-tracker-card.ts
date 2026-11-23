@@ -20,7 +20,7 @@
  */
 
 import { SunData } from './weather-data';
-import { localizeString, localeKey, formatTime, formatDuration, formatDaylightChange, daysToLastMonth, hourOfDay, timeHtml as splitTimeHtml } from './localize';
+import { localizeString, localeKey, formatTime, formatDuration, formatDaylightChange, daysToLastMonth, hourOfDay, zoneOffset, timeHtml as splitTimeHtml } from './localize';
 import { HomeAssistant } from './types';
 import { escapeHtml, getWeatherClass, lookup } from './utils';
 import { ActionConfig, ActionsConfig, bindActions, readActions, syncActionTarget } from './actions';
@@ -41,7 +41,7 @@ import {
     SKY_COLOR_PROPERTIES, SKY_DISSOLVE_SEC, SKY_DISSOLVE_EASE,
 } from './sky';
 import { cardDate } from './clock';
-import { daylightChange } from './solar';
+import { daylightChange, sunEvent } from './solar';
 
 export interface SunTrackerConfig {
     sun_entity?: string;
@@ -155,6 +155,27 @@ export function daylightDelta(hass: HomeAssistant | undefined, mode: SunTrackerC
     const mark = '\u0000';
     const [before = '', after = ''] = localizeString(hass, kind === 'week' ? 'daylight_week' : kind === 'month' ? 'daylight_month' : 'daylight_day', { delta: mark }).split(mark);
     return { before, figure: formatDaylightChange(seconds, hass), after };
+}
+
+/**
+ * How much earlier (negative) or later the next sunrise or sunset is than the same one yesterday, last week or last
+ * month, in seconds of clock time: the two crossings where the sun's path finds them, a whole number of days apart,
+ * and the clock's change between them (a week across a clock change is about an hour). The day is the one whose
+ * crossing is nearest the sun entity's event, so a sunset after midnight is the day before's. Nothing without
+ * coordinates, where either day hasn't that crossing, or where it rounds to no change.
+ */
+export function sunShift(hass: HomeAssistant | undefined, mode: SunTrackerConfig['daylight_delta'], which: 'rise' | 'set', eventIso: string | null): number | null {
+    if (mode === 'none' || !eventIso) return null;
+    const latitude = hass?.config?.latitude, longitude = hass?.config?.longitude;
+    if (typeof latitude !== 'number' || typeof longitude !== 'number' || !Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+    const at = Date.parse(eventIso);
+    if (!Number.isFinite(at)) return null;
+    const back = mode === 'week' ? 7 : mode === 'month' ? daysToLastMonth(new Date(at), hass) : 1;
+    const event = sunEvent(latitude, longitude, at, which, back);
+    if (!event) return null;
+    const ms = event.now - event.then - back * 86_400_000 + zoneOffset(event.now, hass) - zoneOffset(event.then, hass);
+    const seconds = Math.round(ms / 1000);
+    return seconds === 0 ? null : seconds;
 }
 
 /** The daylight's change in words: "+2m 14s since yesterday" */
@@ -362,9 +383,23 @@ const STYLES = `
         font-size: 15px;
         line-height: 20px;
         font-variant-numeric: tabular-nums;
+        white-space: nowrap;
         color: var(--st-secondary);
         opacity: var(--st-secondary-opacity);
     }
+    /* How much earlier or later the sunrise or sunset is, after the countdown: in words, or the signed figure where
+       they don't fit (the words kept for screen readers), or nothing (_fit). Never cut short, never on a second line */
+    .st-shift-sign { display: none; }
+    .st-shift[data-form="sign"] .st-shift-sign { display: inline; }
+    .st-shift[data-form="sign"] .st-shift-words {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+    }
+    .st-shift[hidden] { display: none; }
 
     /* ── Sun path ── */
     .st-chart {
@@ -752,6 +787,8 @@ class AnimatedSunTrackerCard extends HTMLElement implements DevCard {
         const delta = card.querySelector('.st-delta') as HTMLElement | null;
         for (const state of ['regular', 'compact', 'short', 'tight']) {
             card.dataset.fit = state;
+            // First, as the compact tracker's chart moves with its headline's width
+            this._fitShift(card);
             if (metrics) {
                 // Each fit shows a different number of details, so the columns follow it
                 const shown = Array.from(metrics.children).filter(el => getComputedStyle(el).display !== 'none').length;
@@ -769,6 +806,32 @@ class AnimatedSunTrackerCard extends HTMLElement implements DevCard {
             this._clearDeltaOfPath(card);
             if (card.scrollHeight <= card.clientHeight + 1) return;
         }
+    }
+
+    /**
+     * The sunrise's or sunset's shift after the countdown, in the longest form that fits on its one line: its words,
+     * else the signed figure, else nothing. On the regular tracker the line has the card's width; on the compact one
+     * the headline is as wide as its words, so the shift may widen it only a little (8% of the card, 40 px at most),
+     * or the sun's path beside it would be squeezed.
+     */
+    private _fitShift(card: HTMLElement): void {
+        const shift = card.querySelector('.st-shift') as HTMLElement | null;
+        const line = shift?.parentElement;
+        if (!shift || !line) return;
+        shift.hidden = false;
+        if (getComputedStyle(line).display === 'none') return;
+        let room = line.clientWidth;
+        if (card.classList.contains('compact')) {
+            shift.hidden = true;
+            const hero = card.querySelector('.st-hero') as HTMLElement | null;
+            room = (hero?.getBoundingClientRect().width ?? line.clientWidth) + Math.min(40, 0.08 * card.clientWidth);
+            shift.hidden = false;
+        }
+        for (const form of ['words', 'sign']) {
+            shift.dataset.form = form;
+            if (line.scrollWidth <= room + 0.5) return;
+        }
+        shift.hidden = true;
     }
 
     /**
@@ -916,6 +979,10 @@ class AnimatedSunTrackerCard extends HTMLElement implements DevCard {
         const countdown = untilMs > 0
             ? localizeString(hass, 'in_duration', { duration: formatDuration(untilMs / 3600000, hass) })
             : '';
+        // After it, how much earlier or later that sunrise or sunset is: in words where there's room, else the signed
+        // figure (the words kept for screen readers), else nothing (_fit)
+        const shift = countdown && this.config.show_header !== false ? sunShift(hass, this.config.daylight_delta, nextIsSunset ? 'set' : 'rise', nextIso) : null;
+        const shiftHtml = shift === null ? '' : `<span class="st-shift"><span class="st-shift-sep" aria-hidden="true"> · </span><span class="st-shift-words">${escapeHtml(localizeString(hass, shift < 0 ? 'shift_earlier' : 'shift_later', { delta: formatDaylightChange(shift, hass, false) }))}</span><span class="st-shift-sign" aria-hidden="true">${escapeHtml(formatDaylightChange(shift, hass))}</span></span>`;
 
         // Sky for the current phase
         const phase = skyPhaseFromSun(sun.elevation, sun.rising, sun.aboveHorizon);
@@ -953,7 +1020,7 @@ class AnimatedSunTrackerCard extends HTMLElement implements DevCard {
                     <span>${t(nextIsSunset ? 'sunset' : 'sunrise')}</span>
                 </div>
                 <div class="st-time">${time(nextIso)}</div>
-                ${countdown ? `<div class="st-countdown">${escapeHtml(countdown)}</div>` : ''}
+                ${countdown ? `<div class="st-countdown">${escapeHtml(countdown)}${shiftHtml}</div>` : ''}
             </div>` : (this.config.title && !compact ? `<div class="st-hero"><div class="st-title">${escapeHtml(this.config.title)}</div></div>` : '');
 
         const metric = (kind: string, iconName: IconName, label: string, valueHtml: string, wrap = false) => `

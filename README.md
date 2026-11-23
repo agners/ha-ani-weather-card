@@ -87,7 +87,7 @@ Prefer your dashboard's own look? The theme palette drops the sky and draws the 
 - **Rests when unseen.** Motion pauses while the tab is hidden or the card is scrolled out of view. It can also pause while the window is in the background.
 - **Respects reduced motion.** If reduced motion is on in your system settings, the sky stays still: the same colour and light, with no moving weather. The sun stays, and so do a clear night's moon and stars, which don't twinkle.
 - **Readable in every sky.** Text sits above the weather, and every built-in sky is tested to meet WCAG AA contrast for the card's text. Screen readers hear temperature and condition changes, and decorative layers are hidden from them.
-- **Light to load.** The card is about 98 KB gzipped, with GSAP, its animation library, inside, so it moves without internet access. The visual editor, the forecast, the note writer, the planes and the dev card load only when they're needed.
+- **Light to load.** The card is about 99 KB gzipped, with GSAP, its animation library, inside, so it moves without internet access. The visual editor, the forecast, the note writer, the planes and the dev card load only when they're needed.
 - **Set up visually.** Every weather card option is in the visual editor. YAML is there when you want it.
 
 ## Built with AI.
@@ -868,7 +868,7 @@ Its options, with examples, are under [The forecast card](#the-forecast-card).
 | `title` | — | A title above the headline. Not on the compact tracker |
 | `show_header` | `true` | Show the next sunrise or sunset and the time until it |
 | `show_details` | `true` | Show first and last light, solar noon, daylight and the moon phase. The compact tracker has no details |
-| `daylight_delta` | `day` | After the daylight, how much longer or shorter today is: `day` since yesterday ("+2m 14s since yesterday"), `week` since the same day last week, `month` since the same date last month (the last day of a shorter month standing in), or `none`. Where the column is narrow, as on a phone, the figure stands alone. On the compact tracker it sits under the other sunrise or sunset, where the strip has room for that and is two rows tall. Worked out from the sun at your Home Assistant location, or another place's coordinates; nothing through a polar day or night |
+| `daylight_delta` | `day` | What the tracker compares today with: `day` yesterday, `week` the same day last week, `month` the same date last month (the last day of a shorter month standing in), or `none`. After the countdown it says how much earlier or later the next sunrise or sunset is ("in 3h · 1m 6s earlier"), on the clock, so a week across a clock change says about an hour; after the daylight, how much longer or shorter the day is ("+2m 14s since yesterday"). Where a line is narrow, as on a phone, the figure stands alone ("−1m 6s"). On the compact tracker the daylight's change sits under the other sunrise or sunset, where the strip has room for it and is two rows tall. Worked out from the sun at your Home Assistant location, or another place's coordinates; nothing through a polar day or night |
 | `color_palette` | `default` | `default` for the sky, or `theme` for your dashboard's colours |
 | `direction` | `auto` | Which way the sun crosses the path. `auto` runs it right to left south of the equator, from your Home Assistant location, and left to right north of it. `left_to_right` or `right_to_left` sets it |
 | `dev_mode` | `false` | The tracker always runs on the [dev card](#the-dev-card)'s simulated sun and sky, and needs no `sun_entity` |

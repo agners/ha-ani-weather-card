@@ -47,35 +47,65 @@ function solarNoon(day: number, longitude: number): { noon: number; declination:
 /** Where the sun's centre is when its top touches the horizon, refraction included */
 const HORIZON = -0.833;
 
-/**
- * Daylight on the day whose solar noon is nearest `at`, in minutes from sunrise to sunset: where solarElevation crosses
- * the horizon, found by halving the half day either side of noon, so it's as exact as solarElevation is, to the
- * second. `polar` when the sun neither rises nor sets that day: 0 through a polar night, 1440 through a polar day. A
- * day the sun only rises or only sets counts from or to the solar midnight beside it.
- */
-export function daylight(latitude: number, longitude: number, at: number): { minutes: number; polar: boolean } {
+/** The solar noon nearest a moment, at a longitude */
+function nearestNoon(longitude: number, at: number): number {
     const day = Math.floor(at / DAY) * DAY;
     let noon = NaN;
     for (let d = -1; d <= 1; d++) {
         const n = solarNoon(day + d * DAY, longitude).noon;
         if (!(Math.abs(n - at) >= Math.abs(noon - at))) noon = n;
     }
-    const up = (ms: number) => solarElevation(new Date(ms), latitude, longitude) > HORIZON;
+    return noon;
+}
+
+/**
+ * A day's sunrise and sunset around its solar noon: where solarElevation crosses the horizon (-0.833°), found by
+ * halving the half day either side of noon, to the millisecond. Null where it doesn't cross that half day (the sun
+ * up, or down, all of it); `up` says whether the sun is up at noon at all.
+ */
+function crossings(latitude: number, longitude: number, noon: number): { up: boolean; start: number; end: number; rise: number | null; set: number | null } {
+    const isUp = (ms: number) => solarElevation(new Date(ms), latitude, longitude) > HORIZON;
     const start = noon - DAY / 2, end = noon + DAY / 2;
-    const upAtStart = up(start), upAtEnd = up(end);
-    if (!up(noon)) return { minutes: 0, polar: true };
-    if (upAtStart && upAtEnd) return { minutes: 1440, polar: true };
+    const up = isUp(noon);
+    if (!up) return { up, start, end, rise: null, set: null };
     // Up at one end of the half day and down at the other: 24 halvings of 12 hours come to under 3 ms
     const cross = (down: number, upAt: number) => {
         for (let i = 0; i < 24; i++) {
             const mid = (down + upAt) / 2;
-            if (up(mid)) upAt = mid; else down = mid;
+            if (isUp(mid)) upAt = mid; else down = mid;
         }
         return (down + upAt) / 2;
     };
-    const rise = upAtStart ? start : cross(start, noon);
-    const set = upAtEnd ? end : cross(end, noon);
-    return { minutes: (set - rise) / MINUTE, polar: false };
+    return { up, start, end, rise: isUp(start) ? null : cross(start, noon), set: isUp(end) ? null : cross(end, noon) };
+}
+
+/**
+ * Daylight on the day whose solar noon is nearest `at`, in minutes from sunrise to sunset. `polar` when the sun
+ * neither rises nor sets that day: 0 through a polar night, 1440 through a polar day. A day the sun only rises or
+ * only sets counts from or to the solar midnight beside it.
+ */
+export function daylight(latitude: number, longitude: number, at: number): { minutes: number; polar: boolean } {
+    const c = crossings(latitude, longitude, nearestNoon(longitude, at));
+    if (!c.up) return { minutes: 0, polar: true };
+    if (c.rise === null && c.set === null) return { minutes: 1440, polar: true };
+    return { minutes: ((c.set ?? c.end) - (c.rise ?? c.start)) / MINUTE, polar: false };
+}
+
+/**
+ * The sunrise or sunset nearest `at` (best the sun entity's next one, so a sunset past midnight is the day before's),
+ * and the same one `back` days before it: two instants, or null where either day hasn't that crossing (a polar day
+ * or night).
+ */
+export function sunEvent(latitude: number, longitude: number, at: number, which: 'rise' | 'set', back: number): { now: number; then: number } | null {
+    const noon = nearestNoon(longitude, at);
+    let now: number | null = null, day = noon;
+    for (const n of [noon - DAY, noon, noon + DAY]) {
+        const t = crossings(latitude, longitude, nearestNoon(longitude, n))[which];
+        if (t !== null && (now === null || Math.abs(t - at) < Math.abs(now - at))) { now = t; day = nearestNoon(longitude, n); }
+    }
+    if (now === null) return null;
+    const then = crossings(latitude, longitude, nearestNoon(longitude, day - back * DAY))[which];
+    return then === null ? null : { now, then };
 }
 
 /**

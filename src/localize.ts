@@ -14,6 +14,7 @@ export type CardString =
     | 'first_light' | 'last_light' | 'moon'
     | 'in_duration'
     | 'daylight_day' | 'daylight_week' | 'daylight_month'
+    | 'shift_earlier' | 'shift_later'
     | 'note_reading' | 'note_writing'
     | 'uv_index' | 'uv_low' | 'uv_moderate' | 'uv_high' | 'uv_very_high' | 'uv_extreme'
     | 'rain_today' | 'rain_now'
@@ -27,6 +28,7 @@ const NB: Partial<Record<CardString, string>> = {
     first_light: 'Morgengry', last_light: 'Kveldsskumring', moon: 'Måne',
     in_duration: 'om {duration}',
     daylight_day: '{delta} siden i går', daylight_week: '{delta} siden forrige uke', daylight_month: '{delta} siden forrige måned',
+    shift_earlier: '{delta} tidligere', shift_later: '{delta} senere',
     note_reading: 'Leser værmeldingen', note_writing: 'Skriver notatet',
     uv_index: 'UV-indeks',
     uv_low: 'Lav', uv_moderate: 'Moderat', uv_high: 'Høy', uv_very_high: 'Svært høy', uv_extreme: 'Ekstrem',
@@ -43,6 +45,7 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         first_light: 'First light', last_light: 'Last light', moon: 'Moon',
         in_duration: 'in {duration}',
         daylight_day: '{delta} since yesterday', daylight_week: '{delta} since last week', daylight_month: '{delta} since last month',
+        shift_earlier: '{delta} earlier', shift_later: '{delta} later',
         note_reading: 'Reading the forecast', note_writing: 'Writing the note',
         uv_index: 'UV index',
         uv_low: 'Low', uv_moderate: 'Moderate', uv_high: 'High', uv_very_high: 'Very high', uv_extreme: 'Extreme',
@@ -56,6 +59,7 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         first_light: 'Morgendämmerung', last_light: 'Abenddämmerung', moon: 'Mond',
         in_duration: 'in {duration}',
         daylight_day: '{delta} seit gestern', daylight_week: '{delta} seit letzter Woche', daylight_month: '{delta} seit letztem Monat',
+        shift_earlier: '{delta} früher', shift_later: '{delta} später',
         note_reading: 'Vorhersage wird gelesen', note_writing: 'Notiz wird geschrieben',
         uv_index: 'UV-Index',
         uv_low: 'Niedrig', uv_moderate: 'Mäßig', uv_high: 'Hoch', uv_very_high: 'Sehr hoch', uv_extreme: 'Extrem',
@@ -69,6 +73,7 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         first_light: 'Alba', last_light: 'Anochecer', moon: 'Luna',
         in_duration: 'en {duration}',
         daylight_day: '{delta} desde ayer', daylight_week: '{delta} desde la semana pasada', daylight_month: '{delta} desde el mes pasado',
+        shift_earlier: '{delta} antes', shift_later: '{delta} después',
         note_reading: 'Leyendo el pronóstico', note_writing: 'Escribiendo la nota',
         uv_index: 'Índice UV',
         uv_low: 'Bajo', uv_moderate: 'Moderado', uv_high: 'Alto', uv_very_high: 'Muy alto', uv_extreme: 'Extremo',
@@ -82,6 +87,7 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         first_light: 'Aube', last_light: 'Crépuscule', moon: 'Lune',
         in_duration: 'dans {duration}',
         daylight_day: '{delta} depuis hier', daylight_week: '{delta} depuis la semaine dernière', daylight_month: '{delta} depuis le mois dernier',
+        shift_earlier: '{delta} plus tôt', shift_later: '{delta} plus tard',
         note_reading: 'Lecture des prévisions', note_writing: 'Rédaction de la note',
         uv_index: 'Indice UV',
         uv_low: 'Faible', uv_moderate: 'Modéré', uv_high: 'Élevé', uv_very_high: 'Très élevé', uv_extreme: 'Extrême',
@@ -95,6 +101,7 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         first_light: 'Prima luce', last_light: 'Ultima luce', moon: 'Luna',
         in_duration: 'tra {duration}',
         daylight_day: '{delta} da ieri', daylight_week: '{delta} dalla settimana scorsa', daylight_month: '{delta} dal mese scorso',
+        shift_earlier: '{delta} prima', shift_later: '{delta} dopo',
         note_reading: 'Lettura delle previsioni', note_writing: 'Scrittura della nota',
         uv_index: 'Indice UV',
         uv_low: 'Basso', uv_moderate: 'Moderato', uv_high: 'Alto', uv_very_high: 'Molto alto', uv_extreme: 'Estremo',
@@ -108,6 +115,7 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         first_light: 'Ochtendschemering', last_light: 'Avondschemering', moon: 'Maan',
         in_duration: 'over {duration}',
         daylight_day: '{delta} sinds gisteren', daylight_week: '{delta} sinds vorige week', daylight_month: '{delta} sinds vorige maand',
+        shift_earlier: '{delta} eerder', shift_later: '{delta} later',
         note_reading: 'Verwachting lezen', note_writing: 'Notitie schrijven',
         uv_index: 'UV-index',
         uv_low: 'Laag', uv_moderate: 'Matig', uv_high: 'Hoog', uv_very_high: 'Zeer hoog', uv_extreme: 'Extreem',
@@ -121,6 +129,7 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         first_light: 'Świt', last_light: 'Zmierzch', moon: 'Księżyc',
         in_duration: 'za {duration}',
         daylight_day: '{delta} od wczoraj', daylight_week: '{delta} od zeszłego tygodnia', daylight_month: '{delta} od zeszłego miesiąca',
+        shift_earlier: '{delta} wcześniej', shift_later: '{delta} później',
         note_reading: 'Czytanie prognozy', note_writing: 'Pisanie notatki',
         uv_index: 'Indeks UV',
         uv_low: 'Niski', uv_moderate: 'Umiarkowany', uv_high: 'Wysoki', uv_very_high: 'Bardzo wysoki', uv_extreme: 'Ekstremalny',
@@ -134,6 +143,7 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         first_light: 'Aurora', last_light: 'Crepúsculo', moon: 'Lua',
         in_duration: 'em {duration}',
         daylight_day: '{delta} desde ontem', daylight_week: '{delta} desde a semana passada', daylight_month: '{delta} desde o mês passado',
+        shift_earlier: '{delta} mais cedo', shift_later: '{delta} mais tarde',
         note_reading: 'Leitura da previsão', note_writing: 'Escrita da nota',
         uv_index: 'Índice UV',
         uv_low: 'Baixo', uv_moderate: 'Moderado', uv_high: 'Alto', uv_very_high: 'Muito alto', uv_extreme: 'Extremo',
@@ -147,6 +157,7 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         first_light: 'Zori', last_light: 'Amurg', moon: 'Lună',
         in_duration: 'în {duration}',
         daylight_day: '{delta} față de ieri', daylight_week: '{delta} față de săptămâna trecută', daylight_month: '{delta} față de luna trecută',
+        shift_earlier: 'cu {delta} mai devreme', shift_later: 'cu {delta} mai târziu',
         note_reading: 'Citesc prognoza', note_writing: 'Scriu nota',
         uv_index: 'Indice UV',
         uv_low: 'Scăzut', uv_moderate: 'Moderat', uv_high: 'Ridicat', uv_very_high: 'Foarte ridicat', uv_extreme: 'Extrem',
@@ -164,6 +175,7 @@ const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
         first_light: 'Світанок', last_light: 'Вечірні сутінки', moon: 'Місяць',
         in_duration: 'через {duration}',
         daylight_day: '{delta} з учорашнього дня', daylight_week: '{delta} з минулого тижня', daylight_month: '{delta} з минулого місяця',
+        shift_earlier: 'на {delta} раніше', shift_later: 'на {delta} пізніше',
         note_reading: 'Аналіз прогнозу', note_writing: 'Підготовка нотатки',
         uv_index: 'УФ-індекс',
         uv_low: 'Низький', uv_moderate: 'Помірний', uv_high: 'Високий', uv_very_high: 'Дуже високий', uv_extreme: 'Екстремальний',
@@ -381,9 +393,9 @@ export function formatDuration(hours: number, hass?: LocaleSource): string {
  * A change in daylight, signed in text: "+2m 14s", "−8s", "+1h 12m" (no seconds past an hour), "±0s". The sign follows
  * the rounding, so a change that rounds to nothing is never "−0s".
  */
-export function formatDaylightChange(seconds: number, hass?: LocaleSource): string {
+export function formatDaylightChange(seconds: number, hass?: LocaleSource, signed = true): string {
     const total = Math.round(Math.abs(seconds));
-    const sign = total === 0 ? '±' : seconds > 0 ? '+' : '\u2212';
+    const sign = !signed ? '' : total === 0 ? '±' : seconds > 0 ? '+' : '\u2212';
     const h = Math.floor(total / 3600), m = Math.floor((total % 3600) / 60), s = total % 60;
     const parts: Record<string, number> = h ? { hours: h, minutes: m } : m ? { minutes: m, seconds: s } : { seconds: s };
     // No zero after a figure: "2m", never "2m 0s"
@@ -402,6 +414,20 @@ export function formatDaylightChange(seconds: number, hass?: LocaleSource): stri
     const uk = language.toLowerCase().split('-')[0] === 'uk';
     const unit: Record<string, string> = uk ? { hours: '\u00a0год', minutes: '\u00a0хв', seconds: '\u00a0с' } : { hours: 'h', minutes: 'm', seconds: 's' };
     return sign + Object.entries(parts).map(([k, v]) => `${v}${unit[k]}`).join(' ');
+}
+
+/** How far the card's time zone is ahead of UTC at a moment, in ms: so two instants can be compared as clock times */
+export function zoneOffset(ms: number, hass?: LocaleSource): number {
+    const zone = cardTimeZone(hass);
+    if (zone) {
+        try {
+            const parts = new Intl.DateTimeFormat('en-US', { timeZone: zone, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' }).formatToParts(new Date(ms));
+            const part = (type: string) => Number(parts.find(p => p.type === type)?.value);
+            const local = Date.UTC(part('year'), part('month') - 1, part('day'), part('hour'), part('minute'), part('second'));
+            if (Number.isFinite(local)) return local - Math.floor(ms / 1000) * 1000;
+        } catch { /* the device's zone */ }
+    }
+    return -new Date(ms).getTimezoneOffset() * 60_000;
 }
 
 /** The days back to the same date last month in the card's time zone, the last of a shorter month standing in (31 Mar → 28 Feb) */

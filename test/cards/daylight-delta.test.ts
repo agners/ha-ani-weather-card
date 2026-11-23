@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { daylight, daylightChange, solarState } from '../../src/solar';
+import { daylight, daylightChange, solarState, sunEvent } from '../../src/solar';
 import { formatDaylightChange, daysToLastMonth } from '../../src/localize';
-import { daylightDeltaText } from '../../src/sun-tracker-card';
+import { daylightDeltaText, sunShift } from '../../src/sun-tracker-card';
 import type { HomeAssistant } from '../../src/types';
 
 type Place = readonly [number, number];
@@ -138,6 +138,56 @@ describe('the change in words', () => {
     });
 });
 
+describe('the next sunrise\'s or sunset\'s shift', () => {
+    const shift = (place: Place, zone: string, near: string, which: 'rise' | 'set', mode: 'day' | 'week' | 'month' = 'day') =>
+        sunShift(hassAt(place, zone), mode, which, near);
+
+    it('turns where it should: the earliest sunset before the solstice, the latest sunrise after it, the other way in Sydney', () => {
+        expect(shift(AMSTERDAM, 'Europe/Amsterdam', '2026-12-05T15:30:00Z', 'set')).toBeLessThan(0);
+        expect(shift(AMSTERDAM, 'Europe/Amsterdam', '2026-12-20T15:30:00Z', 'set')).toBeGreaterThan(0);
+        expect(shift(AMSTERDAM, 'Europe/Amsterdam', '2026-12-20T07:45:00Z', 'rise')).toBeGreaterThan(0);
+        expect(shift(AMSTERDAM, 'Europe/Amsterdam', '2027-01-10T07:45:00Z', 'rise')).toBeLessThan(0);
+        expect(shift(AMSTERDAM, 'Europe/Amsterdam', '2026-03-10T17:30:00Z', 'set')).toBeGreaterThan(0);
+        expect(shift(SYDNEY, 'Australia/Sydney', '2026-03-10T08:30:00Z', 'set')).toBeLessThan(0);
+    });
+
+    it('compares the next sunrise, tomorrow\'s, with today\'s, and a sunset past midnight with the one the night before', () => {
+        const [lat, lon] = AMSTERDAM;
+        const morning = sunEvent(lat, lon, Date.parse('2026-11-24T07:20:00Z'), 'rise', 1)!;
+        expect(Math.abs(morning.now - Date.parse('2026-11-24T07:20:00Z'))).toBeLessThan(15 * 60_000);
+        expect(Math.abs(morning.now - morning.then - 86_400_000)).toBeLessThan(3 * 60_000);
+        // Reykjavík's midsummer sunset comes a few minutes after midnight
+        const late = sunEvent(64.15, -21.94, Date.parse('2026-06-22T00:04:00Z'), 'set', 1)!;
+        expect(Math.abs(late.now - Date.parse('2026-06-22T00:04:00Z'))).toBeLessThan(15 * 60_000);
+        expect(Math.abs(late.now - late.then - 86_400_000)).toBeLessThan(60_000);
+    });
+
+    it('says nothing through a polar day or night, or without coordinates', () => {
+        expect(shift(TROMSO, 'Europe/Oslo', '2026-06-21T22:00:00Z', 'set')).toBeNull();
+        expect(shift(TROMSO, 'Europe/Oslo', '2026-12-15T11:00:00Z', 'rise')).toBeNull();
+        const nowhere = { ...hassAt(AMSTERDAM, 'Europe/Amsterdam'), config: { time_zone: 'Europe/Amsterdam' } } as unknown as HomeAssistant;
+        expect(sunShift(nowhere, 'day', 'set', '2026-11-23T15:37:00Z')).toBeNull();
+        expect(shift(AMSTERDAM, 'Europe/Amsterdam', '2026-11-23T15:37:00Z', 'set', 'day')).not.toBeNull();
+        expect(sunShift(hassAt(AMSTERDAM, 'Europe/Amsterdam'), 'none', 'set', '2026-11-23T15:37:00Z')).toBeNull();
+    });
+
+    it('in clock time: a week across the clock change is about an hour', () => {
+        // Summer time ended on 25 October: the 28th's sunset came an hour and a quarter earlier on the clock than the 21st's
+        const across = shift(AMSTERDAM, 'Europe/Amsterdam', '2026-10-28T16:15:00Z', 'set', 'week')!;
+        expect(across).toBeLessThan(-4200);
+        expect(across).toBeGreaterThan(-4800);
+        const within = shift(AMSTERDAM, 'Europe/Amsterdam', '2026-11-11T15:50:00Z', 'set', 'week')!;
+        expect(within).toBeLessThan(-600);
+        expect(within).toBeGreaterThan(-900);
+    });
+
+    it('steps evenly from day to day, to the second', () => {
+        const days = Array.from({ length: 14 }, (_, i) => shift(AMSTERDAM, 'Europe/Amsterdam', `2026-03-${String(1 + i).padStart(2, '0')}T17:30:00Z`, 'set')!);
+        const steps = days.slice(1).map((d, i) => d - days[i]);
+        for (const step of steps) expect(Math.abs(step), days.join(' ')).toBeLessThanOrEqual(2);
+    });
+});
+
 describe('the tracker\'s daylight change', () => {
     type Tracker = HTMLElement & { setConfig(config: object): void; hass: unknown };
     afterEach(() => { vi.useRealTimers(); document.body.innerHTML = ''; });
@@ -193,6 +243,20 @@ describe('the tracker\'s daylight change', () => {
             expect(off.shadowRoot!.querySelector('.st-chart-delta'), JSON.stringify(config)).toBeNull();
             expect(off.shadowRoot!.querySelector('.st-chart')!.getAttribute('aria-label')).not.toMatch(/Daylight/);
         }
+    });
+
+    it('after the countdown: how much earlier or later the next sunset is, in words, and as a signed figure for a narrow line', () => {
+        const tracker = mount({ sun_entity: 'sun.sun' });
+        const line = tracker.shadowRoot!.querySelector('.st-countdown')!;
+        expect(line.querySelector('.st-shift-words')?.textContent).toMatch(/^(\d+m )?\d+s earlier$|^\d+m earlier$/);
+        expect(line.querySelector('.st-shift-sign')?.textContent).toMatch(/^\u2212/);
+        expect(line.querySelector('.st-shift-sign')?.getAttribute('aria-hidden')).toBe('true');
+        expect(mount({ sun_entity: 'sun.sun', compact: true }).shadowRoot!.querySelector('.st-countdown .st-shift')).not.toBeNull();
+        expect(mount({ sun_entity: 'sun.sun', daylight_delta: 'none' }).shadowRoot!.querySelector('.st-shift')).toBeNull();
+        expect(mount({ sun_entity: 'sun.sun', show_header: false }).shadowRoot!.querySelector('.st-shift')).toBeNull();
+        const css = tracker.shadowRoot!.querySelector('style')?.textContent ?? '';
+        expect(css).toMatch(/\.st-shift\[data-form="sign"\] \.st-shift-words \{[^}]*clip-path: inset\(50%\)/);
+        expect(css).toMatch(/\.st-countdown \{[^}]*white-space: nowrap/);
     });
 
     it('for another place, by that place\'s sun: longer days in Sydney while Amsterdam\'s shorten', () => {
