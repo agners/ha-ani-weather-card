@@ -1223,6 +1223,21 @@ export function configYaml({ layout = 'regular', colors = 'sky', station = false
  * wide), or compact under the weather card, as the README pairs them, the
  * weather card leaving the next sunset to the tracker.
  */
+/**
+ * Where the sample world's trackers compare today's sun with yesterday's: the sample has a day of its own (SUN_TIMES),
+ * but the comparisons need a real place's, so they take Amsterdam's. Yours, while your weather is live.
+ */
+export const SAMPLE_PLACE = { latitude: 52.37, longitude: 4.9 };
+
+/**
+ * Home Assistant as a tracker sees it: with a place's coordinates, which it compares the sun with yesterday's from.
+ * Only the trackers get them: a weather card would work out the forecast's sun at each hour from them, and in the
+ * sample world that sun has to stay the sample's.
+ */
+export function trackerHass(data, where = SAMPLE_PLACE) {
+    return { ...data, config: { ...data.config, latitude: where.latitude, longitude: where.longitude } };
+}
+
 export function trackerYaml({ layout = 'regular', colors = 'sky' } = {}) {
     const theme = colors === 'theme' ? ['color_palette: theme  # follows your Home Assistant theme'] : [];
     const tracker = [

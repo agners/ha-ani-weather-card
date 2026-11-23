@@ -13,7 +13,7 @@ import {
     colorsYaml, conditionIcon, configYaml, customColors, dashboardLayout, dashboardYaml, engineSettings, engineYaml,
     formatEngineValue, liveReading, minutesFor, moonPhase, nextFlight, paletteOf, phaseForHour, phaseForSun, placeName,
     noteFor, quietOptions, solarAt, solarElevation, solarTimes, stationStates, sunAt, sunAttributes, trackerYaml, weatherState,
-    wmoCondition, SUN_TIMES,
+    wmoCondition, SUN_TIMES, SAMPLE_PLACE, trackerHass,
 } from '../../demo/scene.mjs';
 import { PAGE_FILES, iconNames, resolveIcons } from '../../demo/build.mjs';
 import { LOGO_PHASES, logoSvg } from '../../demo/logo.mjs';
@@ -907,5 +907,21 @@ describe('the setup guide', () => {
 
     it('keeps to the voice: no em dashes', () => {
         expect(page).not.toContain('—');
+    });
+});
+
+describe('the trackers\' place', () => {
+    it('gives only the trackers coordinates to compare the sun from: the sample place\'s, or the visitor\'s while theirs is live', () => {
+        const data = buildHass({ conditionId: 'clear', phase: 'day' });
+        const sample = trackerHass(data);
+        expect(sample.config).toMatchObject({ latitude: SAMPLE_PLACE.latitude, longitude: SAMPLE_PLACE.longitude, time_zone: data.config.time_zone });
+        expect(sample.states).toBe(data.states);
+        // The weather cards keep a Home Assistant without them, so the sample's forecast keeps the sample's sun
+        expect(data.config).not.toHaveProperty('latitude');
+        expect(trackerHass(data, { latitude: -33.87, longitude: 151.21 }).config).toMatchObject({ latitude: -33.87, longitude: 151.21 });
+        const page = readFileSync(join(__dirname, '../../demo/demo.js'), 'utf8');
+        expect(page).toMatch(/card\.localName === 'animated-sun-tracker-card' \? trackerHass\(data, state\.live && liveWhere \? liveWhere : SAMPLE_PLACE\) : data/);
+        // Wherever the visitor is, the tracker section's sun runs the scrubber's way
+        expect(page).toMatch(/direction: 'left_to_right'/);
     });
 });

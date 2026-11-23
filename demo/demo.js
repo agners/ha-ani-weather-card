@@ -9,7 +9,7 @@ import {
     STATION, SUN_TIMES, aheadYaml, buildHass, colorsYaml, conditionIcon, configYaml, customColors, dashboardLayout, dashboardYaml,
     engineSettings, engineYaml, forgetNotes, formatEngineValue, liveReading, minutesFor, nextFlight, noteYaml, paletteOf,
     phaseForHour, phaseForSun, placeName, quietOptions, rowsHeight,
-    solarAt, solarTimes, stationStates, sunAt, trackerYaml, weatherState, wmoCondition,
+    solarAt, solarTimes, stationStates, sunAt, trackerYaml, trackerHass, SAMPLE_PLACE, weatherState, wmoCondition,
 } from './scene.mjs';
 import { copyButton, highlight, svgIcon } from './code.mjs';
 
@@ -213,8 +213,13 @@ function buildScene(layout = 'regular', extra = {}) {
     return { el, weather, tracker: null };
 }
 
+/** A card's Home Assistant: a tracker's with a place to compare its sun from, yours while your weather is live */
+function give(card, data) {
+    card.hass = card.localName === 'animated-sun-tracker-card' ? trackerHass(data, state.live && liveWhere ? liveWhere : SAMPLE_PLACE) : data;
+}
+
 function feed(scene, current = hass()) {
-    for (const card of scene.cards ?? [scene.weather, scene.tracker]) if (card) card.hass = current;
+    for (const card of scene.cards ?? [scene.weather, scene.tracker]) if (card) give(card, current);
 }
 
 /**
@@ -341,7 +346,7 @@ function reveal(scene) {
 function update() {
     const data = hass();
     for (const scene of document.querySelectorAll('.scene:not(.lab-scene)')) {
-        for (const card of scene.querySelectorAll('animated-weather-card, animated-forecast-card, animated-sun-tracker-card')) card.hass = data;
+        for (const card of scene.querySelectorAll('animated-weather-card, animated-forecast-card, animated-sun-tracker-card')) give(card, data);
     }
     for (const lab of labs) lab.refresh();
     watchSky();
@@ -1602,6 +1607,8 @@ function buildTrackerScene(layout) {
         weather_entity: ENTITIES.weather,
         compact: layout === 'compact',
         color_palette: palette,
+        // The page's scrubber runs left to right, so the sun does too, wherever you are
+        direction: 'left_to_right',
     });
     cards.append(tracker);
     return { el, weather, tracker };
