@@ -56,11 +56,15 @@ describe('suggestions for a picked entity', () => {
     const suggest = (type: string, entityId: string) =>
         entry(type).getEntitySuggestion!(home, entityId) as CardSuggestion[] | null;
 
-    it('offers the weather card, regular and compact, for a weather entity', () => {
+    it('offers the weather card in four of its presets for a weather entity, none with the note', () => {
+        const base = { type: 'custom:animated-weather-card', entity: 'weather.garden', sun_entity: 'sun.sun' };
         expect(suggest('animated-weather-card', 'weather.garden')).toEqual([
-            { label: 'Regular', config: { type: 'custom:animated-weather-card', entity: 'weather.garden', sun_entity: 'sun.sun' } },
-            { label: 'Compact', config: { type: 'custom:animated-weather-card', entity: 'weather.garden', sun_entity: 'sun.sun', compact: true } },
+            { label: 'Standard', config: base },
+            { label: 'Forecast', config: { ...base, show_forecast: true } },
+            { label: 'Full info', config: { ...base, show_forecast: true, show_days: true, show_clock: true, show_date: true } },
+            { label: 'Strip', config: { ...base, compact: true } },
         ]);
+        for (const s of suggest('animated-weather-card', 'weather.garden')!) expect(s.config).not.toHaveProperty('show_note');
     });
 
     it('offers the sun tracker, regular and compact, for the sun', () => {

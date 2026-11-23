@@ -63,6 +63,7 @@ import './sun-tracker-card';
 import { ForecastFeed } from './forecast-feed';
 import { forecastTypes, type ForecastEntry } from './forecast-data';
 import { autoPicture, hourAt, hourInputs, readEngineInputs } from './engine';
+import { applyPreset, presetById, type PresetId } from './presets';
 import type { ForecastExtras, ForecastHost, Surface } from './forecast-host';
 import { HOUR_EVENT, type HourLink } from './hour-link';
 import { clearStarsFromWords, drawNight, showStars, starCount, wordBoxes } from './stars-animation';
@@ -87,6 +88,9 @@ const NOTE_TYPE_MIN_MS = 450;
 const NOTE_TYPE_MAX_MS = 1600;
 
 /** A weather card for an entity, with the next sunset when Home Assistant has sun.sun */
+/** The presets the card picker offers for a weather entity */
+const SUGGESTED_PRESETS: readonly PresetId[] = ['standard', 'forecast', 'full', 'strip'];
+
 function weatherCardConfig(entity: string, hass?: HomeAssistant): AnimatedWeatherCardConfig {
     return hass?.states['sun.sun'] ? { entity, sun_entity: 'sun.sun' } : { entity };
 }
@@ -2194,11 +2198,14 @@ window.customCards.push({
     // The card picker shows it moving, on the stub's weather
     preview: true,
     documentationURL: 'https://github.com/alexsto1an/ha-ani-weather-card',
-    // Home Assistant 2026.6 and later suggest it for a weather entity, under Community
-    getEntitySuggestion: (hass, entityId) => entityId.startsWith('weather.') ? [
-        { label: 'Regular', config: { type: 'custom:animated-weather-card', ...weatherCardConfig(entityId, hass) } },
-        { label: 'Compact', config: { type: 'custom:animated-weather-card', ...weatherCardConfig(entityId, hass), compact: true } },
-    ] : null,
+    // Home Assistant 2026.6 and later suggest it for a weather entity, under Community: four of its presets
+    // (presets.ts), each a live preview, so not all seven; the editor and the demo have the rest
+    getEntitySuggestion: (hass, entityId) => entityId.startsWith('weather.')
+        ? SUGGESTED_PRESETS.map(id => ({
+            label: presetById(id)!.label,
+            config: applyPreset({ type: 'custom:animated-weather-card' as const, ...weatherCardConfig(entityId, hass) }, id),
+        }))
+        : null,
 });
 window.customCards.push({
     type: 'animated-forecast-card',

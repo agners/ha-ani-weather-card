@@ -176,7 +176,7 @@ To update a manual install, overwrite the files and raise the `?v=` number in th
 
 For the sun tracker, search for **Animated Sun Tracker**. It starts on `sun.sun`, with your moon sensor if you have one. For the forecast card, search for **Animated Forecast**. It starts on your weather entity.
 
-In Home Assistant 2026.6 and later, the **By entity** tab suggests the cards too: pick your weather entity, or `sun.sun`, and they're under **Community**. A weather entity gets the weather card, regular and compact, and the forecast card and its strip; `sun.sun` gets the sun tracker, regular and compact.
+In Home Assistant 2026.6 and later, the **By entity** tab suggests the cards too: pick your weather entity, or `sun.sun`, and they're under **Community**. A weather entity gets the weather card in four of its [presets](#start-from-a-preset) (Standard, Forecast, Full info and Strip), and the forecast card and its strip; `sun.sun` gets the sun tracker, regular and compact.
 
 Or in YAML:
 
