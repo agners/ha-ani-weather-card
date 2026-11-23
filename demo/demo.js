@@ -8,7 +8,7 @@ import {
     AHEAD_ROWS, AWAY, CARD_ROWS, CONDITIONS, DASHBOARD, DEVICES, ENGINE, ENTITIES, NOTE_FORECASTS, NOTE_VOICES, OPEN_METEO, PAINTS, PALETTES, PHASES, QUIET,
     STATION, SUN_TIMES, aheadYaml, buildHass, colorsYaml, conditionIcon, configYaml, customColors, dashboardLayout, dashboardYaml,
     engineSettings, engineYaml, forgetNotes, formatEngineValue, liveReading, minutesFor, nextFlight, noteYaml, paletteOf,
-    phaseForHour, phaseForSun, placeName, quietOptions, rowsHeight,
+    phaseForHour, phaseForSun, placeName, quietOptions, rowsHeight, WEATHER_INPUTS, WEATHER_READINGS, formatWeatherInput, weatherInputs, weatherYaml,
     solarAt, solarTimes, stationStates, stationReadings, STATION_OPTIONS, sunAt, trackerYaml, trackerHass, SAMPLE_PLACE, weatherState, wmoCondition,
 } from './scene.mjs';
 import { copyButton, highlight, svgIcon } from './code.mjs';
@@ -1099,7 +1099,7 @@ let yamlInView = false;
 function yamlOptions() {
     return {
         colors: state.colors === 'sky' ? 'sky' : 'theme', station: station.on,
-        engine: tune.settings, quiet: tune.quiet, paints: paint.colors, tone: noteSetup.voice,
+        engine: tune.mode === 'manual' ? tune.settings : {}, quiet: tune.quiet, paints: paint.colors, tone: noteSetup.voice,
     };
 }
 /** Draw the YAML; lines you haven't seen yet glow once, as soon as you can see them. */
@@ -1983,7 +1983,7 @@ function createLab({ section, condition, phase = null, config = () => ({}), data
         phase: phase ?? state.phase,
         sun: phase ? sunAt(minutesFor(phase)) : sunNow(state.minutes),
         sunTimes: phase ? SUN_TIMES : sunTimes,
-        ...data(),
+        ...data(lab.condition),
     });
     const place = (instant = false) => { if (lab.current) lightCard(light, lab.current.weather, scenesEl, instant); };
 
@@ -2073,7 +2073,7 @@ function createLab({ section, condition, phase = null, config = () => ({}), data
     }, { threshold: [0, 0.25] }).observe(stage);
     new ResizeObserver(() => place()).observe(scenesEl);
     addRoom({ stage, sky: () => lab.current?.weather.querySelector('.animated-weather-card'), storm: () => storm(lab.condition) });
-    const api = { stage, mount, refresh, showWeather };
+    const api = { stage, mount, refresh, showWeather, get condition() { return lab.condition; } };
     labs.push(api);
     return api;
 }
@@ -2087,35 +2087,52 @@ function settled(fn, ms) {
     };
 }
 
-// ── Tune the weather: the engine's sliders and the quiet switches ──────
+// ── Tune the weather: the weather's own amounts, or the engine's sliders, and the quiet switches ──
+// The weather (auto mode, the card's default): the card reads a station's rain rate and the weather entity's cloud
+// cover, visibility, wind and gusts, and its readings show them. A slider changes what Home Assistant reports, and the
+// card follows in place, as it would on a dashboard. By hand (manual): the engine's seven settings, and each change
+// sets the card up again once the hand pauses.
 const tune = {
+    mode: 'auto',
+    inputs: Object.fromEntries(WEATHER_INPUTS.map(row => [row.id, row.value])),
     settings: Object.fromEntries(ENGINE.map(row => [row.id, row.value])),
     quiet: Object.fromEntries(QUIET.map(row => [row.id, false])),
 };
 const tuneLab = createLab({
     section: $('#tune'),
     condition: 'rainy',
-    // The sliders are manual mode's, at their defaults too, as the YAML says: in auto the sample's own rain and cloud
-    // would set the amounts, and a slider could move the weather the other way
+    // By hand, the sliders are manual mode's, at their defaults too, as the YAML says: in auto the sample's own rain
+    // and cloud would set the amounts, and a slider could move the weather the other way
     config: () => {
+        if (tune.mode === 'auto') return { readings: WEATHER_READINGS, ...quietOptions(tune.quiet) };
         const engine = engineSettings(tune.settings);
         return { engine_mode: 'manual', ...(Object.keys(engine).length ? { engine_settings: engine } : {}), ...quietOptions(tune.quiet) };
     },
+    data: (condition) => (tune.mode === 'auto' ? weatherInputs(tune.inputs, condition) : {}),
 });
 const slidersEl = $('#sliders');
 const tuneReset = $('#tune-reset');
+const tuneModeEl = $('#tune-mode');
 const renderTuneYaml = snippetRenderer($('#tune-yaml'));
 let tuneText = '';
 
-slidersEl.innerHTML = ENGINE.map(row => `
+/** The sliders the mode shows: the weather's values (each slider steps through its stops), or the engine's */
+const tuneRows = () => (tune.mode === 'auto' ? WEATHER_INPUTS : ENGINE);
+function drawSliders() {
+    slidersEl.innerHTML = tuneRows().map(row => {
+        const [min, max, step] = row.stops ? [0, row.stops.length - 1, 1] : [row.min, row.max, row.step];
+        return `
     <label class="slider" data-id="${row.id}">
         <span class="slider-head"><span class="slider-label">${row.label}</span><output class="slider-value"></output></span>
         <span class="slider-track">
             <span class="slider-fill" aria-hidden="true"></span>
             <span class="slider-thumb" aria-hidden="true"></span>
-            <input type="range" min="${row.min}" max="${row.max}" step="${row.step}" aria-label="${row.label}">
+            <input type="range" min="${min}" max="${max}" step="${step}" aria-label="${row.label}">
         </span>
-    </label>`).join('');
+    </label>`;
+    }).join('');
+    $('#sliders-title').textContent = tune.mode === 'auto' ? 'Your weather' : 'Engine';
+}
 $('#quiet-list').innerHTML = QUIET.map(row => `
     <label class="toggle quiet-switch">
         <input type="checkbox" role="switch" data-id="${row.id}">
@@ -2123,41 +2140,70 @@ $('#quiet-list').innerHTML = QUIET.map(row => `
         <span class="quiet-text"><span>${row.label}</span><span class="quiet-note">${row.note}</span></span>
     </label>`).join('');
 
-/** Draw a slider where its setting is: the rail, the thumb, the value as the editor shows it. */
+/** Draw a slider where its value is: the rail, the thumb, the value as the card or the editor shows it. */
 function drawSlider(row) {
     const slider = slidersEl.querySelector(`.slider[data-id="${row.id}"]`);
-    const value = tune.settings[row.id];
-    const text = formatEngineValue(row.id, value);
-    slider.style.setProperty('--p', ((value - row.min) / (row.max - row.min)).toFixed(4));
+    const input = slider.querySelector('input');
+    let value, p, text;
+    if (row.stops) {
+        value = tune.inputs[row.id];
+        const index = Math.max(0, row.stops.indexOf(value));
+        p = index / (row.stops.length - 1);
+        text = formatWeatherInput(row.id, value);
+        input.value = String(index);
+    } else {
+        value = tune.settings[row.id];
+        p = (value - row.min) / (row.max - row.min);
+        text = formatEngineValue(row.id, value);
+        input.value = String(value);
+    }
+    slider.style.setProperty('--p', p.toFixed(4));
     slider.classList.toggle('is-set', Math.abs(value - row.value) > 1e-9);
     slider.querySelector('.slider-value').textContent = text;
-    const input = slider.querySelector('input');
-    input.value = String(value);
     input.setAttribute('aria-valuetext', text);
 }
 function tuneYaml() {
     const quiet = Object.entries(quietOptions(tune.quiet)).map(([key, value]) => `${key}: ${value}`);
-    const engine = engineYaml(tune.settings).trimEnd() || 'engine_mode: manual  # every amount at its default';
+    const engine = tune.mode === 'auto' ? weatherYaml().trimEnd()
+        : engineYaml(tune.settings).trimEnd() || 'engine_mode: manual  # every amount at its default';
     return [...quiet, engine].join('\n') + '\n';
 }
+const tuneChanged = () => (tune.mode === 'auto'
+    ? WEATHER_INPUTS.some(row => tune.inputs[row.id] !== row.value)
+    : Object.keys(engineSettings(tune.settings)).length > 0);
 function drawTune() {
-    ENGINE.forEach(drawSlider);
+    tuneRows().forEach(drawSlider);
     for (const input of $('#quiet-list').querySelectorAll('input')) input.checked = tune.quiet[input.dataset.id];
-    tuneReset.hidden = !Object.keys(engineSettings(tune.settings)).length && !Object.values(tune.quiet).some(Boolean);
+    tuneReset.hidden = !tuneChanged() && !Object.values(tune.quiet).some(Boolean);
     tuneText = tuneYaml();
     renderTuneYaml(tuneText);
     renderYaml();
 }
 const mountTune = settled(() => tuneLab.mount(), 220);
 
-// Taking hold of a slider shows the weather it changes; moving it sets
-// the engine up again once the hand pauses
-const sliderRow = (target) => ENGINE.find(row => row.id === target.closest('.slider')?.dataset.id);
+// The weather's own amounts, or by hand: a new card, with the sliders of its mode
+tuneModeEl.addEventListener('change', (event) => {
+    tune.mode = event.target.value === 'manual' ? 'manual' : 'auto';
+    tuneModeEl.querySelector('.segmented').style.setProperty('--index', tune.mode === 'manual' ? 1 : 0);
+    drawSliders();
+    drawTune();
+    tuneLab.mount();
+});
+
+// Taking hold of a slider shows the weather it changes. The weather's values reach the card at once, as Home
+// Assistant's updates do; the engine's set it up again once the hand pauses
+const sliderRow = (target) => tuneRows().find(row => row.id === target.closest('.slider')?.dataset.id);
 slidersEl.addEventListener('pointerdown', (event) => { const row = sliderRow(event.target); if (row) tuneLab.showWeather(row.shows); });
 slidersEl.addEventListener('focusin', (event) => { const row = sliderRow(event.target); if (row) tuneLab.showWeather(row.shows); });
 slidersEl.addEventListener('input', (event) => {
     const row = sliderRow(event.target);
     if (!row) return;
+    if (row.stops) {
+        tune.inputs[row.id] = row.stops[Number(event.target.value)] ?? row.value;
+        drawTune();
+        if (row.shows !== tuneLab.condition) tuneLab.showWeather(row.shows); else tuneLab.refresh();
+        return;
+    }
     tune.settings[row.id] = Number(event.target.value);
     tuneLab.showWeather(row.shows);
     drawTune();
@@ -2171,11 +2217,15 @@ $('#quiet-list').addEventListener('change', (event) => {
     mountTune();
 });
 tuneReset.addEventListener('click', () => {
-    for (const row of ENGINE) tune.settings[row.id] = row.value;
+    // The weather's values reach the card as an update; the engine's settings and the switches set it up again
+    const quietWas = Object.values(tune.quiet).some(Boolean);
+    if (tune.mode === 'auto') for (const row of WEATHER_INPUTS) tune.inputs[row.id] = row.value;
+    else for (const row of ENGINE) tune.settings[row.id] = row.value;
     for (const row of QUIET) tune.quiet[row.id] = false;
     drawTune();
-    mountTune();
+    if (tune.mode === 'auto' && !quietWas) tuneLab.refresh(); else mountTune();
 });
+drawSliders();
 copyButton($('#tune-copy'), () => tuneText, $('#tune-yaml'));
 
 // ── Paint your own sky: the palettes and the paints ────────────────────

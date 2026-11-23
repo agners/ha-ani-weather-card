@@ -575,6 +575,9 @@ export const ENTITIES = {
     flights: 'sensor.flightradar24_current_in_area',
     // Another place's weather: family in Sydney, on the dashboard
     awayWeather: 'weather.sydney',
+    // A weather station's rain: how hard it's raining, which the tune lab's card follows, and today's
+    rainRate: 'sensor.garden_rain_rate',
+    rainToday: 'sensor.garden_rain_today',
 };
 
 /** The dashboard's other place: its coordinates and time zone give its cards Sydney's own sun and clock */
@@ -783,6 +786,63 @@ export function engineSettings(settings) {
         if (Number.isFinite(value) && Math.abs(value - row.value) > 1e-9) changed[row.id] = Number(value.toFixed(1));
     }
     return changed;
+}
+
+/**
+ * The weather's own values, which the tune lab's card follows in auto mode (engine_mode, the default): each one's
+ * stops (a rain rate spans orders of magnitude, so its slider steps through them), where it starts, its unit and the
+ * weather it shows. The rain rate comes from a station's sensor while it rains, the rest from the weather entity.
+ * Cloud cover starts at half: a cloudy sky keeps its four clouds below that.
+ */
+export const WEATHER_INPUTS = [
+    { id: 'rate', label: 'Rain rate', stops: [0.1, 0.2, 0.3, 0.5, 0.8, 1, 1.5, 2, 3, 4, 6, 8, 10, 15, 20, 30], value: 1.5, unit: 'mm/h', shows: 'rainy' },
+    { id: 'cloud', label: 'Cloud cover', stops: [50, 60, 70, 80, 90, 100], value: 70, unit: '%', shows: 'cloudy' },
+    { id: 'visibility', label: 'Visibility', stops: [0.1, 0.2, 0.5, 1, 2, 3, 5, 8, 10], value: 0.5, unit: 'km', shows: 'fog' },
+    { id: 'wind', label: 'Wind', stops: [5, 10, 15, 20, 25, 30, 40, 50, 60, 70, 80], value: 30, unit: 'km/h', shows: 'windy' },
+    { id: 'gust', label: 'Gusts', stops: [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120], value: 40, unit: 'km/h', shows: 'windy' },
+];
+
+/** A value of the weather's as the card's readings write it: "1.5 mm/h", "70%", "0.5 km", "30 km/h" */
+export function formatWeatherInput(id, value) {
+    const row = WEATHER_INPUTS.find(r => r.id === id);
+    return row?.unit === '%' ? `${value}%` : `${value} ${row?.unit ?? ''}`.trim();
+}
+
+/**
+ * What the tune lab's card reads in auto mode, as its readings show them: the station's rain (the rate while it rains,
+ * else today's), the cloud cover, the visibility and the wind, so the number on the card explains the sky.
+ */
+export const WEATHER_READINGS = [
+    { type: 'rain', entity: ENTITIES.rainToday, rate_entity: ENTITIES.rainRate },
+    'cloud_cover', 'visibility', 'wind',
+];
+
+/**
+ * The tune lab's Home Assistant in auto mode: the weather entity reports the cloud cover, visibility, wind and gusts
+ * set, and the station's rain rate is the one set while the lab shows rain (else it's dry, and its reading is today's).
+ */
+export function weatherInputs(inputs, conditionId) {
+    return {
+        weatherAttributes: { cloud_coverage: inputs.cloud, visibility: inputs.visibility, visibility_unit: 'km', wind_speed: inputs.wind, wind_gust_speed: inputs.gust },
+        sensors: {
+            [ENTITIES.rainRate]: entity(ENTITIES.rainRate, conditionId === 'rainy' ? inputs.rate : 0, { unit_of_measurement: 'mm/h', device_class: 'precipitation_intensity', friendly_name: 'Rain rate' }),
+            [ENTITIES.rainToday]: entity(ENTITIES.rainToday, 4.2, { unit_of_measurement: 'mm', device_class: 'precipitation', friendly_name: 'Rain today' }),
+        },
+    };
+}
+
+/** The tune lab's YAML in auto mode: the readings it follows (engine_mode: auto is the default, so it says nothing) */
+export function weatherYaml() {
+    return [
+        '# As much weather as yours reports (engine_mode: auto, the default)',
+        'readings:',
+        '  - type: rain',
+        `    entity: ${ENTITIES.rainToday}`,
+        `    rate_entity: ${ENTITIES.rainRate}  # how hard it's raining`,
+        '  - cloud_cover',
+        '  - visibility',
+        '  - wind',
+    ].join('\n') + '\n';
 }
 
 /** The switches that quiet the card, and the options each one sets. */
@@ -1072,7 +1132,7 @@ function liveWorld(live, state, now) {
  */
 export function buildHass({
     conditionId, phase, sun: sunNow, flights = [], sensors = {}, now = new Date(), live = null, sunTimes = SUN_TIMES,
-    weatherEntity = ENTITIES.weather, tone = 'snarky', noteDelays = null,
+    weatherEntity = ENTITIES.weather, tone = 'snarky', noteDelays = null, weatherAttributes = {},
 }) {
     const condition = CONDITIONS.find(c => c.id === conditionId) ?? CONDITIONS[0];
     const cooling = PHASE_COOLING[phase] ?? 0;
@@ -1106,6 +1166,8 @@ export function buildHass({
             friendly_name: reading.name,
             // Daily and hourly forecasts, as most integrations have
             supported_features: 3,
+            // What a lab sets of the weather's own values (the tune lab's in auto mode)
+            ...weatherAttributes,
         })),
         // Another place's weather, on the dashboard: a clear day there, in your units
         [ENTITIES.awayWeather]: entity(ENTITIES.awayWeather, 'sunny', {

@@ -1424,6 +1424,9 @@ a { color: inherit; }
     line-height: 18px;
     color: var(--text-3);
 }
+/* The tune lab's amounts: the weather's own, or by hand */
+.tune-mode { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; }
+.tune-mode .segmented { flex: 0 1 260px; }
 .sliders-head { display: flex; justify-content: space-between; align-items: baseline; }
 .sliders-head h3 { margin: 0; font: inherit; color: inherit; }
 .reset {

@@ -14,7 +14,9 @@ import {
     formatEngineValue, liveReading, minutesFor, moonPhase, nextFlight, paletteOf, phaseForHour, phaseForSun, placeName,
     noteFor, quietOptions, solarAt, solarElevation, solarTimes, stationStates, sunAt, sunAttributes, trackerYaml, weatherState,
     wmoCondition, SUN_TIMES, SAMPLE_PLACE, trackerHass, STATION_OPTIONS, stationReadings,
+    WEATHER_INPUTS, WEATHER_READINGS, formatWeatherInput, weatherInputs, weatherYaml,
 } from '../../demo/scene.mjs';
+import { READING_TYPES } from '../../src/readings';
 import { PAGE_FILES, iconNames, resolveIcons } from '../../demo/build.mjs';
 import { LOGO_PHASES, logoSvg } from '../../demo/logo.mjs';
 
@@ -333,6 +335,40 @@ describe('the demo\'s sample world', () => {
         expect(formatEngineValue('splashBounce', 80)).toBe('80%');
         expect(formatEngineValue('rainCount', 1)).toBe('1.0×');
         expect(formatEngineValue('windSpeed', 3.5)).toBe('3.5×');
+    });
+
+    it('lets the tune lab set the weather\'s own values, which a card in auto mode follows in place', async () => {
+        // Each slider steps through its stops, starts on one, and shows a weather the page has
+        for (const row of WEATHER_INPUTS) {
+            expect([...row.stops].sort((a, b) => a - b), row.id).toEqual(row.stops);
+            expect(row.stops, row.id).toContain(row.value);
+            expect(CONDITIONS.some(c => c.id === row.shows), row.id).toBe(true);
+        }
+        expect(formatWeatherInput('rate', 1.5)).toBe('1.5 mm/h');
+        expect(formatWeatherInput('cloud', 70)).toBe('70%');
+        // The card's readings show what it follows
+        for (const r of WEATHER_READINGS) expect(READING_TYPES).toContain(typeof r === 'string' ? r : r.type);
+        expect(weatherYaml()).toContain(`rate_entity: ${ENTITIES.rainRate}`);
+        // The weather entity reports the values set; the station's rain is set only while it rains
+        const inputs = Object.fromEntries(WEATHER_INPUTS.map(row => [row.id, row.value]));
+        const rainy = buildHass({ conditionId: 'rainy', phase: 'day', ...weatherInputs({ ...inputs, rate: 15, cloud: 100 }, 'rainy') });
+        expect(rainy.states[ENTITIES.weather].attributes).toMatchObject({ cloud_coverage: 100, visibility: 0.5, wind_speed: 30, wind_gust_speed: 40 });
+        expect(rainy.states[ENTITIES.rainRate].state).toBe('15');
+        expect(buildHass({ conditionId: 'cloudy', phase: 'day', ...weatherInputs(inputs, 'cloudy') }).states[ENTITIES.rainRate].state).toBe('0');
+        // The real card, in auto mode: a new rain rate reaches its weather without a new card
+        vi.useFakeTimers();
+        const card = document.createElement('animated-weather-card') as HTMLElement & { setConfig(c: object): void; hass: unknown };
+        card.setConfig({ type: 'custom:animated-weather-card', entity: ENTITIES.weather, readings: WEATHER_READINGS });
+        card.hass = buildHass({ conditionId: 'rainy', phase: 'day', ...weatherInputs({ ...inputs, rate: 0.2 }, 'rainy') });
+        document.body.append(card);
+        await vi.advanceTimersByTimeAsync(500);
+        const amounts = () => (card as unknown as { animationController: { amounts: { rain: { kind: string } } | null } }).animationController.amounts;
+        expect(amounts()?.rain.kind).toBe('light');
+        card.hass = buildHass({ conditionId: 'rainy', phase: 'day', ...weatherInputs({ ...inputs, rate: 15 }, 'rainy') });
+        await vi.advanceTimersByTimeAsync(500);
+        expect(amounts()?.rain.kind).toBe('pouring');
+        card.remove();
+        vi.useRealTimers();
     });
 
     it('writes only the engine settings and quiet switches that change something', () => {

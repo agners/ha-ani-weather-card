@@ -310,10 +310,10 @@
         <section class="lab tune" id="tune" aria-labelledby="tune-title">
             <h2 class="section-title lab-title" id="tune-title">
                 <span>Tune the weather.</span>
-                <span class="title-quiet">More rain, bigger clouds, a higher splash.</span>
+                <span class="title-quiet">As much as yours reports, or as much as you like.</span>
             </h2>
             <div class="lab-copy">
-                <p class="section-lede">On its own, the card shows as much rain, cloud, fog and wind as your weather reports. Set it to manual and seven settings scale the engine instead. Take hold of one and the card shows the weather it changes; let go, and the new weather settles in. The editor's sliders cover the useful range, and YAML takes more.</p>
+                <p class="section-lede">On its own, the card shows as much rain, cloud, fog and wind as your weather reports, and follows it as it changes without starting over: drag the readings and watch. By hand, seven settings scale the engine instead. Take hold of one and the card shows the weather it changes.</p>
             </div>
             <div class="lab-stage room" id="tune-stage" data-dashboard="dark" role="region" aria-label="Live preview of the weather engine">
                 <div class="window">
@@ -322,8 +322,16 @@
                 </div>
             </div>
             <div class="lab-controls">
+                <div class="tune-mode" id="tune-mode" role="radiogroup" aria-labelledby="tune-mode-label">
+                    <span class="ahead-hero-label" id="tune-mode-label">Amounts</span>
+                    <div class="segmented" style="--count: 2; --index: 0">
+                        <span class="segmented-thumb" aria-hidden="true"></span>
+                        <label><input type="radio" name="tune-mode" value="auto" checked><span>The weather</span></label>
+                        <label><input type="radio" name="tune-mode" value="manual"><span>By hand</span></label>
+                    </div>
+                </div>
                 <div class="sliders-head">
-                    <h3 id="sliders-title">Engine</h3>
+                    <h3 id="sliders-title">Your weather</h3>
                     <button type="button" class="reset" id="tune-reset" hidden>Reset</button>
                 </div>
                 <div class="sliders" id="sliders" role="group" aria-labelledby="sliders-title"></div>
