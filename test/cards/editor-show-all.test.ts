@@ -93,11 +93,12 @@ describe('the sun tracker\'s editor', () => {
     it('shares the switch with the other editors, and writes only what differs from the default', async () => {
         localStorage.setItem(STORE, '1');
         await open('animated-sun-tracker-editor', TRACKER);
-        expect(openRows()).toEqual(['sun_entity', 'layout', 'color_palette', 'title', 'show_header', 'show_details', 'moon_entity', 'direction',
+        expect(openRows()).toEqual(['sun_entity', 'layout', 'color_palette', 'title', 'show_header', 'show_details', 'daylight_delta', 'moon_entity', 'direction',
             'weather_entity', 'another_place', 'actions', 'dev_mode']);
         flip('#show_details', false);
         expect(sent.at(-1)).toMatchObject({ show_details: false });
         expect(openRows()).not.toContain('moon_entity');
+        expect(openRows()).not.toContain('daylight_delta');
         flip('#show_details', true);
         expect(sent.at(-1)).not.toHaveProperty('show_details');
         radio('layout', 'compact');
@@ -115,7 +116,11 @@ describe('the sun tracker\'s editor', () => {
         await open('animated-sun-tracker-editor', { ...TRACKER, show_header: false, title: 'The sun', latitude: -33.87, longitude: 151.21 });
         expect(openRows()).toEqual(['sun_entity', 'layout', 'color_palette', 'title', 'show_header', 'another_place', 'place_fields']);
         editor.remove();
-        await open('animated-sun-tracker-editor', { ...TRACKER, show_header: true, show_details: true, direction: 'auto', tap_action: { action: 'more-info' } });
+        await open('animated-sun-tracker-editor', { ...TRACKER, show_header: true, show_details: true, daylight_delta: 'day', direction: 'auto', tap_action: { action: 'more-info' } });
         expect(openRows()).toEqual(['sun_entity', 'layout', 'color_palette']);
+        editor.remove();
+        // A change set to last week is set: it shows with the switch off
+        await open('animated-sun-tracker-editor', { ...TRACKER, daylight_delta: 'week' });
+        expect(openRows()).toEqual(['sun_entity', 'layout', 'color_palette', 'daylight_delta']);
     });
 });

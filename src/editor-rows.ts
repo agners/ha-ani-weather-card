@@ -289,14 +289,14 @@ export const FORECAST_TABLE: RowTable = {
 
 /** The tracker's options, as its editor reads them */
 export interface TrackerOptions {
-    sun_entity?: string; compact?: boolean; color_palette?: string; title?: string; show_header?: boolean; show_details?: boolean;
+    sun_entity?: string; compact?: boolean; color_palette?: string; title?: string; show_header?: boolean; show_details?: boolean; daylight_delta?: string;
     moon_entity?: string; weather_entity?: string; direction?: string; latitude?: number | string; longitude?: number | string;
     time_zone?: string; tap_action?: unknown; hold_action?: unknown; double_tap_action?: unknown; dev_mode?: boolean;
 }
 
 /** What the tracker does when an option is left out */
 export const TRACKER_DEFAULTS: Readonly<Record<string, unknown>> = {
-    compact: false, color_palette: 'default', show_header: true, show_details: true, direction: 'auto', dev_mode: false,
+    compact: false, color_palette: 'default', show_header: true, show_details: true, daylight_delta: 'day', direction: 'auto', dev_mode: false,
 };
 
 /** The compact tracker has no title and no details */
@@ -311,6 +311,7 @@ export const TRACKER_TABLE: RowTable<TrackerOptions> = {
         show_header: { tier: 'all', keys: ['show_header'] },
         show_details: { tier: 'all', keys: ['show_details'], when: full },
         moon_entity: { tier: 'all', keys: ['moon_entity'], when: c => full(c) && c.show_details !== false },
+        daylight_delta: { tier: 'all', keys: ['daylight_delta'], when: c => full(c) && c.show_details !== false },
         direction: { tier: 'all', keys: ['direction'] },
         weather_entity: { tier: 'all', keys: ['weather_entity'] },
         another_place: { tier: 'all', keys: ['latitude', 'longitude', 'time_zone'] },
@@ -321,7 +322,7 @@ export const TRACKER_TABLE: RowTable<TrackerOptions> = {
     },
     sections: {
         sun: ['sun_entity', 'layout', 'color_palette'],
-        shows: ['title', 'show_header', 'show_details', 'moon_entity', 'direction'],
+        shows: ['title', 'show_header', 'show_details', 'daylight_delta', 'moon_entity', 'direction'],
         sky: ['weather_entity', 'another_place', 'place_fields'],
         interactions: ['actions'],
         dev: ['dev_mode'],

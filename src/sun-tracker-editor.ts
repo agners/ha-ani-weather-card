@@ -92,6 +92,7 @@ export class AnimatedSunTrackerEditor extends HTMLElement {
                   row('title', textField({ id: 'title', label: 'Title (optional)', value: c.title, hint: 'Above the next sunrise or sunset' })),
                   row('show_header', sw('show_header', 'Next sunrise or sunset', c.show_header !== false, 'The headline time and the countdown to it')),
                   row('show_details', sw('show_details', 'Details', c.show_details !== false, 'First and last light, solar noon, daylight and the moon')),
+                  row('daylight_delta', select('daylight_delta', 'Daylight change', 'After the daylight: how much longer or shorter the day is')),
                   row('moon_entity', picker('moon-picker', 'Moon phase', c.moon_entity, 'The Moon integration\'s sensor')),
                   row('direction', select('direction', 'Direction', 'From your location, the sun runs right to left south of the equator')),
               ].join(''))}
@@ -157,6 +158,13 @@ export class AnimatedSunTrackerEditor extends HTMLElement {
         onSwitch('show_header', checked => ({ show_header: checked ? undefined : false }));
         onSwitch('show_details', checked => ({ show_details: checked ? undefined : false }));
         onSwitch('dev_mode', checked => ({ dev_mode: checked || undefined }));
+        // How much the daylight changed, since yesterday unless set
+        bindSelect(this, 'daylight_delta', [
+            { value: 'day', label: 'Since yesterday' },
+            { value: 'week', label: 'Since last week' },
+            { value: 'month', label: 'Since last month' },
+            { value: 'none', label: 'Off' },
+        ], this._config.daylight_delta ?? 'day', v => this._update({ daylight_delta: v === 'day' ? undefined : v as SunTrackerConfig['daylight_delta'] }));
         // Which way the sun crosses: by Home Assistant's latitude unless set
         bindSelect(this, 'direction', [
             { value: 'auto', label: 'From your location' },

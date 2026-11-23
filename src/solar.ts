@@ -30,10 +30,63 @@ function solarTerms(ms: number): { declination: number; equationOfTime: number }
 /** NOAA's solar elevation for a place, in degrees, with no refraction (sunrise and sunset are its -0.833°) */
 export function solarElevation(date: Date, latitude: number, longitude: number): number {
     const { declination, equationOfTime } = solarTerms(date.getTime());
-    const utcMinutes = date.getUTCHours() * 60 + date.getUTCMinutes() + date.getUTCSeconds() / 60;
+    const utcMinutes = date.getUTCHours() * 60 + date.getUTCMinutes() + date.getUTCSeconds() / 60 + date.getUTCMilliseconds() / 60_000;
     const hourAngle = ((((utcMinutes + equationOfTime + 4 * longitude) % 1440) + 1440) % 1440) / 4 - 180;
     const cosZenith = Math.sin(latitude * RAD) * Math.sin(declination) + Math.cos(latitude * RAD) * Math.cos(declination) * Math.cos(hourAngle * RAD);
     return 90 - Math.acos(Math.max(-1, Math.min(1, cosZenith))) / RAD;
+}
+
+/** A UTC day's solar noon at a longitude: 12:00 there, less the equation of time there and then; and the declination */
+function solarNoon(day: number, longitude: number): { noon: number; declination: number } {
+    const guess = day + (720 - 4 * longitude) * MINUTE;
+    const { equationOfTime } = solarTerms(guess);
+    const noon = day + (720 - 4 * longitude - equationOfTime) * MINUTE;
+    return { noon, declination: solarTerms(noon).declination };
+}
+
+/** Where the sun's centre is when its top touches the horizon, refraction included */
+const HORIZON = -0.833;
+
+/**
+ * Daylight on the day whose solar noon is nearest `at`, in minutes from sunrise to sunset: where solarElevation crosses
+ * the horizon, found by halving the half day either side of noon, so it's as exact as solarElevation is, to the
+ * second. `polar` when the sun neither rises nor sets that day: 0 through a polar night, 1440 through a polar day. A
+ * day the sun only rises or only sets counts from or to the solar midnight beside it.
+ */
+export function daylight(latitude: number, longitude: number, at: number): { minutes: number; polar: boolean } {
+    const day = Math.floor(at / DAY) * DAY;
+    let noon = NaN;
+    for (let d = -1; d <= 1; d++) {
+        const n = solarNoon(day + d * DAY, longitude).noon;
+        if (!(Math.abs(n - at) >= Math.abs(noon - at))) noon = n;
+    }
+    const up = (ms: number) => solarElevation(new Date(ms), latitude, longitude) > HORIZON;
+    const start = noon - DAY / 2, end = noon + DAY / 2;
+    const upAtStart = up(start), upAtEnd = up(end);
+    if (!up(noon)) return { minutes: 0, polar: true };
+    if (upAtStart && upAtEnd) return { minutes: 1440, polar: true };
+    // Up at one end of the half day and down at the other: 24 halvings of 12 hours come to under 3 ms
+    const cross = (down: number, upAt: number) => {
+        for (let i = 0; i < 24; i++) {
+            const mid = (down + upAt) / 2;
+            if (up(mid)) upAt = mid; else down = mid;
+        }
+        return (down + upAt) / 2;
+    };
+    const rise = upAtStart ? start : cross(start, noon);
+    const set = upAtEnd ? end : cross(end, noon);
+    return { minutes: (set - rise) / MINUTE, polar: false };
+}
+
+/**
+ * How much longer today's daylight is than `back` days before it, in whole seconds (shorter is negative): today being
+ * the day whose solar noon is nearest `noon`, best the place's local noon, so the figure holds all day. Nothing for a
+ * polar day or night; a day before it that was one counts as 0 or 24 hours.
+ */
+export function daylightChange(latitude: number, longitude: number, noon: number, back: number): number | null {
+    const today = daylight(latitude, longitude, noon);
+    if (today.polar) return null;
+    return Math.round((today.minutes - daylight(latitude, longitude, noon - back * DAY).minutes) * 60);
 }
 
 /** What sun.sun's attributes hold, for a place: the next of each event (ISO), where the sun is and which way it's going */
@@ -64,12 +117,7 @@ export function solarState(latitude: number, longitude: number, now = cardDate()
     const events: Record<'noon' | 'midnight' | 'rising' | 'setting' | 'dawn' | 'dusk', number[]> = { noon: [], midnight: [], rising: [], setting: [], dawn: [], dusk: [] };
     const phi = latitude * RAD;
     for (let d = -1; d <= 2; d++) {
-        const day = today + d * DAY;
-        // Solar noon: 12:00 at the place's longitude, less the equation of time there and then
-        const guess = day + (720 - 4 * longitude) * MINUTE;
-        const { equationOfTime } = solarTerms(guess);
-        const noon = day + (720 - 4 * longitude - equationOfTime) * MINUTE;
-        const { declination } = solarTerms(noon);
+        const { noon, declination } = solarNoon(today + d * DAY, longitude);
         events.noon.push(noon);
         events.midnight.push(noon + DAY / 2);
         for (const [angle, up, down] of [[-0.833, 'rising', 'setting'], [-6, 'dawn', 'dusk']] as const) {
