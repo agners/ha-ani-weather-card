@@ -391,6 +391,31 @@ export interface AnimationState {
  */
 export type AnimationStateKey = 'rain' | 'snow' | 'sleet' | 'wind' | 'lightning' | 'clouds' | 'fog' | 'stars' | 'sun';
 
+/** The rain's kind: how fast it falls and how long its drops are (rain-animation.ts) */
+export type RainKind = 'light' | 'rain' | 'storm' | 'pouring';
+
+/**
+ * The weather engine's amounts in auto mode (engine_mode, engine.ts): how much of each weather to show. Plain names,
+ * because the forecast bundle hands the card an hour's.
+ */
+export interface EngineAmounts {
+    /** The rain's kind, and its drops on a 420 × 230 card (the card's area scales them) */
+    rain: { kind: RainKind; drops: number };
+    /** Snow and sleet: how many times the usual flakes */
+    snow: number;
+    sleet: number;
+    /** Clouds at each depth, back to front */
+    clouds: [number, number, number];
+    /** Fog's thickness, 0.45 to 1 */
+    fog: number;
+    /** Leaves: how many times the usual */
+    leaves: number;
+    /** Gusts, 0 to 1: more and stronger swooshes */
+    gusts: number;
+    /** A clear night's stars: the share shown */
+    stars: number;
+}
+
 /**
  * Animation controller state - data-only properties for animation states
  */

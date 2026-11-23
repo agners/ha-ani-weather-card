@@ -7,7 +7,8 @@ import { DEFAULT_ENGINE_SETTINGS } from './constants';
 import { ParticlePool, prewarm, between, areaFactor } from './particle-pool';
 import type { GSAPTimeline } from './types';
 
-export type RainKind = 'light' | 'rain' | 'storm' | 'pouring';
+import type { RainKind } from './types';
+export type { RainKind };
 
 /** Drops alive at once on a 420×230 card at the default rain amount. */
 export const RAIN_POOL_SIZE: Record<RainKind, number> = { light: 10, rain: 18, storm: 24, pouring: 32 };
