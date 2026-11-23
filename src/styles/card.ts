@@ -29,6 +29,14 @@ const GRAIN = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'
 export const CLOUD_OVERHANG_PX = 48;
 
 /**
+ * The sun sits this far down its track, and the moon as far down the sky, as fractions of the card's height, up to a
+ * card SUN_TRACK_MAX_PX tall: a five-row card. A taller card (the forecast with its days) keeps them where that card
+ * has them, beside the temperature, instead of carrying them down beside the readings.
+ */
+export const SUN_TOP = 0.2;
+export const SUN_TRACK_MAX_PX = 312;
+
+/**
  * The UV reading's icon, by level, on the sky palette: the WHO's green, yellow, orange, red and violet, each as light as
  * it must be to hold 3.2:1 through the label's quiet tint wherever the readings' icons sit, as measured in Chrome from
  * a phone's four rows to a wide card's eight, the forecast on and off (the contrast test holds it). The level's word
@@ -965,7 +973,7 @@ ${iconBoxCss('animated-weather-card')}
         /* ── Sun: a light source, not a disc ─────────────────────────────── */
         .sun {
           position: absolute;
-          top: 20%;
+          top: ${pct(SUN_TOP)};
           left: 84%;
           width: 40px;
           height: 40px;
@@ -988,15 +996,26 @@ ${iconBoxCss('animated-weather-card')}
           opacity: 0.55;
           animation: awcSunCorona 7s ease-in-out infinite alternate;
         }
-        /* The sun's height follows the time of day on a full-card track (a
-           transform, so .sun keeps its breathing): low at dawn and dusk and
-           below the horizon at night, so it sets downward and rises upward. */
+        /* The sun's height follows the time of day on a track as tall as the
+           card, up to a five-row card's height (a transform, so .sun keeps its
+           breathing): low at dawn and dusk and below the horizon at night, so
+           it sets downward and rises upward. A taller card keeps the sun and
+           its setting where a five-row card has them; the slide's drop is a
+           share of the same track. The compact strip, the wall and the view
+           place the sun on the whole card. */
         .sun-track {
           position: absolute;
-          inset: 0;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 100%;
+          max-height: ${SUN_TRACK_MAX_PX}px;
           pointer-events: none;
           transition: transform ${SKY_DISSOLVE_SEC}s ${SKY_DISSOLVE_EASE};
         }
+        .animated-weather-card[data-variant="compact"] .sun-track,
+        .animated-weather-card[data-fw] .sun-track,
+        .animated-weather-card[data-fc-view] .sun-track { max-height: none; }
         .animated-weather-card[data-phase="dusk"] .sun-track,
         .animated-weather-card[data-phase="dawn"] .sun-track { transform: translateY(14%); }
         .animated-weather-card[data-phase="night"] .sun-track { transform: translateY(26%); }
@@ -1071,11 +1090,13 @@ ${iconBoxCss('animated-weather-card')}
         }
         /* The moon takes the sun's place in the top-right, clear of the
            temperature: soft maria, a steady disc and a slowly breathing halo,
-           in its real phase (moon.ts). */
+           in its real phase (moon.ts). Like the sun, no lower than on a
+           five-row card; the wall places it on the whole card. */
         .moon-gsap {
           position: absolute;
           left: 84%;
-          top: 20%;
+          top: ${pct(SUN_TOP)};
+          top: min(${pct(SUN_TOP)}, ${+(SUN_TOP * SUN_TRACK_MAX_PX).toFixed(1)}px);
           width: 34px;
           height: 34px;
           border-radius: 50%;
@@ -1086,6 +1107,7 @@ ${iconBoxCss('animated-weather-card')}
           opacity: 0;
           pointer-events: none;
         }
+        .animated-weather-card[data-fw] .moon-gsap { top: ${pct(SUN_TOP)}; }
         .moon-gsap::after {
           content: '';
           position: absolute;

@@ -4,7 +4,7 @@ import {
     sampleSky, sampleSkyAt, oklchToSrgb, composite, contrastRatio, skyColors, generateSkyCss, toHex,
     DISSOLVING_PROPERTIES, dissolveTransition, SKY_DISSOLVE_SEC, SKY_DISSOLVE_EASE,
 } from '../../src/sky';
-import { getMainCardStyles, CLOUD_OVERHANG_PX, UV_TINTS, AQI_TINTS, DEV_MARKER } from '../../src/styles/card';
+import { getMainCardStyles, CLOUD_OVERHANG_PX, UV_TINTS, AQI_TINTS, DEV_MARKER, SUN_TOP, SUN_TRACK_MAX_PX } from '../../src/styles/card';
 import { GLYPH_CONTRAST } from '../../src/fc-glyphs';
 
 const text = oklchToSrgb(SKY_TEXT);
@@ -176,6 +176,20 @@ describe('time-of-day dissolve', () => {
         expect(lift('night')).toBeGreaterThan(lift('dusk'));
         expect(css).toMatch(/\[data-phase="dawn"\] \.sun-track/);
         expect(css).toMatch(/\.sun-track \{[^}]*transition: transform/);
+    });
+
+    it('keeps the sun and the moon where a five-row card has them on a taller card, unless the card places its own', () => {
+        const css = getMainCardStyles();
+        const top = `${SUN_TOP * 100}%`;
+        // The sun, its setting and the slide's drop are shares of a track no taller than a five-row card
+        expect(SUN_TRACK_MAX_PX).toBe(5 * 56 + 4 * 8);
+        expect(css).toMatch(new RegExp(`\\.sun \\{[^}]*top: ${top};`));
+        expect(css).toMatch(new RegExp(`\\.sun-track \\{[^}]*height: 100%;[^}]*max-height: ${SUN_TRACK_MAX_PX}px;`));
+        // The moon, which isn't on the track, no lower; where min() isn't known, a fifth of the card as before
+        expect(css).toMatch(new RegExp(`\\.moon-gsap \\{[^}]*top: ${top};\\s*top: min\\(${top}, ${+(SUN_TOP * SUN_TRACK_MAX_PX).toFixed(1)}px\\);`));
+        // The compact strip, the wall and the view place them on the whole card
+        expect(css).toMatch(/\[data-variant="compact"\] \.sun-track,\s*\.animated-weather-card\[data-fw\] \.sun-track,\s*\.animated-weather-card\[data-fc-view\] \.sun-track \{ max-height: none; \}/);
+        expect(css).toContain(`.animated-weather-card[data-fw] .moon-gsap { top: ${top}; }`);
     });
 });
 
