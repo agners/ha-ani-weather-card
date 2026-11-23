@@ -1,7 +1,7 @@
 // GSAP, bundled: the card never fetches code at runtime, and moves without internet access
 import { gsap } from 'gsap';
 // Import types
-import { HomeAssistant, HassEntity, LovelaceCard, AnimatedWeatherCardConfig, TimeOfDayState, AnimatedWeatherCardElement, GSAP } from './types';
+import { HomeAssistant, HassEntity, LovelaceCard, AnimatedWeatherCardConfig, TimeOfDayState, AnimatedWeatherCardElement, GSAP, EngineAmounts } from './types';
 // Import constants
 import {
     DEFAULT_CONFIG,
@@ -18,7 +18,8 @@ import {
     devLog,
     escapeHtml,
     cardLocalize,
-    formatLocalizedNumber
+    formatLocalizedNumber,
+    engineMode
 } from './utils';
 // Import the animation controller. Every per-condition animation is now
 // served by a modular `*-animation.ts` class via the controller's bridge.
@@ -60,10 +61,11 @@ import { generateCustomColorStyles } from './color-utils';
 import './sun-tracker-card';
 // The forecast and the clock: the page's shared subscriptions here, the drawing in the forecast bundle
 import { ForecastFeed } from './forecast-feed';
-import { forecastTypes } from './forecast-data';
+import { forecastTypes, type ForecastEntry } from './forecast-data';
+import { autoPicture, hourAt, hourInputs, readEngineInputs } from './engine';
 import type { ForecastExtras, ForecastHost, Surface } from './forecast-host';
 import { HOUR_EVENT, type HourLink } from './hour-link';
-import { clearStarsFromWords, drawNight, starCount, wordBoxes } from './stars-animation';
+import { clearStarsFromWords, drawNight, showStars, starCount, wordBoxes } from './stars-animation';
 import { cardNow, cardDate } from './clock';
 import { AnimatedWeatherDevCard, DEV_ENTITY, DEV_EVENT, devBase, devCards, devMarked, devOffset, devSee, loadDevWorld, type DevCard, type DevConfig } from './dev-link';
 
@@ -184,6 +186,12 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard, DevCard {
     surface: Surface = 'card';
     /** The forecast this card shows, through the page's shared subscriptions */
     private forecastFeed = new ForecastFeed(() => this.extras?.update());
+    /** In auto mode, the hour under way (its rain and cloud), through the same subscriptions (syncEngine) */
+    private engineHours = new ForecastFeed(() => this.syncEngine());
+    /** The next hour's turn, when the engine reads the new hour */
+    private engineTimer?: ReturnType<typeof setTimeout>;
+    /** The amounts the card last gave its weather, whose rain kind the next holds on a break */
+    private lastPicture: EngineAmounts | null = null;
     /** What the forecast bundle adds: the clock, the forecast, the slide (see mountExtras) */
     private extras?: ForecastExtras;
     /** Without the forecast, another card's needle has moved on this weather, and this card follows it (onNeedle) */
@@ -227,6 +235,8 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard, DevCard {
         this.devClock = offset;
         this.timeOfDayManager?.updateConfig({});
         if (this.noteVisible) this.extras?.seen(true);
+        // Another hour under way
+        this.syncEngine();
     };
     private devClock = 0;
 
@@ -287,6 +297,70 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard, DevCard {
     /** hero: clock, the time is the big value and the temperature leads the condition's line (not the forecast card's or the nightstand's text, which they draw themselves) */
     private heroClock(): boolean {
         return this.config?.hero === 'clock' && this.surface !== 'forecast' && this.config.layout !== 'nightstand';
+    }
+
+    /** A controller for this card's weather, which asks the card for each hour's amounts as the slide shows it */
+    private newController(): WeatherAnimationController {
+        const controller = new WeatherAnimationController(this, this.config!, () => this.animationsPaused, this.timeOfDayManager);
+        controller.amountsAt = entry => this.hourAmounts(entry);
+        return controller;
+    }
+
+    /** The weather's class now (utils.ts getWeatherClass): the entity's condition, a clear sky by the sun or the clock */
+    private weatherClassNow(): string | undefined {
+        const config = this.config;
+        const entity = config?.entity ? this._hass?.states[config.entity] : undefined;
+        if (!config || !entity) return undefined;
+        return getWeatherClass(entity.state.toLowerCase(), config.sunrise_hour, config.sunset_hour, this._hass?.config?.time_zone,
+            { clock: !!config.enable_day_night_cycle, night: this.skyIsNight() });
+    }
+
+    /** Auto mode drives this card's weather: engine_mode (utils.ts engineMode), wherever the weather moves or a still night shows */
+    private engineAuto(): boolean {
+        return !!this.config && engineMode(this.config) === 'auto' && this.weatherShown();
+    }
+
+    /** Auto mode's amounts now (engine.ts): what the weather says, from the readings' sensors, the entity and the hour under way */
+    private enginePicture(): EngineAmounts | null {
+        const cls = this.engineAuto() ? this.weatherClassNow() : undefined;
+        if (!cls || !this.config) return null;
+        const hour = hourAt(this.engineHours.hourly, cardNow());
+        return autoPicture(cls, readEngineInputs(this._hass, this.config, hour), this.lastPicture?.rain.kind);
+    }
+
+    /** An hour of the forecast as amounts, for the slide (its own class and values); undefined in manual */
+    private hourAmounts(entry: ForecastEntry): EngineAmounts | undefined {
+        if (!this.engineAuto() || !this.config) return undefined;
+        const weather = this.config.entity ? this._hass?.states[this.config.entity] : undefined;
+        const cls = getWeatherClass(String(entry.condition ?? '').toLowerCase(), this.config.sunrise_hour, this.config.sunset_hour, this._hass?.config?.time_zone);
+        return autoPicture(cls, hourInputs(entry, weather?.attributes, this._hass?.config?.unit_system));
+    }
+
+    /**
+     * Auto mode: give the weather its amounts from what the weather says now, and read again when the hour turns. Every
+     * update calls it; amounts that draw the same do nothing (the bridge). Manual gives null: engine_settings, as always.
+     * A still sky moves nothing, but a still night's stars thin under cloud as a moving one's do.
+     */
+    private syncEngine(): void {
+        clearTimeout(this.engineTimer);
+        this.engineTimer = undefined;
+        const auto = this.isConnected && this.engineAuto();
+        if (auto) this.engineHours.sync(this._hass, this.config?.entity, { hourly: true, daily: false });
+        else this.engineHours.stop();
+        const picture = auto ? this.enginePicture() : null;
+        this.lastPicture = picture;
+        const reducedMotion = !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+        if (this.config?.animate === false || reducedMotion) {
+            const field = this.querySelector('.animation-layer .stars-field');
+            if (field) showStars(field, picture?.stars ?? 1);
+        } else {
+            this.animationController?.setAmounts(picture);
+        }
+        // The hour turns: its rain and cloud are the next hour's (hours start on the hour, UTC, in every time zone)
+        if (auto && this.engineHours.hourly?.length) {
+            const HOUR = 3_600_000;
+            this.engineTimer = setTimeout(() => this.syncEngine(), HOUR - (cardNow() % HOUR) + 1000);
+        }
     }
 
     /** Listen to this entity's forecast through the page's subscriptions, while the card shows one */
@@ -456,12 +530,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard, DevCard {
             const previousController = this.animationController;
             // Invalidate any deferred animation init from the previous generation
             this._animationGeneration++;
-            this.animationController = new WeatherAnimationController(
-                this,
-                this.config,
-                () => this.animationsPaused,
-                this.timeOfDayManager
-            );
+            this.animationController = this.newController();
             if (previousController) {
                 previousController.stopAllAnimations().catch((err) =>
                     devLog(this.config?.dev_mode, 'Error stopping previous animation controller:', err)
@@ -478,10 +547,11 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard, DevCard {
             this.mountNoteWriter();
         }
 
-        // The clock and the forecast follow the new options
+        // The clock and the forecast follow the new options, and the engine its mode
         if (this.isConnected) {
             this.syncForecastFeed();
             this.mountExtras();
+            this.syncEngine();
         }
 
         // auto_pause adds or removes the window focus listeners
@@ -523,13 +593,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard, DevCard {
             if (this.config) {
                 this.initializeTimeOfDayManager();
                 // Only create controller if we don't have one
-                if (!this.animationController) {
-                    this.animationController = new WeatherAnimationController(
-                        this, this.config,
-                        () => this.animationsPaused,
-                        this.timeOfDayManager
-                    );
-                }
+                if (!this.animationController) this.animationController = this.newController();
             }
             this.attachEventListeners();
             this.setupVisibilityTracking();
@@ -546,12 +610,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard, DevCard {
         // First render — full initialization
         if (this.config) {
             this.initializeTimeOfDayManager();
-            this.animationController = new WeatherAnimationController(
-                this,
-                this.config,
-                () => this.animationsPaused,
-                this.timeOfDayManager
-            );
+            this.animationController = this.newController();
         }
 
         this._initialRender = false;
@@ -1045,15 +1104,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard, DevCard {
             if (!this.hass || !config.entity) return;
             const entity = this.hass.states[config.entity];
             if (!entity) return;
-            const condition = entity.state.toLowerCase();
-
-            const weatherClass = getWeatherClass(
-                condition,
-                config.sunrise_hour,
-                config.sunset_hour,
-                this._hass?.config?.time_zone,
-                { clock: !!config.enable_day_night_cycle, night: this.skyIsNight() }
-            );
+            const weatherClass = this.weatherClassNow()!;
             const themeClass = (config.color_palette || 'default') === 'theme' ? 'theme-colors' : '';
             // First paint: show the condition without transitions, then enable
             // them two frames later, so the card doesn't fade in from a
@@ -1083,7 +1134,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard, DevCard {
                 const night = weatherClass === 'clear-night' && this.surface !== 'forecast';
                 applyCardClass(config.animate === false ? 'static' : '', night ? 'individual-stars-active' : '');
                 const layer = card.querySelector('.animation-layer');
-                if (night && layer) drawNight(layer, starCount(getWeatherSettings(config).cloudCount, card.clientWidth), { moon: true, still: true, words: wordBoxes(card) });
+                if (night && layer) drawNight(layer, starCount(getWeatherSettings(config).cloudCount, card.clientWidth), { moon: true, still: true, words: wordBoxes(card), share: this.enginePicture()?.stars ?? 1 });
                 this.currentWeatherClass = weatherClass;
                 return;
             }
@@ -1113,6 +1164,8 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard, DevCard {
 
                 if (this.animationController) {
                     this.animationController.setWindSpeed(this.currentWindSpeedValue);
+                    // The new weather starts at its own amounts
+                    this.syncEngine();
                     this.animationController.applyWeatherCondition(weatherClass);
                 }
                 this.startPlanes();
@@ -1337,6 +1390,8 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard, DevCard {
         if (this.animationController) {
             this.animationController.setWindSpeed(windSpeedValue);
         }
+        // And how much rain, cloud, fog and wind there is, in auto mode
+        this.syncEngine();
     }
 
     /** One reading as the row draws it: its icon and label (as the card shows them), its value, and its arrow */
@@ -1757,6 +1812,9 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard, DevCard {
         this.extras?.destroy();
         this.extras = undefined;
         this.forecastFeed.stop();
+        this.engineHours.stop();
+        clearTimeout(this.engineTimer);
+        this.engineTimer = undefined;
         this.clearAnimations();
         this.resizeObserver?.disconnect();
         this.resizeObserver = undefined;
