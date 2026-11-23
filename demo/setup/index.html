@@ -408,6 +408,19 @@ readings:
     entity: sensor.gw2000_weekly_rain</code></pre>
                     </div>
 
+                    <h3 id="amounts">How much weather</h3>
+                    <p>The card shows as much rain, snow, cloud, fog and wind as your weather reports, and follows it as it changes, without starting over. Rain and snow fall as hard as your rain rate sensor says, the <code>rate_entity</code> of a rain reading as above, or else as hard as the forecast's hour under way. Cloud cover, visibility and gusts come from a reading's own sensor, then the weather entity, then the forecast. The condition sets the least: pouring always pours, and a cloudy sky keeps its clouds. Drag the card through the hours and each hour shows its own.</p>
+                    <p>To set the amounts yourself, turn off <b>Amounts follow the weather</b> under <b>Sky and motion</b>, with <b>Show all settings</b> on. The sliders that appear write <code>engine_settings</code>, and a card that already sets them stays on them.</p>
+                    <div class="code" data-lang="yaml">
+                        <div class="code-bar"><span class="code-name">Card YAML</span><button type="button" class="copy"><span class="copy-icon" aria-hidden="true"></span><span class="copy-label">Copy</span></button></div>
+                        <pre><code>type: custom:animated-weather-card
+entity: weather.forecast_home
+engine_mode: manual
+engine_settings:
+  rainCount: 2
+  cloudCount: 5</code></pre>
+                    </div>
+
                     <h3 id="tracker">The sun tracker</h3>
                     <p>It comes in the same download: the sun's path through your day, and the next sunrise or sunset as its headline. Stacked under the weather card it takes the card's sky, by itself or from <code>weather_entity</code> when the dashboard has more than one weather, and the weather card can leave the sunset to it. South of the equator the sun runs right to left, as it crosses your sky; <code>direction: left_to_right</code> or <code>right_to_left</code> sets it. After the countdown it says how much earlier or later that sunrise or sunset is than yesterday's, and after the daylight how much longer or shorter the day is; <code>daylight_delta: week</code> or <code>month</code> compares with last week or last month, and <code>none</code> leaves both out.</p>
                     <div class="code" data-lang="yaml">
@@ -503,6 +516,10 @@ color_palette: theme</code></pre>
                         <div>
                             <dt>The sky shows, but nothing moves</dt>
                             <dd>Reduced motion is on in your system settings, or <code>animate</code> is <code>false</code>.</dd>
+                        </div>
+                        <div>
+                            <dt>The rain doesn't follow my rain sensor</dt>
+                            <dd>Give your rain reading the sensor for the rate, in mm/h or in/h, as <code>rate_entity</code>, not today's total (see <a href="#amounts">How much weather</a>). A rate of 0 counts as no reading, since a tipping bucket reads 0 between tips, so the card then follows the forecast's hour. With <code>engine_mode: manual</code>, or <code>engine_settings</code> and no <code>engine_mode: auto</code>, the card keeps its own amounts.</dd>
                         </div>
                         <div>
                             <dt>The settings panel stays empty</dt>
