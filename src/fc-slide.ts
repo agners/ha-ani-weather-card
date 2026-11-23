@@ -418,6 +418,8 @@ export function attachSlide(o: SlideOptions): Slide {
     const link = host.surface !== 'view' && tl.unit === 'hour'
         ? { entity: host.config().entity ?? '', sun: host.config().sun_entity || 'sun.sun' } : null;
     let linked = false;
+    /** The hour's amounts the card shows (auto mode), which the needle carries to the cards that follow it */
+    let shownAmounts: import('./types').EngineAmounts | null = null;
     /** Between now's reading and the next hour's value in the first hour, between two hours' values after it */
     function temperatureAt(h: number): number | null {
         const lo = Math.floor(h), f = h - lo;
@@ -440,17 +442,30 @@ export function attachSlide(o: SlideOptions): Slide {
         linked = true;
         sendHour({
             source: host.element, ...link, at: cardNow() + h * tl.slotMs, temperature: temperatureAt(h),
-            sky: host.config().color_palette === 'theme' ? null : skyCss, weather: weatherShown(),
+            sky: host.config().color_palette === 'theme' ? null : skyCss, weather: weatherShown(), amounts: shownAmounts,
         });
     }
     function emitHome() {
         if (!link || !linked || o.followOnly) return;
         linked = false;
-        sendHour({ source: host.element, ...link, at: null, temperature: null, sky: null, weather: null });
+        sendHour({ source: host.element, ...link, at: null, temperature: null, sky: null, weather: null, amounts: null });
     }
     const groupOpacity = (v: number | null) => { for (const el of o.group()) el.style.opacity = v === null ? '' : v.toFixed(3); };
+    /**
+     * Each hour's own amounts (auto mode): its rain, cloud and wind, shown at once as the hour comes under the needle;
+     * home, and a slide that steps by days, show the card's own. A main bundle without them (manual, or older) has none.
+     */
+    function showAmounts(s: Slot | null) {
+        const layers = host.layers();
+        if (!layers?.amountsAt || !layers.showAmounts || still()) return;
+        const amounts = s && tl.unit === 'hour' ? layers.amountsAt(s) ?? null : null;
+        if (JSON.stringify(amounts) === JSON.stringify(shownAmounts)) return;
+        shownAmounts = amounts;
+        layers.showAmounts(amounts);
+    }
     function showSlot(k: number) {
         const s = k === 0 ? null : tl.slots[k];
+        showAmounts(s);
         ext?.select?.(k);
         o.onSlot(s, k);
         slider.setAttribute('aria-valuenow', String(k));
@@ -495,6 +510,7 @@ export function attachSlide(o: SlideOptions): Slide {
         vis = null;
         home = null;
         skyCss = null;
+        showAmounts(null);
         groupOpacity(null);
         clearTimeout(state.idleTimer);
         schedulePrewarmStop();

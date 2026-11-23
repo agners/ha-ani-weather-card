@@ -236,12 +236,18 @@ export function attachForecastCard(host: ForecastHost): ForecastExtras {
         clearTimeout(stopTimer);
         stopTimer = window.setTimeout(stopFollowed, SLIDE.prewarmStop);
     }
+    /** And the hour's amounts (auto mode, this card's too): how much rain, cloud and wind; null brings its own back */
+    function followAmounts(amounts: import('./types').EngineAmounts | null | undefined) {
+        const layers = host.layers();
+        if (layers?.amountsAt && layers.showAmounts && !host.still()) layers.showAmounts(amounts ?? null);
+    }
     const unlink = onHour(l => {
         if (l.source === el || l.entity !== cfg().entity || (slide && model?.tl?.unit === 'hour')) return;
-        if (l.at === null || slide?.active()) { daily?.follow(null); followSky(null); followWeather(null); return; }
+        if (l.at === null || slide?.active()) { daily?.follow(null); followSky(null); followWeather(null); followAmounts(null); return; }
         daily?.follow({ at: l.at, temperature: l.temperature });
         followSky(cfg().color_palette === 'theme' ? null : l.sky);
         followWeather(l.weather);
+        followAmounts(l.weather ? l.amounts : null);
     });
     let roRaf = 0, lastWide = wide();
     const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => {
@@ -269,6 +275,6 @@ export function attachForecastCard(host: ForecastHost): ForecastExtras {
             if (!model?.tl) { host.moreInfo(); return; }
             openView(host, { model, metric, slots: slide?.slots() ?? 0, chipsLevel: chips?.level() ?? 0, chipsScroll: chips?.scroll() ?? 0, small: root });
         },
-        destroy() { unlink(); followWeather(null); stopFollowed(); root.classList.remove('awc-warm'); info.removeEventListener('pointerdown', prepare); dropView(el); ticker.stop(); ro?.disconnect(); cancelAnimationFrame(roRaf); teardown(); card.remove(); delete root.dataset.fcCard; },
+        destroy() { unlink(); followWeather(null); followAmounts(null); stopFollowed(); root.classList.remove('awc-warm'); info.removeEventListener('pointerdown', prepare); dropView(el); ticker.stop(); ro?.disconnect(); cancelAnimationFrame(roRaf); teardown(); card.remove(); delete root.dataset.fcCard; },
     };
 }

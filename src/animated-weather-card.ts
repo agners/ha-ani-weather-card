@@ -299,10 +299,14 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard, DevCard {
         return this.config?.hero === 'clock' && this.surface !== 'forecast' && this.config.layout !== 'nightstand';
     }
 
-    /** A controller for this card's weather, which asks the card for each hour's amounts as the slide shows it */
+    /**
+     * A controller for this card's weather. In auto mode it asks the card for each hour's amounts as the slide shows
+     * it; in manual it has no way to, so the slide and the cards that follow it leave the amounts alone. A new mode is
+     * a new config, which makes a new controller.
+     */
     private newController(): WeatherAnimationController {
         const controller = new WeatherAnimationController(this, this.config!, () => this.animationsPaused, this.timeOfDayManager);
-        controller.amountsAt = entry => this.hourAmounts(entry);
+        if (engineMode(this.config!) === 'auto') controller.amountsAt = entry => this.hourAmounts(entry);
         return controller;
     }
 

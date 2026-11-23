@@ -682,6 +682,33 @@ describe('the slide: it stays where it\'s left', () => {
         return { root, slide, offsets, slots, needles, drag, pointer };
     }
 
+    it('shows each hour\'s own amounts as it comes under the needle, carries them on the needle, and the card\'s own at home', () => {
+        const shown: unknown[] = [];
+        const layers = {
+            animations: {}, startAnimation: async () => {}, stopAnimation: async () => {},
+            amountsAt: (e: ForecastEntry) => ({ hour: e.datetime }), showAmounts: (a: unknown) => shown.push(a),
+        };
+        const { slide, slots, drag } = rig({ layers });
+        const heard: HourLink[] = [];
+        const listen = (e: Event) => heard.push((e as CustomEvent<HourLink>).detail);
+        window.addEventListener(HOUR_EVENT, listen);
+        drag(-100);
+        vi.advanceTimersByTime(2000);
+        const k = slots[slots.length - 1]!;
+        expect(k).toBe(2);
+        const hour = new Timeline(forecast(), 'hourly', Date.now()).slots[k].datetime;
+        expect(shown[shown.length - 1]).toEqual({ hour });
+        expect(heard[heard.length - 1].amounts).toEqual({ hour });
+        slide.home(true);
+        expect(shown[shown.length - 1]).toBeNull();
+        expect(heard[heard.length - 1].amounts).toBeNull();
+        window.removeEventListener(HOUR_EVENT, listen);
+        // From a main bundle without them (manual, or older), the slide moves as always
+        const older = rig({ layers: { animations: {}, startAnimation: async () => {}, stopAnimation: async () => {} } });
+        expect(() => { older.drag(-100); vi.advanceTimersByTime(2000); }).not.toThrow();
+        expect(older.slots[older.slots.length - 1]).toBe(2);
+    });
+
     it('following another card, a hand on it continues from the hour it shows, and from then on it leads', () => {
         const { slide, slots, drag } = rig();
         const heard: HourLink[] = [];
@@ -1355,6 +1382,24 @@ describe('one needle across the page', () => {
         await settle();
         sendHour({ source: other, entity: 'weather.home', sun: 'sun.sun', at, temperature: 12, sky: colours });
         expect((themed.querySelector('.animated-weather-card .sky') as HTMLElement).style.getPropertyValue('--awc-sky-top')).toBe('');
+    });
+
+    it('a forecast card without hours takes the needle\'s amounts with its weather in auto mode, and none in manual', async () => {
+        type Ctl = { showAmounts(a: unknown): void };
+        const controller = (card: HTMLElement) => (card as unknown as { animationController: Ctl }).animationController;
+        const other = document.createElement('div');
+        const at = Date.now() + 3 * HOUR;
+        const weather = { rain: 1, snow: 0, sleet: 0, clouds: 0, fog: 0, wind: 0, lightning: 0 };
+        const amounts = { rain: { kind: 'pouring', drops: 32 }, snow: 1, sleet: 1, clouds: [1, 1, 2], fog: 1, leaves: 1, gusts: 0, stars: 1 };
+        for (const mode of ['auto', 'manual']) {
+            const fc = mount({ show_hours: false, weather_effects: true, engine_mode: mode }, makeHass(), 'animated-forecast-card');
+            await settle();
+            const show = vi.spyOn(controller(fc), 'showAmounts');
+            sendHour({ source: other, entity: 'weather.home', sun: 'sun.sun', at, temperature: 2, sky: null, weather, amounts: amounts as never });
+            sendHour({ source: other, entity: 'weather.home', sun: 'sun.sun', at: null, temperature: null, sky: null, weather: null, amounts: null });
+            if (mode === 'auto') expect(show.mock.calls).toEqual([[amounts], [null]]);
+            else expect(show).not.toHaveBeenCalled();
+        }
     });
 
     it('a forecast card without hours takes the needle\'s weather too, as the other card shows it, and lets it go with that card', async () => {

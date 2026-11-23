@@ -11,6 +11,8 @@
 // names on it. Only a slide sends, and a card that follows has no slide
 // moving, so nothing echoes.
 
+import type { EngineAmounts } from './types';
+
 export const HOUR_EVENT = 'animated-weather-card-hour';
 
 export interface HourLink {
@@ -31,6 +33,8 @@ export interface HourLink {
      * without weather_effects). A card that follows without a slide of its own takes it (the forecast card's days).
      */
     weather?: Record<string, number> | null;
+    /** The weather's amounts there (auto mode: how much rain, cloud, fog and wind); null at home, in manual and from a still card */
+    amounts?: EngineAmounts | null;
 }
 
 /** Where each weather's needle is, as last sent from this bundle; none once its card is home */

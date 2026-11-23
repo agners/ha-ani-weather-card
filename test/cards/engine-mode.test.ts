@@ -103,7 +103,7 @@ describe('engine_mode on the card', () => {
         expect(at({ datetime: '', condition: 'cloudy', cloud_coverage: 0 })?.clouds).toEqual([1, 1, 2]);
         expect(at({ datetime: '', condition: 'rainy', precipitation: 0.2 })?.rain.kind).toBe('light');
         const manual = await mount({ engine_mode: 'manual' }, makeHass());
-        expect(controllerOf(manual).amountsAt!({ datetime: '', condition: 'rainy', precipitation: 9 })).toBeUndefined();
+        expect(controllerOf(manual).amountsAt).toBeUndefined();
     });
 
     it('thins a still night\'s stars under cloud as a moving one\'s', async () => {

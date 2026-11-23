@@ -10,7 +10,7 @@
 // the hours, the forecast card, the strip, the view that opens on tap, the
 // nightstand and the wall.
 
-import type { AnimatedWeatherCardConfig, HomeAssistant } from './types';
+import type { AnimatedWeatherCardConfig, EngineAmounts, HomeAssistant } from './types';
 import type { ForecastEntry, ForecastType } from './forecast-data';
 import type { SkyColors, SkyCondition, SkyPhase } from './sky';
 import type { HourLink } from './hour-link';
@@ -23,6 +23,10 @@ export interface WeatherLayers {
     animations: Record<string, { isActive: boolean }>;
     startAnimation(type: string, config?: { intensity?: number }): Promise<void>;
     stopAnimation(type: string): Promise<void>;
+    /** Auto mode (engine_mode): an hour of the forecast as the weather's amounts. None in manual, nor from an older main bundle */
+    amountsAt?(entry: ForecastEntry): EngineAmounts | undefined;
+    /** Show an hour's amounts at once (its rain, cloud, fog and wind), or null for the card's own */
+    showAmounts?(amounts: EngineAmounts | null): void;
 }
 
 /** The card, as the forecast bundle sees it */
