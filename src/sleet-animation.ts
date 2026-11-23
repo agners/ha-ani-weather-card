@@ -2,7 +2,7 @@
 // smaller, icier pellets that fall faster and straighter.
 
 import { BaseAnimation, BaseAnimationConfig, AnimationLifecycleState } from './base-animation';
-import { AnimatedWeatherCardConfig } from './types';
+import { AnimatedWeatherCardConfig, EngineAmounts } from './types';
 import type { GSAPTimeline } from './types';
 import { getWeatherSettings, devLog } from './utils';
 import { ParticlePool, prewarm, between, areaFactor } from './particle-pool';
@@ -22,6 +22,7 @@ const SLEET_SETTLE_SHARE = 0.3;
 const SLEET_PILE_MAX = 6;
 
 export class SleetAnimation extends BaseAnimation {
+    private card?: HTMLElement;
     public readonly animationType = 'sleet';
     public readonly layerSelector = '.sleet-layer';
     public readonly containerSelector = '.sleet-container';
@@ -56,7 +57,8 @@ export class SleetAnimation extends BaseAnimation {
 
         const settings = getWeatherSettings(this.cardConfig, this.realWindSpeed);
         const card = this.element.querySelector('.animated-weather-card') as HTMLElement;
-        const count = Math.max(6, Math.round(SLEET_POOL_SIZE * settings.snowCount * areaFactor(card.offsetWidth, card.offsetHeight)));
+        this.card = card;
+        const count = this.pelletCount();
         const spill = this.cardConfig.spill_particles !== false;
         const wind = snowWindFactor(settings.windSpeed) * 0.5;
 
@@ -81,10 +83,24 @@ export class SleetAnimation extends BaseAnimation {
                 return pellet;
             },
             (pellet, next, warm) => this.fall(pellet, card, wind, spill, next, warm),
+            pellet => this.removeParticle(pellet),
         );
         this.pool.start(count).forEach(pellet => this.addParticle(pellet));
 
         devLog(this.config.devMode, `Sleet animation started - ${count} pellets`);
+    }
+
+    /** Pellets in the air: the amounts' in auto mode, snowCount in manual; more on a bigger card */
+    private pelletCount(): number {
+        const card = this.card;
+        if (!card) return 0;
+        const amount = this.amounts?.sleet ?? getWeatherSettings(this.cardConfig, this.realWindSpeed).snowCount;
+        return Math.max(6, Math.round(SLEET_POOL_SIZE * amount * areaFactor(card.offsetWidth, card.offsetHeight)));
+    }
+
+    /** New amounts while it sleets: pellets join from above the card, or leave at the end of their fall */
+    protected onAmountsChange(_previous: EngineAmounts | null): void {
+        this.pool?.resize(this.pelletCount(), 1.5).forEach(pellet => this.addParticle(pellet));
     }
 
     /** One constant-speed fall, like snow's but quicker and straighter. */

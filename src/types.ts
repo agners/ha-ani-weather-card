@@ -512,6 +512,8 @@ export interface GSAP {
     timeline(vars?: Record<string, any>): GSAPTimeline;
     killTweensOf(target: any): void;
     getTweensOf(target: any, onlyActive?: boolean): GSAPAnimation[];
+    /** A call after a delay that pauses and resumes like a tween (a particle that joins the weather waits its turn) */
+    delayedCall(delay: number, callback: () => void): GSAPAnimation;
     /** A tweened property's current value (the forecast reads a cloud track's height to move it above its words) */
     getProperty(target: any, property: string): number | string;
     globalTimeline: GSAPTimeline;

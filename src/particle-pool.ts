@@ -14,6 +14,8 @@ export type PoolCycle = (el: HTMLElement, next: () => void, warm: boolean) => Po
 interface PoolItem {
     el: HTMLElement;
     anim?: PoolAnimation;
+    /** Let go: it finishes its cycle and leaves at its end */
+    retiring?: boolean;
 }
 
 /**
@@ -30,6 +32,8 @@ export class ParticlePool {
         private readonly layer: Element,
         private readonly create: (index: number) => HTMLElement,
         private readonly cycle: PoolCycle,
+        /** A particle that has left (resize): what else the animation keeps for it goes too */
+        private readonly onRetire?: (el: HTMLElement) => void,
     ) {}
 
     /** Create `count` particles and start them. Returns the new elements. */
@@ -50,8 +54,68 @@ export class ParticlePool {
     private run(item: PoolItem, warm: boolean): void {
         // A cycle can end after stop(); never start another one then.
         if (!this.running) return;
+        if (item.retiring) {
+            this.retire(item);
+            return;
+        }
+        item.el.style.visibility = '';
         item.anim = this.cycle(item.el, () => this.run(item, false), warm);
         if (this.paused) item.anim.pause();
+    }
+
+    /**
+     * Grow or shrink to `count` without a snap. New particles start their first cycle from its beginning (rain from
+     * above the card), spread over `staggerSec` so they don't arrive as a sheet, and wait unseen until then. A particle
+     * let go finishes the cycle it's in (its fall) and leaves at its end. Growing again first keeps ones on their way
+     * out. Returns the new elements.
+     */
+    resize(count: number, staggerSec = 1): HTMLElement[] {
+        if (!this.running) return [];
+        const target = Math.max(0, Math.round(count));
+        const live = this.items.filter(item => !item.retiring);
+        if (target < live.length) {
+            live.slice(target).forEach(item => { item.retiring = true; });
+            return [];
+        }
+        let missing = target - live.length;
+        for (const item of this.items) {
+            if (missing <= 0) break;
+            if (item.retiring) {
+                item.retiring = false;
+                missing--;
+            }
+        }
+        const gsap = window.AnimatedWeatherCardGsap;
+        const created: HTMLElement[] = [];
+        for (let i = 0; i < missing; i++) {
+            const el = this.create(this.items.length);
+            el.style.visibility = 'hidden';
+            this.layer.appendChild(el);
+            const item: PoolItem = { el };
+            this.items.push(item);
+            created.push(el);
+            const delay = staggerSec * Math.random();
+            if (gsap?.delayedCall && delay > 0) {
+                item.anim = gsap.delayedCall(delay, () => this.run(item, false)) as PoolAnimation;
+                if (this.paused) item.anim.pause();
+            } else {
+                this.run(item, false);
+            }
+        }
+        return created;
+    }
+
+    /** The particles that stay: not on their way out */
+    get live(): number {
+        return this.items.filter(item => !item.retiring).length;
+    }
+
+    private retire(item: PoolItem): void {
+        item.anim?.kill();
+        window.AnimatedWeatherCardGsap?.killTweensOf(item.el);
+        item.el.remove();
+        this.items = this.items.filter(other => other !== item);
+        this.onRetire?.(item.el);
     }
 
     pause(): void {

@@ -7,7 +7,7 @@
 // functions) behind feature flags; that path has been removed and lives
 // only in git history.
 
-import { AnimationState, AnimationControllerStates, AnimationStateKey, AnimationConfig, WeatherAnimationMapping } from './types';
+import { AnimationState, AnimationControllerStates, AnimationStateKey, AnimationConfig, WeatherAnimationMapping, EngineAmounts } from './types';
 import { AnimatedWeatherCardConfig } from './types';
 import { devLog } from './utils';
 import { ModularIntegrationBridge } from './modular-integration-bridge';
@@ -72,6 +72,30 @@ export class WeatherAnimationController {
         this.currentWindSpeed = windSpeed;
         this.modularBridge.updateWindSpeed(windSpeed);
     }
+
+    /** The card's own amounts (auto mode), and an hour's while the slide shows one, which wins */
+    private homeAmounts: EngineAmounts | null = null;
+    private hourAmounts: EngineAmounts | null = null;
+
+    /** The card's own amounts in auto mode, from what the weather says now; null in manual */
+    public setAmounts(amounts: EngineAmounts | null): void {
+        this.homeAmounts = amounts;
+        this.modularBridge.updateAmounts(this.hourAmounts ?? amounts);
+    }
+
+    /** An hour's amounts while the slide shows it; null brings the card's own back */
+    public showAmounts(amounts: EngineAmounts | null): void {
+        this.hourAmounts = amounts;
+        this.modularBridge.updateAmounts(amounts ?? this.homeAmounts);
+    }
+
+    /** The amounts the weather shows now: an hour's while the slide shows one, else the card's own */
+    public get amounts(): EngineAmounts | null {
+        return this.hourAmounts ?? this.homeAmounts;
+    }
+
+    /** An hour of the forecast as amounts (the slide asks for each hour's); the card sets it, undefined in manual */
+    public amountsAt?: (entry: import('./forecast-data').ForecastEntry) => EngineAmounts | undefined;
 
     public async startAnimation(type: AnimationStateKey, config?: Partial<AnimationConfig>): Promise<void> {
         const animationState = this.animations[type];
