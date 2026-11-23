@@ -18,6 +18,8 @@ const LABELS: Record<ActionKey, [string, string]> = {
     double_tap_action: ['ui.panel.lovelace.editor.card.generic.double_tap_action', 'Double tap behavior'],
 };
 
+let uid = 0;
+
 const label = (hass: HomeAssistant | undefined, key: ActionKey) => cardLocalize(hass, ...LABELS[key]);
 
 /**
@@ -52,14 +54,40 @@ export function mountActionsEditor(container: HTMLElement, hass: HomeAssistant |
         current = { ...current, ...patch };
         onChange(patch);
     };
-    // A gesture set to one of the card's own actions (the forecast pop-up)
-    // isn't one Home Assistant's picker knows: it gets a line of its own,
-    // with a way back to Home Assistant's actions
+    // One of the card's own actions (the forecast pop-up) isn't one Home
+    // Assistant's picker knows. For a tap, the gesture the cards give their
+    // own action by default, a choice sits over the picker: the card's own
+    // action, or another one, which shows the picker. So the card's action
+    // can always be picked again. A hold or a double tap set to one in YAML
+    // gets a line of its own, with a way back to Home Assistant's actions
     const own = (key: ActionKey) => {
         const action = current[key]?.action;
         return action !== undefined && Object.prototype.hasOwnProperty.call(cardActions, action) ? action : undefined;
     };
-    const ownRows = () => KEYS.filter(own).map(key => {
+    const choice = (): HTMLElement[] => {
+        const names = Object.entries(cardActions);
+        if (!names.length) return [];
+        const key = KEYS[0];
+        const mine = own(key) ?? '';
+        const group = `awc-action-${++uid}`;
+        const el = document.createElement('fieldset');
+        el.className = 'seg card-action-choice';
+        el.innerHTML = `<legend class="seg-l">${escapeHtml(label(hass, key))}</legend><div class="seg-track">`
+            + [...names, ['', 'Another action']].map(([value, name]) =>
+                `<label><input type="radio" name="${group}" value="${escapeHtml(value)}"${value === mine ? ' checked' : ''}><span>${escapeHtml(name)}</span></label>`).join('')
+            + '</div>';
+        el.querySelectorAll<HTMLInputElement>('input').forEach(radio => radio.addEventListener('change', () => {
+            if (!radio.checked) return;
+            const value = radio.value;
+            change({ [key]: value ? { action: value } : undefined });
+            mountActionsEditor(container, hass, current, onChange, cardActions);
+            // The choice is drawn again: the keyboard stays on what was picked
+            container.querySelectorAll<HTMLInputElement>('.card-action-choice input').forEach(r => { if (r.value === value) r.focus(); });
+        }));
+        return [el];
+    };
+    const chosen = Object.keys(cardActions).length > 0;
+    const ownRows = () => KEYS.filter(key => own(key) && !(chosen && key === KEYS[0])).map(key => {
         const row = document.createElement('div');
         row.className = 'option card-action';
         row.innerHTML = `<span>${escapeHtml(label(hass, key))}: <b>${escapeHtml(cardActions[own(key)!] ?? '')}</b></span>`
@@ -89,7 +117,7 @@ export function mountActionsEditor(container: HTMLElement, hass: HomeAssistant |
             el.data = { ...current, ...patch };
             if (Object.keys(patch).length) change(patch);
         });
-        container.replaceChildren(...ownRows(), el);
+        container.replaceChildren(...choice(), ...ownRows(), el);
     };
 
     if (customElements.get('ha-form')) {

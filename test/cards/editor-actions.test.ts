@@ -120,6 +120,59 @@ describe('the interactions in Home Assistant\'s form', () => {
         expect(leaked).toBe(false);
     });
 
+    it('lets the forecast tap be picked again after another action took its place', async () => {
+        editor = document.createElement('animated-weather-card-editor') as Editor;
+        editor.setConfig({ type: 'custom:animated-weather-card', entity: 'weather.home', show_forecast: true });
+        document.body.appendChild(editor);
+        await flush();
+        let config: Record<string, unknown> | undefined;
+        editor.addEventListener('config-changed', (e) => { config = (e as CustomEvent).detail.config; });
+        const radios = () => [...editor.querySelectorAll<HTMLInputElement>('#actions-editor .card-action-choice input')];
+        const names = () => (editor.querySelector('#actions-editor ha-form') as Form).schema!.map(s => s.name);
+        const pick = (value: string) => {
+            const radio = radios().find(r => r.value === value)!;
+            radio.checked = true;
+            radio.dispatchEvent(new Event('change'));
+        };
+
+        // With the forecast on, the tap is the forecast: the picker holds the other two gestures
+        expect(radios().map(r => [r.value, r.checked])).toEqual([['forecast', true], ['', false]]);
+        expect(names()).toEqual(['hold_action', 'double_tap_action']);
+
+        // Another action: Home Assistant's picker takes the tap, on its own default
+        pick('');
+        expect(config?.tap_action).toEqual({ action: 'more-info' });
+        expect(names()).toEqual(['tap_action', 'hold_action', 'double_tap_action']);
+        expect(radios().map(r => r.checked)).toEqual([false, true]);
+
+        // And back: the forecast again, with nothing written for the default
+        pick('forecast');
+        expect(config).not.toHaveProperty('tap_action');
+        expect(names()).toEqual(['hold_action', 'double_tap_action']);
+        expect(radios().map(r => r.checked)).toEqual([true, false]);
+    });
+
+    it('offers the forecast as the tap on a card without it, and none of this on the tracker', async () => {
+        editor = document.createElement('animated-weather-card-editor') as Editor;
+        editor.setConfig({ type: 'custom:animated-weather-card', entity: 'weather.home' });
+        document.body.appendChild(editor);
+        await flush();
+        let config: Record<string, unknown> | undefined;
+        editor.addEventListener('config-changed', (e) => { config = (e as CustomEvent).detail.config; });
+        const radios = [...editor.querySelectorAll<HTMLInputElement>('#actions-editor .card-action-choice input')];
+        expect(radios.map(r => [r.value, r.checked])).toEqual([['forecast', false], ['', true]]);
+        radios[0].checked = true;
+        radios[0].dispatchEvent(new Event('change'));
+        expect(config?.tap_action).toEqual({ action: 'forecast' });
+        editor.remove();
+
+        editor = document.createElement('animated-sun-tracker-editor') as Editor;
+        editor.setConfig({ type: 'custom:animated-sun-tracker-card', sun_entity: 'sun.sun' });
+        document.body.appendChild(editor);
+        await flush();
+        expect(editor.querySelector('.card-action-choice')).toBeNull();
+    });
+
     it('gives the sun tracker the same picker, and keeps it while a change comes back', async () => {
         editor = document.createElement('animated-sun-tracker-editor') as Editor;
         editor.setConfig({ type: 'custom:animated-sun-tracker-card', sun_entity: 'sun.sun' });

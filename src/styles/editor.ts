@@ -2,8 +2,8 @@
  * The weather card's editor's CSS. It sits in Home Assistant's card editor
  * dialog beside the live card, so it speaks Home Assistant's vocabulary (its
  * fields and switches, its theme's colours) and adds as little chrome as it
- * can: no boxes and no icons, a quiet heading per section, hairlines between
- * the drawers. Motion uses the card's own curves (CURVE, fc-core.ts) and stays
+ * can: no boxes and no icons, a hairline and a heading where each section
+ * starts, hairlines between the drawers and the accent's tint on an open one's header. Motion uses the card's own curves (CURVE, fc-core.ts) and stays
  * under the 420 ms the forecast view takes to open; heights animate by a grid
  * track from 0fr to 1fr on rows that are always there, so nothing is drawn
  * again, and an old WebView simply snaps.
@@ -36,6 +36,8 @@ ${iconBoxCss('.card-config')}
         /* ── Reveals: every row, section and drawer opens by its grid track ── */
         .rv {
           display: grid;
+          /* The one column never grows past the editor, whatever a row inside would like to be */
+          grid-template-columns: minmax(0, 1fr);
           grid-template-rows: 0fr;
           visibility: hidden;
           transition: grid-template-rows 160ms var(--awc-drawer), visibility 0s linear 160ms;
@@ -44,9 +46,9 @@ ${iconBoxCss('.card-config')}
           min-height: 0;
           overflow: hidden;
           opacity: 0;
-          /* Room either side for focus rings, at no height */
-          padding-inline: 4px;
-          margin-inline: -4px;
+          /* Room either side for focus rings and an open header's tint, at no height */
+          padding-inline: 8px;
+          margin-inline: -8px;
           transition: opacity 80ms var(--awc-out);
         }
         /* Open inherits, so a row inside a closed drawer stays out of reach */
@@ -66,26 +68,29 @@ ${iconBoxCss('.card-config')}
         .row > ha-select, .row > ha-entity-picker, .row > ha-input, .row > ha-textfield { display: block; width: 100%; }
 
         /* ── The switch ──────────────────────────────────────────────────── */
-        .top {
-          padding: 4px 0 12px;
-          border-bottom: 1px solid var(--divider-color, rgba(127, 127, 127, 0.3));
-        }
+        .top { padding: 4px 0 0; }
         .top .sw-l { font-weight: 500; }
 
-        /* ── Sections: a quiet heading, no box ───────────────────────────── */
-        .grp-b { padding-top: 20px; }
-        .grp-h {
-          margin: 0 0 2px;
-          font-size: 14px;
-          line-height: 20px;
-          font-weight: 500;
-          color: var(--secondary-text-color);
+        /* ── Sections: a hairline where each starts, and a heading a step above its rows' labels, no box.
+           The rule is the section's own, so a hidden section leaves none behind ── */
+        .grp-b {
+          margin-top: 20px;
+          padding-top: 16px;
+          border-top: 1px solid var(--divider-color, rgba(127, 127, 127, 0.3));
         }
-        [data-sec="dev"] .grp-b { padding-top: 16px; }
+        .grp-h {
+          margin: 0 0 4px;
+          font-size: 16px;
+          line-height: 24px;
+          font-weight: 500;
+          color: var(--primary-text-color);
+        }
+        /* After the drawers, while they show, the last one's hairline is this section's */
+        .drws[data-open] ~ [data-sec="dev"] .grp-b { margin-top: 0; padding-top: 8px; border-top: 0; }
 
         /* ── Drawers: hairlines, a title and what's inside, a chevron ────── */
         /* A hairline above the drawers and under each, so a hidden one leaves none behind */
-        .drws-b { margin-top: 24px; border-top: 1px solid var(--divider-color, rgba(127, 127, 127, 0.3)); }
+        .drws-b { margin-top: 20px; border-top: 1px solid var(--divider-color, rgba(127, 127, 127, 0.3)); }
         .drw-b { border-bottom: 1px solid var(--divider-color, rgba(127, 127, 127, 0.3)); }
         .drw-h { margin: 0; font: inherit; }
         .drw-btn {
@@ -94,10 +99,11 @@ ${iconBoxCss('.card-config')}
           align-items: center;
           gap: 12px;
           box-sizing: border-box;
+          isolation: isolate;
           width: calc(100% + 16px);
-          min-height: 60px;
-          margin: 0 -8px;
-          padding: 10px 8px;
+          min-height: 56px;
+          margin: 4px -8px;
+          padding: 8px;
           border: 0;
           border-radius: 8px;
           background: none;
@@ -107,7 +113,27 @@ ${iconBoxCss('.card-config')}
           cursor: pointer;
         }
         .drw-tx { display: flex; flex-direction: column; flex: 1; min-width: 0; }
-        .drw-t { font-size: 15px; line-height: 20px; font-weight: 500; }
+        .drw-t { font-size: 16px; line-height: 24px; font-weight: 500; }
+        /* Open, a drawer's header is lit the way the editor lights whatever is chosen (a segment, a preset): the
+           accent's tint behind it. It marks where the drawer starts and that it's open; its rows follow, and the
+           hairline closes it. No box, and no fill behind the rows, which would dim their quiet text */
+        .drw-btn::after, .rd-head::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          z-index: -1;
+          border-radius: inherit;
+          background: var(--primary-color);
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 200ms var(--awc-press);
+        }
+        .drw-btn[aria-expanded="true"]::after { opacity: 0.14; }
+        /* A reading opens inside an open drawer, so its tint is the quieter of the two */
+        .rd-head[aria-expanded="true"]::after { opacity: 0.08; }
+        /* On the tint the quiet line takes the text's colour, to keep its contrast */
+        .drw-btn[aria-expanded="true"] .drw-s, .rd-head[aria-expanded="true"] .rd-s { color: var(--primary-text-color); }
+        [aria-expanded="true"] > .chev { fill: var(--primary-text-color); }
         .drw-s {
           font-size: 13px;
           line-height: 18px;
@@ -116,7 +142,7 @@ ${iconBoxCss('.card-config')}
           text-overflow: ellipsis;
           white-space: nowrap;
         }
-        .drw-in { padding-bottom: 16px; }
+        .drw-in { padding: 8px 0 24px; }
         .drw-in > .rv:first-child .row { padding-top: 0; }
         /* Drawers appearing with the switch fade in one after another */
         .drw[data-open] > .rv-in { transition-delay: calc(30ms + var(--i, 0) * 16ms); }
@@ -350,10 +376,11 @@ ${iconBoxCss('.card-config')}
           align-items: center;
           gap: 12px;
           box-sizing: border-box;
+          isolation: isolate;
           width: calc(100% + 16px);
-          min-height: 52px;
-          margin: 0 -8px;
-          padding: 6px 8px;
+          min-height: 48px;
+          margin: 3px -8px;
+          padding: 4px 8px;
           border: 0;
           border-radius: 8px;
           background: none;
@@ -364,6 +391,9 @@ ${iconBoxCss('.card-config')}
         }
         .rd-tx { display: flex; flex-direction: column; flex: 1; min-width: 0; }
         .rd-t { font-size: 14px; line-height: 20px; }
+        /* The open reading: its name a weight up, and room around its controls */
+        .rd-head[aria-expanded="true"] .rd-t { font-weight: 500; }
+        .rd-body .rd-fields { padding: 6px 0 12px; }
         .rd-s {
           display: flex;
           align-items: center;
@@ -515,6 +545,7 @@ ${iconBoxCss('.card-config')}
           gap: 12px;
           min-height: 48px;
         }
+        .card-action-choice { margin-bottom: 8px; }
         .card-action-reset {
           position: relative;
           min-height: 36px;
@@ -536,7 +567,7 @@ ${iconBoxCss('.card-config')}
 
         /* ── Reduced motion: nothing slides; opening dissolves, closing is instant ── */
         @media (prefers-reduced-motion: reduce) {
-          .rv, .rv[data-open], .rv > .rv-in, .drw-c, .drw-c[data-open], .drw-c > .rv-in, .chev, [aria-expanded="true"] > .chev { transition: none !important; }
+          .rv, .rv[data-open], .rv > .rv-in, .drw-btn::after, .rd-head::after, .drw-c, .drw-c[data-open], .drw-c > .rv-in, .chev, [aria-expanded="true"] > .chev { transition: none !important; }
           .rv[data-open] > .rv-in, .drw-c[data-open] > .rv-in, .drw[data-open] > .rv-in { transition: opacity 120ms linear !important; }
           .rd-row[data-moved] { animation-duration: 500ms; }
         }
