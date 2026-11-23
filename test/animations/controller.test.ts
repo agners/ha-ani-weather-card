@@ -269,7 +269,7 @@ describe('Clouds over the sun', () => {
         const bridge = new ModularIntegrationBridge(element, cardConfig, undefined, 12);
         const gsap = (window as unknown as { AnimatedWeatherCardGsap: { to: ReturnType<typeof vi.fn>; timeline: ReturnType<typeof vi.fn> } }).AnimatedWeatherCardGsap;
         await bridge.startModularAnimation('clouds', 1);
-        const looks = gsap.timeline.mock.results.map(r => r.value).find(tl => tl.vars.onRepeat);
+        const looks = gsap.timeline.mock.results.map(r => r.value).find(tl => tl.vars.onRepeat && tl.vars.repeatDelay === undefined);
         expect(looks).toBeTruthy();
         const last = (el: Element) => gsap.to.mock.calls.filter(([target]) => target === el).at(-1)?.[1].opacity;
         const lit = () => last(track);
@@ -320,7 +320,7 @@ describe('Clouds over the sun', () => {
         await bridge.startModularAnimation('clouds', 1);
         const near = Array.from(element.querySelectorAll<HTMLElement>('.cloud-gsap')).find(c => c.dataset.awcO === '0.66')!;
         place(near, 380, 30, 120, 60);
-        gsap.timeline.mock.results.map(r => r.value).find(tl => tl.vars.onRepeat).vars.onRepeat();
+        gsap.timeline.mock.results.map(r => r.value).find(tl => tl.vars.onRepeat && tl.vars.repeatDelay === undefined).vars.onRepeat();
         expect(gsap.to.mock.calls.filter(([target]) => target === track).at(-1)?.[1].opacity).toBeCloseTo(0.9, 2);
     });
 
@@ -347,10 +347,10 @@ describe('Clouds over the sun', () => {
         // Its track carries the cloud's place, and the drift moves both
         const ownTrack = clouds[0].parentElement!, twinTrack = twins[0].parentElement!;
         expect(twinTrack.dataset.awcF).toBe(ownTrack.dataset.awcF);
-        const drifts = gsap.timeline.mock.results.map(r => r.value).filter(tl => !tl.vars.onRepeat);
+        const drifts = gsap.timeline.mock.results.map(r => r.value).filter(tl => tl.vars.repeatDelay !== undefined);
         expect(drifts.some(tl => tl.fromTo.mock.calls.some(([targets]: [unknown]) => Array.isArray(targets) && targets.includes(ownTrack) && targets.includes(twinTrack)))).toBe(true);
 
-        const looks = gsap.timeline.mock.results.map(r => r.value).find(tl => tl.vars.onRepeat);
+        const looks = gsap.timeline.mock.results.map(r => r.value).find(tl => tl.vars.onRepeat && tl.vars.repeatDelay === undefined);
         const near = clouds.find(c => c.dataset.awcO === '0.66')!;
         place(near, 380, 30, 120, 60);
         looks.vars.onRepeat();
@@ -386,7 +386,7 @@ describe('Clouds over the sun', () => {
         await bridge.startModularAnimation('clouds', 1);
         const near = Array.from(element.querySelectorAll<HTMLElement>('.cloud-gsap')).find(c => c.dataset.awcO === '0.66')!;
         place(near, 380, 30, 120, 60);
-        gsap.timeline.mock.results.map(r => r.value).find(tl => tl.vars.onRepeat).vars.onRepeat();
+        gsap.timeline.mock.results.map(r => r.value).find(tl => tl.vars.onRepeat && tl.vars.repeatDelay === undefined).vars.onRepeat();
         expect(gsap.to.mock.calls.some(([target]) => target === track)).toBe(false);
         expect(gsap.set.mock.calls.some(([target]) => target === track)).toBe(false);
         // and no cloud thickens

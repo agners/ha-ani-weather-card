@@ -86,7 +86,8 @@ export class WeatherAnimationController {
     /** An hour's amounts while the slide shows it; null brings the card's own back */
     public showAmounts(amounts: EngineAmounts | null): void {
         this.hourAmounts = amounts;
-        this.modularBridge.updateAmounts(amounts ?? this.homeAmounts);
+        // The slide's hours, and its way home, show at once
+        this.modularBridge.updateAmounts(amounts ?? this.homeAmounts, true);
     }
 
     /** The amounts the weather shows now: an hour's while the slide shows one, else the card's own */

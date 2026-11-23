@@ -555,6 +555,8 @@ export interface GSAPTimeline {
     repeat(value: number): GSAPTimeline;
     repeatDelay(value: number): GSAPTimeline;
     yoyo(value: boolean): GSAPTimeline;
+    timeScale(): number;
+    timeScale(value: number): GSAPTimeline;
 }
 
 /**

@@ -174,7 +174,7 @@ export class RainAnimation extends BaseAnimation {
      * New amounts while it rains: the kind changes at each drop's next fall (its speed and length), and drops join from
      * above the card or leave at the end of their fall, so the rain thickens or thins and never jumps.
      */
-    protected onAmountsChange(_previous: EngineAmounts | null): void {
+    protected onAmountsChange(_previous: EngineAmounts | null, _quick: boolean): void {
         if (!this.pool) return;
         this.kind = this.amounts?.rain.kind ?? this.rainKind();
         this.pool.resize(this.dropCount(), 0.8).forEach(drop => this.addParticle(drop));

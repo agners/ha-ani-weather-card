@@ -1,9 +1,10 @@
 // FogAnimation - Modular fog animation with layered scrolling fog
 
 import { BaseAnimation, BaseAnimationConfig, AnimationLifecycleState } from './base-animation';
-import { AnimatedWeatherCardConfig, GSAPTimeline } from './types';
+import { AnimatedWeatherCardConfig, EngineAmounts, GSAPTimeline } from './types';
 import { getWeatherSettings, devLog } from './utils';
 import { createGSAPFogLayer, clearFogLayers } from './gsap-effects';
+import { SKY_DISSOLVE_SEC } from './sky';
 
 export interface FogAnimationConfig extends BaseAnimationConfig {
     layerCount: number;
@@ -48,10 +49,17 @@ export class FogAnimation extends BaseAnimation {
         // Clear existing fog layers
         clearFogLayers(card);
 
+        // The layers in one wrapper, whose opacity is how thick the fog is (auto mode's amounts, by the visibility).
+        // Nothing else writes it: the container's own opacity is the condition's fades and the slide's.
+        const amount = document.createElement('div');
+        amount.className = 'fog-amount';
+        fogContainer.appendChild(amount);
+        window.AnimatedWeatherCardGsap.set(amount, { opacity: this.amounts?.fog ?? 1 });
+
         // Create fog layers
         this.fogTimelines = [];
         for (let i = 0; i < this.fogConfig.layerCount; i++) {
-            const fogLayerTimelines = createGSAPFogLayer(fogContainer, settings, i, card, this.cardConfig);
+            const fogLayerTimelines = createGSAPFogLayer(amount, settings, i, card, this.cardConfig);
             this.fogTimelines.push(fogLayerTimelines.movement);
             this.fogTimelines.push(fogLayerTimelines.opacity);
         }
@@ -68,7 +76,7 @@ export class FogAnimation extends BaseAnimation {
 
         // Remove fog DOM elements
         const card = this.element.querySelector('.animated-weather-card') as HTMLElement;
-        const fogLayers = card?.querySelectorAll('.fog-layer');
+        const fogLayers = card?.querySelectorAll('.fog-layer, .fog-amount');
         fogLayers?.forEach(layer => {
             if (window.AnimatedWeatherCardGsap) window.AnimatedWeatherCardGsap.killTweensOf(layer);
             if (layer.parentNode) layer.parentNode.removeChild(layer);
@@ -89,5 +97,12 @@ export class FogAnimation extends BaseAnimation {
             if (tl && typeof tl.resume === 'function') tl.resume();
         });
         devLog(this.config.devMode, 'Fog animation resumed');
+    }
+
+    /** New amounts: the fog thickens or thins over the sky's few seconds, or in a moment for the slide's hours */
+    protected onAmountsChange(_previous: EngineAmounts | null, quick: boolean): void {
+        const amount = this.element.querySelector('.fog-amount');
+        if (!amount) return;
+        window.AnimatedWeatherCardGsap?.to(amount, { opacity: this.amounts?.fog ?? 1, duration: quick ? 0.3 : SKY_DISSOLVE_SEC, ease: 'sine.inOut', overwrite: true });
     }
 }

@@ -130,7 +130,7 @@ export class SnowAnimation extends BaseAnimation {
     }
 
     /** New amounts while it snows: flakes join from above the card, or leave at the end of their fall */
-    protected onAmountsChange(_previous: EngineAmounts | null): void {
+    protected onAmountsChange(_previous: EngineAmounts | null, _quick: boolean): void {
         this.pool?.resize(this.flakeCount(), 6).forEach(flake => this.addParticle(flake));
     }
 

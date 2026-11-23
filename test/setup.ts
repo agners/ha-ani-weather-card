@@ -19,6 +19,7 @@ export interface FakeTimeline {
     pause: () => FakeTimeline;
     resume: () => FakeTimeline;
     progress: (value?: number) => FakeTimeline | number;
+    timeScale: (value?: number) => FakeTimeline | number;
     kill: () => void;
 }
 
@@ -34,6 +35,7 @@ export function installGsapStub(): void {
             pause: vi.fn(() => tl),
             resume: vi.fn(() => tl),
             progress: vi.fn((value?: number) => (value === undefined ? 0 : tl)),
+            timeScale: vi.fn((value?: number) => (value === undefined ? 1 : tl)),
             kill: vi.fn(),
         };
         return tl;

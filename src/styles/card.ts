@@ -911,6 +911,8 @@ ${iconBoxCss('animated-weather-card')}
           overflow: hidden;
           overflow: clip;
         }
+        /* How thick the fog is (auto mode's amounts), apart from the container's fades */
+        .fog-amount { position: absolute; inset: 0; pointer-events: none; }
         /* Spill: precipitation escapes the sides and bottom, never the top;
            wind carries leaves out to the right */
         .animated-weather-card[data-spill] .rain-container,
@@ -1088,7 +1090,7 @@ ${iconBoxCss('animated-weather-card')}
         }
 
         /* ── Stars and moon ──────────────────────────────────────────────── */
-        .stars-field { position: absolute; inset: 0; pointer-events: none; }
+        .stars-field, .stars-band { position: absolute; inset: 0; pointer-events: none; }
         .star-gsap {
           position: absolute;
           border-radius: 50%;

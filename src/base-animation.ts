@@ -178,13 +178,14 @@ export abstract class BaseAnimation {
     
     /**
      * Follow new amounts (auto mode) without restarting, as the wind: particles come and go at the ends of their
-     * paths, clouds at the card's edges, fog and stars ease. Null goes back to engine_settings.
+     * paths, clouds at the card's edges, fog and stars ease. Null goes back to engine_settings. `quick` is the
+     * slide's: an hour's amounts show at once (a cloud fades rather than drifting in, fog and stars ease in 0.3 s).
      */
-    public setAmounts(amounts: EngineAmounts | null): void {
+    public setAmounts(amounts: EngineAmounts | null, quick = false): void {
         const previous = this.amounts;
         this.amounts = amounts;
         if (this.state === AnimationLifecycleState.ACTIVE || this.state === AnimationLifecycleState.PAUSED) {
-            this.onAmountsChange(previous);
+            this.onAmountsChange(previous, quick);
         }
     }
 
@@ -229,7 +230,7 @@ export abstract class BaseAnimation {
     /** Apply a wind speed change to what's already moving. Most need nothing. */
     protected onWindSpeedChange(): void {}
     /** Apply new amounts to what's already moving. Most need nothing. */
-    protected onAmountsChange(_previous: EngineAmounts | null): void {}
+    protected onAmountsChange(_previous: EngineAmounts | null, _quick: boolean): void {}
 
     // Protected helper methods
     protected setState(newState: AnimationLifecycleState): void {

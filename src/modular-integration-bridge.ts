@@ -212,14 +212,14 @@ export class ModularIntegrationBridge {
 
     /**
      * Pass new amounts (auto mode) to the running animations, in place, as the wind. Every data update calls this, so
-     * amounts that would draw the same as the last do nothing.
+     * amounts that would draw the same as the last do nothing. `quick` is the slide's (BaseAnimation.setAmounts).
      */
-    public updateAmounts(amounts: EngineAmounts | null): void {
+    public updateAmounts(amounts: EngineAmounts | null, quick = false): void {
         if (JSON.stringify(amounts) === JSON.stringify(this.amounts)) return;
         this.amounts = amounts;
         for (const [type, animation] of this.activeAnimations) {
             try {
-                animation.setAmounts(amounts);
+                animation.setAmounts(amounts, quick);
             } catch (error) {
                 console.warn(`Failed to update amounts for ${type}:`, error);
             }
