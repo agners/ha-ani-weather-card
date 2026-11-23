@@ -1378,8 +1378,9 @@ const dash = (() => {
 // on the hero's weather and clock, each with its YAML: the weather card
 // with the forecast, the clock and the date, the forecast card, and the
 // compact card over the forecast's strip. Under the weather card, Big
-// value makes the time its hero (hero: clock): only that card is set up
-// again, and its YAML follows. They're set up afresh when the palette
+// value makes the time its hero (hero: clock) and The week puts the days
+// under its hours (show_days): only that card is set up again, and its
+// YAML follows. They're set up afresh when the palette
 // changes or your weather arrives or leaves: the new cards mount hidden,
 // wait until each has drawn its sky and its forecast (the forecast's
 // bundle loads with the first of them), then dissolve over the old ones.
@@ -1397,6 +1398,7 @@ const ahead = (() => {
     const view = { near: false, visible: false, revealed: false, stale: true, job: null };
     const lit = (scene) => scene.el.querySelector('.cards');
     let hero = false;
+    let days = false;
 
     /**
      * One slot's cards, set up as its YAML says, each in a box as tall as
@@ -1421,7 +1423,7 @@ const ahead = (() => {
             el.firstElementChild.append(box);
             return card;
         };
-        const cards = slot.id === 'hours' ? [make('animated-weather-card', AHEAD_ROWS.hours, { show_forecast: true, show_clock: true, show_date: true, ...(hero ? { hero: 'clock' } : {}) })]
+        const cards = slot.id === 'hours' ? [make('animated-weather-card', AHEAD_ROWS.hours + (days ? AHEAD_ROWS.days : 0), { show_forecast: true, show_clock: true, show_date: true, ...(hero ? { hero: 'clock' } : {}), ...(days ? { show_days: true } : {}) })]
             : slot.id === 'card' ? [make('animated-forecast-card', AHEAD_ROWS.card)]
                 : [make('animated-weather-card', AHEAD_ROWS.compact, { compact: true }), make('animated-forecast-card', AHEAD_ROWS.strip, { compact: true })];
         return { el, cards, drawn, weather: cards[0] };
@@ -1431,7 +1433,7 @@ const ahead = (() => {
 
     function renderYaml() {
         for (const slot of slots) {
-            slot.text = aheadYaml(slot.id, { colors: state.colors === 'sky' ? 'sky' : 'theme', hero });
+            slot.text = aheadYaml(slot.id, { colors: state.colors === 'sky' ? 'sky' : 'theme', hero, days });
             slot.render(slot.text);
         }
     }
@@ -1547,6 +1549,14 @@ const ahead = (() => {
     heroEl.addEventListener('change', (event) => {
         hero = event.target.value === 'clock';
         heroEl.querySelector('.segmented').style.setProperty('--index', hero ? 1 : 0);
+        renderYaml();
+        mount(['hours']);
+    });
+    // The week under the hours: the card asks for its rows, so its box grows by them
+    const daysEl = section.querySelector('#ahead-days');
+    daysEl.addEventListener('change', (event) => {
+        days = event.target.value === 'on';
+        daysEl.querySelector('.segmented').style.setProperty('--index', days ? 1 : 0);
         renderYaml();
         mount(['hours']);
     });

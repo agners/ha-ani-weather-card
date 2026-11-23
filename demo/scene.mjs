@@ -943,12 +943,13 @@ export const rowsHeight = (rows) => rows * HA.rowHeight + (rows - 1) * HA.gridGa
 /**
  * The forecast section's cards, at the rows each asks for (getGridOptions),
  * so each sits at a phone's size: the weather card with the forecast and
- * the clock, the forecast card, and the compact card over the strip.
+ * the clock, the forecast card, and the compact card over the strip. The week under the hours (show_days) adds its rows
+ * to the first.
  */
-export const AHEAD_ROWS = { hours: 8, card: 7, compact: 2, strip: 2 };
+export const AHEAD_ROWS = { hours: 8, days: 4, card: 7, compact: 2, strip: 2 };
 
 /** Each of the forecast section's cards as YAML, with the theme's line when the page follows the theme. */
-export function aheadYaml(slot, { colors = 'sky', hero = false } = {}) {
+export function aheadYaml(slot, { colors = 'sky', hero = false, days = false } = {}) {
     const theme = colors === 'theme' ? ['color_palette: theme  # follows your Home Assistant theme'] : [];
     const base = ['entity: weather.forecast_home', 'sun_entity: sun.sun'];
     // The time as the big value needs no small clock; the date then leads the place's line
@@ -956,7 +957,7 @@ export function aheadYaml(slot, { colors = 'sky', hero = false } = {}) {
         ? ['# The time as the big value, the temperature before the condition', 'hero: clock', '# The date, before the place\'s name', 'show_date: true']
         : ['# The time and the date, before the place\'s name', 'show_clock: true', 'show_date: true'];
     const card = {
-        hours: ['type: custom:animated-weather-card', ...base, '# The high and low, the rain\'s times, and the hours', 'show_forecast: true', ...clock, ...theme],
+        hours: ['type: custom:animated-weather-card', ...base, '# The high and low, the rain\'s times, and the hours', 'show_forecast: true', ...(days ? ['# The week, under the hours', 'show_days: true'] : []), ...clock, ...theme],
         card: ['type: custom:animated-forecast-card', ...base, ...theme],
     }[slot];
     if (card) return card.join('\n') + '\n';

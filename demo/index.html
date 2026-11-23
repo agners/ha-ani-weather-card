@@ -179,7 +179,15 @@
                             <label><input type="radio" name="ahead-hero" value="clock"><span>Time</span></label>
                         </div>
                     </div>
-                    <figcaption class="frame-caption ahead-caption"><span class="caption-text">Drag it through the hours. It stays where you leave it, and Now brings it home.</span> <button type="button" class="code-toggle" aria-expanded="false" aria-controls="ahead-hours-code"><span class="code-toggle-label">View code</span><span class="code-toggle-icon" aria-hidden="true"></span></button></figcaption>
+                    <div class="ahead-hero ahead-days" id="ahead-days" role="radiogroup" aria-labelledby="ahead-days-label">
+                        <span class="ahead-hero-label" id="ahead-days-label">The week</span>
+                        <div class="segmented" style="--count: 2; --index: 0">
+                            <span class="segmented-thumb" aria-hidden="true"></span>
+                            <label><input type="radio" name="ahead-days" value="off" checked><span>Off</span></label>
+                            <label><input type="radio" name="ahead-days" value="on"><span>On</span></label>
+                        </div>
+                    </div>
+                    <figcaption class="frame-caption ahead-caption"><span class="caption-text">Drag it through the hours. It stays where you leave it, and Now brings it home. The week can sit under the hours too.</span> <button type="button" class="code-toggle" aria-expanded="false" aria-controls="ahead-hours-code"><span class="code-toggle-label">View code</span><span class="code-toggle-icon" aria-hidden="true"></span></button></figcaption>
                     <div class="snippet-slot" id="ahead-hours-code">
                         <div class="code-fold">
                             <div class="code-fold-inner">

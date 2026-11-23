@@ -991,8 +991,10 @@ a { color: inherit; }
 .ahead-hero { position: relative; z-index: 1; }
 /* The big value, temperature or time, under the first card: its label and its two choices on one line */
 .ahead-hero { display: flex; align-items: center; gap: 14px; margin-top: 18px; }
-.ahead-hero-label { font-size: 14px; font-weight: 500; color: var(--text-2); white-space: nowrap; }
+.ahead-hero-label { font-size: 14px; font-weight: 500; color: var(--text-2); white-space: nowrap; min-width: 4.6em; }
 .ahead-hero .segmented { flex: 0 1 220px; }
+/* The week, under the big value: the same line, a little closer */
+.ahead-hero + .ahead-hero { margin-top: 12px; }
 .ahead-caption { justify-self: start; width: auto; max-width: 100%; transform: none; text-wrap: pretty; }
 .ahead-slot .snippet-slot { width: 100%; }
 .ahead-slot:has(.snippet-slot[data-open]) .code-toggle-icon svg { transform: rotate(180deg); }

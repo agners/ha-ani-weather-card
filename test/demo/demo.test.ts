@@ -628,6 +628,8 @@ describe('the demo\'s sample world', () => {
             return card.getGridOptions().rows;
         };
         expect(rowsOf('animated-weather-card', { show_forecast: true, show_clock: true })).toBe(AHEAD_ROWS.hours);
+        // The week under the hours asks for its rows besides
+        expect(rowsOf('animated-weather-card', { show_forecast: true, show_clock: true, show_days: true })).toBe(AHEAD_ROWS.hours + AHEAD_ROWS.days);
         expect(rowsOf('animated-forecast-card', {})).toBe(AHEAD_ROWS.card);
         expect(rowsOf('animated-weather-card', { compact: true })).toBe(AHEAD_ROWS.compact);
         expect(rowsOf('animated-forecast-card', { compact: true })).toBe(AHEAD_ROWS.strip);
@@ -650,6 +652,9 @@ describe('the demo\'s sample world', () => {
         expect(big).toContain('hero: clock');
         expect(big).toContain('show_date: true');
         expect(big).not.toContain('show_clock');
+        expect(hours).not.toContain('show_days');
+        expect(aheadYaml('hours', { days: true })).toContain('show_days: true');
+        expect(aheadYaml('hours', { days: true, hero: true })).toMatch(/show_days: true[\s\S]*hero: clock/);
         expect(aheadYaml('card').split('\n')[0]).toBe('type: custom:animated-forecast-card');
         const strip = aheadYaml('strip');
         expect(strip.split('\n').slice(0, 2)).toEqual(['type: vertical-stack', 'cards:']);
