@@ -2095,10 +2095,11 @@ const tune = {
 const tuneLab = createLab({
     section: $('#tune'),
     condition: 'rainy',
-    // The sliders are manual mode's, as the YAML says
+    // The sliders are manual mode's, at their defaults too, as the YAML says: in auto the sample's own rain and cloud
+    // would set the amounts, and a slider could move the weather the other way
     config: () => {
         const engine = engineSettings(tune.settings);
-        return { ...(Object.keys(engine).length ? { engine_mode: 'manual', engine_settings: engine } : {}), ...quietOptions(tune.quiet) };
+        return { engine_mode: 'manual', ...(Object.keys(engine).length ? { engine_settings: engine } : {}), ...quietOptions(tune.quiet) };
     },
 });
 const slidersEl = $('#sliders');
@@ -2136,9 +2137,8 @@ function drawSlider(row) {
 }
 function tuneYaml() {
     const quiet = Object.entries(quietOptions(tune.quiet)).map(([key, value]) => `${key}: ${value}`);
-    const engine = engineYaml(tune.settings).trimEnd();
-    const lines = [...quiet, ...(engine ? [engine] : [])];
-    return (lines.length ? lines.join('\n') : '# Every setting at its default') + '\n';
+    const engine = engineYaml(tune.settings).trimEnd() || 'engine_mode: manual  # every amount at its default';
+    return [...quiet, engine].join('\n') + '\n';
 }
 function drawTune() {
     ENGINE.forEach(drawSlider);

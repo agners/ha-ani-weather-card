@@ -348,9 +348,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard, DevCard {
     private syncEngine(): void {
         clearTimeout(this.engineTimer);
         this.engineTimer = undefined;
-        const auto = this.isConnected && this.engineAuto();
-        if (auto) this.engineHours.sync(this._hass, this.config?.entity, { hourly: true, daily: false });
-        else this.engineHours.stop();
+        const auto = this.syncEngineHours();
         const picture = auto ? this.enginePicture() : null;
         this.lastPicture = picture;
         const reducedMotion = !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -363,8 +361,18 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard, DevCard {
         // The hour turns: its rain and cloud are the next hour's (hours start on the hour, UTC, in every time zone)
         if (auto && this.engineHours.hourly?.length) {
             const HOUR = 3_600_000;
+            // The feed's answer can call this again from inside syncEngineHours: one timer, whichever arms last
+            clearTimeout(this.engineTimer);
             this.engineTimer = setTimeout(() => this.syncEngine(), HOUR - (cardNow() % HOUR) + 1000);
         }
+    }
+
+    /** In auto mode, listen to the hours (the page's shared subscription), so the hour under way is in hand when the weather starts */
+    private syncEngineHours(): boolean {
+        const auto = this.isConnected && this.engineAuto();
+        if (auto) this.engineHours.sync(this._hass, this.config?.entity, { hourly: true, daily: false });
+        else this.engineHours.stop();
+        return auto;
     }
 
     /** Listen to this entity's forecast through the page's subscriptions, while the card shows one */
@@ -1248,6 +1256,7 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard, DevCard {
             this.handleFlightUpdates();
             this.noteWriter?.hassChanged();
             this.syncForecastFeed();
+            this.syncEngineHours();
             this.extras?.update();
 
             if (!oldHass) {

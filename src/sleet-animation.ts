@@ -98,9 +98,9 @@ export class SleetAnimation extends BaseAnimation {
         return Math.max(6, Math.round(SLEET_POOL_SIZE * amount * areaFactor(card.offsetWidth, card.offsetHeight)));
     }
 
-    /** New amounts while it sleets: pellets join from above the card, or leave at the end of their fall */
-    protected onAmountsChange(_previous: EngineAmounts | null, _quick: boolean): void {
-        this.pool?.resize(this.pelletCount(), 1.5).forEach(pellet => this.addParticle(pellet));
+    /** New amounts while it sleets: pellets join from above the card, or leave at the end of their fall; the slide's hours at once, as snow's */
+    protected onAmountsChange(_previous: EngineAmounts | null, quick: boolean): void {
+        this.pool?.resize(this.pelletCount(), 1.5, quick).forEach(pellet => this.addParticle(pellet));
     }
 
     /** One constant-speed fall, like snow's but quicker and straighter. */

@@ -129,9 +129,12 @@ export class SnowAnimation extends BaseAnimation {
         return snowPoolSize(amount, card.offsetWidth, card.offsetHeight);
     }
 
-    /** New amounts while it snows: flakes join from above the card, or leave at the end of their fall */
-    protected onAmountsChange(_previous: EngineAmounts | null, _quick: boolean): void {
-        this.pool?.resize(this.flakeCount(), 6).forEach(flake => this.addParticle(flake));
+    /**
+     * New amounts while it snows: flakes join from above the card, or leave at the end of their fall. Snow falls
+     * slowly, so the slide's hours (quick) show their own at once: flakes join part-way down, and leave unseen.
+     */
+    protected onAmountsChange(_previous: EngineAmounts | null, quick: boolean): void {
+        this.pool?.resize(this.flakeCount(), 6, quick).forEach(flake => this.addParticle(flake));
     }
 
     /**

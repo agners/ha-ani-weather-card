@@ -144,6 +144,26 @@ describe('a pool that grows and shrinks (auto mode\'s amounts)', () => {
         pool.stop();
     });
 
+    it('shows the slide\'s hours at once: new particles start part-way through, and the ones let go step out of sight', () => {
+        const warmth: boolean[] = [];
+        const pool = new ParticlePool(layer, () => document.createElement('i'), (el, next, warm) => { warmth.push(warm); return cycle(el, next); });
+        pool.start(4);
+        warmth.length = 0;
+        const added = pool.resize(6, 6, true);
+        expect(added).toHaveLength(2);
+        expect(warmth).toEqual([true, true]);
+        expect(added.every(el => el.style.visibility === '')).toBe(true);
+        pool.resize(3, 6, true);
+        const hidden = [...layer.children].filter(el => (el as HTMLElement).style.visibility === 'hidden');
+        expect(hidden).toHaveLength(3);
+        // The next hour wants one back: it shows again, and keeps falling
+        pool.resize(4, 6, true);
+        expect([...layer.children].filter(el => (el as HTMLElement).style.visibility === 'hidden')).toHaveLength(2);
+        completeAll(0);
+        expect(layer.children.length).toBe(4);
+        pool.stop();
+    });
+
     it('holds a waiting particle while paused', () => {
         const pool = new ParticlePool(layer, () => document.createElement('i'), cycle);
         pool.start(1);

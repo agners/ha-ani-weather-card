@@ -1511,10 +1511,19 @@ describe('a weather card without the forecast follows a card dragged on its weat
     const rootOf = (card: Card) => card.querySelector('.animated-weather-card') as HTMLElement;
     const text = (card: Card, sel: string) => rootOf(card).querySelector(sel)?.textContent ?? '';
 
-    it('loads and reads nothing until a card on its weather is dragged', async () => {
+    it('in auto mode reads only the hour under way, for how much weather to show, and loads nothing', async () => {
         const hass = makeHass();
         const subscribe = vi.spyOn(hass.connection, 'subscribeMessage');
         const card = mount({}, hass);
+        await settle();
+        expect(extrasOf(card)).toBeUndefined();
+        expect(subscribe.mock.calls.map(([, m]) => m.forecast_type)).toEqual(['hourly']);
+    });
+
+    it('loads and reads nothing until a card on its weather is dragged', async () => {
+        const hass = makeHass();
+        const subscribe = vi.spyOn(hass.connection, 'subscribeMessage');
+        const card = mount({ engine_mode: 'manual' }, hass);
         await settle();
         expect(extrasOf(card)).toBeUndefined();
         // Another weather's needle, and a card coming home, are no drag on its weather

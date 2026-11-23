@@ -67,14 +67,19 @@ export class ParticlePool {
      * Grow or shrink to `count` without a snap. New particles start their first cycle from its beginning (rain from
      * above the card), spread over `staggerSec` so they don't arrive as a sheet, and wait unseen until then. A particle
      * let go finishes the cycle it's in (its fall) and leaves at its end. Growing again first keeps ones on their way
-     * out. Returns the new elements.
+     * out. `quick` is the slide's, where an hour shows its own at once: new particles start part-way through their
+     * cycle, as the pool's first ones do, and the ones let go step out of sight at once (they still leave at the end
+     * of their cycle). Returns the new elements.
      */
-    resize(count: number, staggerSec = 1): HTMLElement[] {
+    resize(count: number, staggerSec = 1, quick = false): HTMLElement[] {
         if (!this.running) return [];
         const target = Math.max(0, Math.round(count));
         const live = this.items.filter(item => !item.retiring);
         if (target < live.length) {
-            live.slice(target).forEach(item => { item.retiring = true; });
+            live.slice(target).forEach(item => {
+                item.retiring = true;
+                if (quick) item.el.style.visibility = 'hidden';
+            });
             return [];
         }
         let missing = target - live.length;
@@ -82,6 +87,7 @@ export class ParticlePool {
             if (missing <= 0) break;
             if (item.retiring) {
                 item.retiring = false;
+                if (item.anim) item.el.style.visibility = '';
                 missing--;
             }
         }
@@ -94,8 +100,10 @@ export class ParticlePool {
             const item: PoolItem = { el };
             this.items.push(item);
             created.push(el);
-            const delay = staggerSec * Math.random();
-            if (gsap?.delayedCall && delay > 0) {
+            const delay = quick ? 0 : staggerSec * Math.random();
+            if (quick) {
+                this.run(item, true);
+            } else if (gsap?.delayedCall && delay > 0) {
                 item.anim = gsap.delayedCall(delay, () => this.run(item, false)) as PoolAnimation;
                 if (this.paused) item.anim.pause();
             } else {
