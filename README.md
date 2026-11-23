@@ -171,8 +171,8 @@ To update a manual install, overwrite the files and raise the `?v=` number in th
 
 1. Edit your dashboard, select **Add card** and search for **Animated Weather Card**. It starts on your weather entity and `sun.sun`.
 2. If you have more than one weather entity, pick the one you want. That's enough to start.
-3. The editor opens on the basics: the place name, the layout (regular, compact or nightstand), the sky's colours or your theme's, the forecast and the weather note.
-4. Everything else is under **Show all settings**, the advanced settings switch at the top. It adds settings inside the same sections, and five more sections that open when you tap them: **Readings**, **Sky and motion**, **Custom colors**, **Planes** and **Interactions**. The editor remembers it in this browser; it's never part of the card's YAML. Any setting you've changed shows with the switch off too. The forecast card's and the sun tracker's editors open on their basics the same way, with the same switch.
+3. The editor opens on seven layouts to [start from](#start-from-a-preset), then the basics: the place name, the sky's colours or your theme's, the forecast and the weather note.
+4. Everything else is under **Show all settings**, the advanced settings switch at the top, the layout's own choice among it (regular, compact or nightstand). It adds settings inside the same sections, and five more sections that open when you tap them: **Readings**, **Sky and motion**, **Custom colors**, **Planes** and **Interactions**. The editor remembers it in this browser; it's never part of the card's YAML. Any setting you've changed shows with the switch off too. The forecast card's and the sun tracker's editors open on their basics the same way, with the same switch.
 
 For the sun tracker, search for **Animated Sun Tracker**. It starts on `sun.sun`, with your moon sensor if you have one. For the forecast card, search for **Animated Forecast**. It starts on your weather entity.
 
@@ -188,6 +188,33 @@ entity: weather.forecast_home
 ## Examples
 
 Every example below is a complete card configuration. Replace the entity IDs with your own.
+
+### Start from a preset
+
+The editor opens on seven layouts. Each is a few ordinary options, written into the card's YAML, which you can keep changing. Picking one sets the options that make the layout and leaves the rest as you set them: the entity, your sensors, the readings, the colours, the note, the planes and the actions. It also takes back any size you gave the card, so it asks for the rows it needs.
+
+| Preset | What it writes | In a sections view |
+| --- | --- | --- |
+| Standard | nothing: the card as it comes | 4 rows |
+| Simple | `show_attributes: false`: the sky, the temperature and the condition | 4 rows |
+| Forecast | `show_forecast: true`: the next hours under the readings | 8 rows |
+| Full info | `show_forecast`, `show_days`, `show_clock` and `show_date`: the time and date, the hours and the week | 12 rows |
+| Strip | `compact: true`: one line, to sit under other cards | 2 rows |
+| Bedside | `layout: nightstand`: [a clock](#a-nightstand) that goes red on black at night | 6 rows |
+| Wall | the forecast with `show_clock` and `show_date`, and `grid_options` of full width and 10 rows | the section's width |
+
+[The wall](#the-wall) needs the card at least 640 × 540 px. In a sections view, open the section's settings and set its **Width** to Double, or put the card in a [panel view](#wall-tablet). In a narrower section it's the forecast with the time and date.
+
+```yaml
+type: custom:animated-weather-card
+entity: weather.forecast_home
+show_forecast: true
+show_clock: true
+show_date: true
+grid_options:
+  columns: full
+  rows: 10
+```
 
 ### The essentials
 
@@ -347,7 +374,7 @@ grid_options:
 
 ### Wall tablet
 
-A panel view gives the card the whole screen. Above 640 px wide, the metrics move to the right of a larger temperature. With `show_forecast`, a frame this size lays out [the wall](#the-wall) instead. This is a view configuration: paste it in the dashboard's raw configuration editor, under `views:`.
+A panel view gives the card the whole screen. Above 640 px wide, the metrics move to the right of a larger temperature. With `show_forecast`, a frame this size lays out [the wall](#the-wall) instead, as the [Wall preset](#start-from-a-preset) does in a section of Double width. This is a view configuration: paste it in the dashboard's raw configuration editor, under `views:`.
 
 ```yaml
 title: Weather
@@ -456,7 +483,7 @@ To have a tap do something else, set `tap_action`, or pick it under **Interactio
 
 ### The wall
 
-With the forecast on, a card of at least 640 × 540 px, such as two sections columns by ten rows on a wall tablet, a panel view or a TV, lays itself out for reading across the room. Every size follows the panel's, so a bigger screen is the same picture seen from further away.
+With the forecast on, a card of at least 640 × 540 px, such as two sections columns by ten rows on a wall tablet (the [Wall preset](#start-from-a-preset)), a panel view or a TV, lays itself out for reading across the room. Every size follows the panel's, so a bigger screen is the same picture seen from further away.
 
 ![The wall on a 1280 × 800 tablet: the time, the date and the temperature at the top left, open sky, and at the foot the line on what turns over the hours, with five days beside them](docs/images/wall-panel.webp)
 

@@ -89,7 +89,7 @@ entity: weather.forecast_home</code></pre>
                 </li>
                 <li class="step">
                     <h3>Make it yours</h3>
-                    <p>Add <a href="#forecast">the forecast and the clock</a>, have <a href="#note">your AI write a note</a> about the hours ahead, wire in <a href="#sensors">your own sensors</a>, pair it with <a href="#tracker">the sun tracker</a>, or watch <a href="#planes">real planes</a> cross it.</p>
+                    <p>Start from <a href="#presets">one of seven layouts</a>, add <a href="#forecast">the forecast and the clock</a>, have <a href="#note">your AI write a note</a> about the hours ahead, wire in <a href="#sensors">your own sensors</a>, pair it with <a href="#tracker">the sun tracker</a>, or watch <a href="#planes">real planes</a> cross it.</p>
                 </li>
             </ol>
         </section>
@@ -168,8 +168,12 @@ entity: weather.forecast_home</code></pre>
                     <h2 id="first-card-title"><a class="anchor" href="#first-card">Your first card</a></h2>
 
                     <h3 id="editor">In the editor</h3>
-                    <p>Add the card and it's working: it starts on your weather entity. If you have more than one, pick the one you want. The editor opens on the basics: the place name, the layout (regular, compact or nightstand), the colours, the forecast and the weather note. Everything else is under <b>Show all settings</b>, the switch at the top: more settings in the same sections, and <b>Readings</b>, <b>Sky and motion</b>, <b>Custom colors</b>, <b>Planes</b> and <b>Interactions</b> after them. A setting you've changed shows either way. The forecast card's and the sun tracker's editors work the same way, with the same switch.</p>
+                    <p>Add the card and it's working: it starts on your weather entity. If you have more than one, pick the one you want. The editor opens on seven layouts to <a href="#presets">start from</a>, then the basics: the place name, the colours, the forecast and the weather note. Everything else is under <b>Show all settings</b>, the switch at the top: more settings in the same sections, the layout's own choice (regular, compact or nightstand) among them, and <b>Readings</b>, <b>Sky and motion</b>, <b>Custom colors</b>, <b>Planes</b> and <b>Interactions</b> after them. A setting you've changed shows either way. The forecast card's and the sun tracker's editors work the same way, with the same switch.</p>
                     <p>In Home Assistant 2026.6 and later, the <b>By entity</b> tab suggests the card too. Pick your weather entity, and it's under <b>Community</b> in four of its presets (Standard, Forecast, Full info and Strip), with the forecast card and its strip beside it.</p>
+
+                    <h3 id="presets">Start from a preset</h3>
+                    <p>Seven layouts, each a few ordinary options you can keep changing: <b>Standard</b>, the card as it comes; <b>Simple</b>, the sky, the temperature and the condition; <b>Forecast</b>, the next hours under the readings; <b>Full info</b>, the time and date, the hours and the week; <b>Strip</b>, one line; <b>Bedside</b>, a clock that goes red on black at night; and <b>Wall</b>, a panel to read across the room. Picking one sets the options that make the layout and leaves the rest as you set them, and the card asks for the rows it needs. <a href="../#layouts">The demo</a> shows each one.</p>
+                    <p>The wall needs the card at least 640 × 540 px. In a sections view, open the section's settings and set its <b>Width</b> to Double, or use a <a href="#size">panel view</a>; in a narrower section it's the forecast with the time and date.</p>
 
                     <h3 id="yaml">In YAML</h3>
                     <p>A weather entity is the one thing the card needs. The sun entity is optional: it adds the next sunset, or sunrise, to the metrics. The sky follows <code>sun.sun</code> either way.</p>
@@ -195,7 +199,7 @@ sun_entity: sun.sun</code></pre>
                             </tbody>
                         </table>
                     </div>
-                    <p>In a masonry view, the card grows to fit its content. On a wall tablet, a panel view gives it the whole screen, and from 640 px wide the metrics move beside a larger temperature. With <a href="#forecast">the forecast</a> on and at least 640 × 540 px, it lays itself out for reading across the room: a larger temperature, the clock with the date, the hours in two-hour steps and five days beside them.</p>
+                    <p>In a masonry view, the card grows to fit its content. On a wall tablet, a panel view gives it the whole screen, and from 640 px wide the metrics move beside a larger temperature. With <a href="#forecast">the forecast</a> on and at least 640 × 540 px, it lays itself out for reading across the room: a larger temperature, the clock with the date, the hours in two-hour steps and five days beside them. In a sections view, the <a href="#presets">Wall preset</a> in a section of Double width does the same.</p>
                     <div class="code" data-lang="yaml">
                         <div class="code-bar"><span class="code-name">A panel view, for a wall tablet</span><button type="button" class="copy"><span class="copy-icon" aria-hidden="true"></span><span class="copy-label">Copy</span></button></div>
                         <pre><code>title: Weather
