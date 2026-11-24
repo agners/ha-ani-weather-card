@@ -438,6 +438,16 @@
                         <label><input type="radio" name="tracker-layout" value="wide"><span>Wide</span></label>
                     </div>
                 </fieldset>
+                <fieldset class="field compare-picker" id="tracker-compare">
+                    <legend>Compare with</legend>
+                    <div class="segmented" style="--count: 4; --index: 0">
+                        <span class="segmented-thumb" aria-hidden="true"></span>
+                        <label><input type="radio" name="tracker-compare" value="day" checked><span>Yesterday</span></label>
+                        <label><input type="radio" name="tracker-compare" value="week"><span>Last week</span></label>
+                        <label><input type="radio" name="tracker-compare" value="month"><span>Last month</span></label>
+                        <label><input type="radio" name="tracker-compare" value="none"><span>Off</span></label>
+                    </div>
+                </fieldset>
             </div>
 
             <div class="frame-stage room tracker-stage" id="tracker-stage" data-dashboard="dark">

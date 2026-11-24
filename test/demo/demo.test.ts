@@ -10,7 +10,7 @@ import { join } from 'node:path';
 import {
     AHEAD_ROWS, CARD_ROWS, CONDITIONS, DASHBOARD, DEVICES, ENGINE, ENTITIES, HA, NOTES, NOTE_FORECASTS, NOTE_VOICES, OPEN_METEO, PAINTS, PALETTES, PHASES,
     QUIET, STATION, VOICE_NOTES, aheadYaml, buildHass, forgetNotes, liveForecast, noteYaml, rowsHeight,
-    colorsYaml, conditionIcon, configYaml, customColors, dashboardLayout, dashboardYaml, engineSettings, engineYaml,
+    colorsYaml, conditionIcon, configYaml, customColors, dashboardLayout, dashboardSections, dashboardYaml, engineSettings, engineYaml,
     formatEngineValue, liveReading, minutesFor, moonPhase, nextFlight, paletteOf, phaseForHour, phaseForSun, placeName,
     noteFor, quietOptions, solarAt, solarElevation, solarTimes, stationStates, sunAt, sunAttributes, trackerYaml, weatherState,
     wmoCondition, SUN_TIMES, SAMPLE_PLACE, trackerHass, STATION_OPTIONS, stationReadings,
@@ -272,6 +272,12 @@ describe('the demo\'s sample world', () => {
         for (const option of options(card)) expect(tracker).toContain(`config.${option}`);
         expect(card).toContain('# The moon phase comes from the Moon integration\nmoon_entity: sensor.moon_phase');
 
+        // Compare with: nothing for yesterday, the card's default; the option otherwise
+        expect(card).not.toContain('daylight_delta');
+        expect(trackerYaml({ compare: 'week' })).toContain('daylight_delta: week  # against last week');
+        expect(trackerYaml({ compare: 'none' })).toContain('daylight_delta: none');
+        for (const option of options(trackerYaml({ compare: 'month' }))) expect(tracker).toContain(`config.${option}`);
+
         const wall = trackerYaml({ layout: 'wide', colors: 'theme' });
         expect(wall.startsWith('# Wall: ')).toBe(true);
         for (const option of options(wall)) expect(tracker).toContain(`config.${option}`);
@@ -449,6 +455,11 @@ describe('the demo\'s sample world', () => {
         expect(lines).toContain('  sunny_bg: "#1f6f8b"');
         // Custom skies paint the sky palette only
         expect(configYaml({ colors: 'theme', paints: { sunny_bg: '#1f6f8b' } })).not.toContain('custom_colors');
+    });
+
+    it('puts Sydney straight after Home in one column, where the frame holds two sections, and leaves the order alone in more', () => {
+        expect(dashboardSections(1).map(s => s.id)).toEqual(['home', 'away', 'today', 'house']);
+        expect(dashboardSections(2)).toBe(DASHBOARD);
     });
 
     it('lays the dashboard out as Home Assistant does on each screen', () => {

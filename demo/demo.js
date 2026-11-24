@@ -6,10 +6,10 @@
 
 import {
     AHEAD_ROWS, AWAY, CARD_ROWS, CONDITIONS, DASHBOARD, DEVICES, ENGINE, ENTITIES, HA, NOTE_FORECASTS, NOTE_VOICES, OPEN_METEO, PAINTS, PALETTES, PHASES, PRESETS, QUIET, WALL_MIN, presetYaml,
-    STATION, SUN_TIMES, aheadYaml, buildHass, colorsYaml, conditionIcon, configYaml, customColors, dashboardLayout, dashboardYaml,
+    STATION, SUN_TIMES, aheadYaml, buildHass, colorsYaml, conditionIcon, configYaml, customColors, dashboardLayout, dashboardSections, dashboardYaml,
     engineSettings, engineYaml, forgetNotes, formatEngineValue, liveReading, minutesFor, nextFlight, noteYaml, paletteOf,
     phaseForHour, phaseForSun, placeName, quietOptions, rowsHeight, WEATHER_INPUTS, WEATHER_READINGS, formatWeatherInput, weatherInputs, weatherYaml,
-    solarAt, solarTimes, stationStates, stationReadings, STATION_OPTIONS, sunAt, trackerYaml, trackerHass, SAMPLE_PLACE, weatherState, wmoCondition,
+    solarAt, solarTimes, stationStates, stationReadings, STATION_OPTIONS, sunAt, trackerYaml, trackerHass, TRACKER_COMPARE, SAMPLE_PLACE, weatherState, wmoCondition,
 } from './scene.mjs';
 import { copyButton, highlight, svgIcon } from './code.mjs';
 
@@ -1203,7 +1203,7 @@ const dash = (() => {
         el.innerHTML = `${layout.sidebar ? sidebarHtml() : ''}<div class="ha-main">
             <div class="ha-toolbar" aria-hidden="true">${layout.sidebar ? '' : `<span class="ha-icon-button">${svgIcon('mdi:menu')}</span>`}<span class="ha-title">Overview</span>
                 <span class="ha-tools"><span class="ha-icon-button">${svgIcon('mdi:magnify')}</span><span class="ha-icon-button">${svgIcon('mdi:dots-vertical')}</span></span></div>
-            <div class="ha-view" style="--columns: ${layout.columns}">${DASHBOARD.map(s => sectionHtml(s, layout.columns)).join('')}</div>
+            <div class="ha-view" style="--columns: ${layout.columns}">${dashboardSections(layout.columns).map(s => sectionHtml(s, layout.columns)).join('')}</div>
         </div>`;
         const cards = [];
         const make = (tag, config) => {
@@ -1768,6 +1768,9 @@ function drawEvents() {
 }
 drawEvents();
 
+/** What the trackers in this section compare today's sun with: daylight_delta, yesterday as the card comes */
+let trackerCompare = 'day';
+
 /** Card and wall: the tracker on its own. Compact: under the weather card, sharing its sky, as it's built to sit. */
 function buildTrackerScene(layout) {
     const palette = state.colors === 'sky' ? 'default' : 'theme';
@@ -1797,6 +1800,7 @@ function buildTrackerScene(layout) {
         weather_entity: ENTITIES.weather,
         compact: layout === 'compact',
         color_palette: palette,
+        ...(trackerCompare === 'day' ? {} : { daylight_delta: trackerCompare }),
         // The page's scrubber runs left to right, so the sun does too, wherever you are
         direction: 'left_to_right',
     });
@@ -1814,7 +1818,7 @@ const sunFrame = createFrame({
     build: buildTrackerScene,
     captions: {
         regular: 'On a phone, at its real width.',
-        compact: 'Under the weather card, sharing its sky.',
+        compact: 'Under the weather card, sharing its sky. After the countdown, how much earlier or later than the day you compare with.',
         wide: 'In a section that spans two columns, or a panel view.',
     },
     label: (name) => `Live preview of the sun tracker, ${name}`,
@@ -2046,12 +2050,22 @@ $('#phases').addEventListener('click', (event) => {
 let trackerText = '';
 function renderTrackerYaml() {
     const seen = trackerText ? trackerText.trimEnd().split('\n').map(line => line.trim()) : null;
-    trackerText = trackerYaml({ layout: sunFrame.view.layout, colors: state.colors === 'sky' ? 'sky' : 'theme' });
+    trackerText = trackerYaml({ layout: sunFrame.view.layout, colors: state.colors === 'sky' ? 'sky' : 'theme', compare: trackerCompare });
     trackerYamlEl.innerHTML = trackerText.trimEnd().split('\n')
         .map(line => `<span class="y-line${seen && !seen.includes(line.trim()) ? ' is-new' : ''}">${highlight(line)}</span>`).join('');
 }
 renderTrackerYaml();
 copyButton($('#tracker-copy'), () => trackerText, trackerYamlEl);
+
+// Compare with: a new card on the same size, as a new daylight_delta gives a dashboard; its YAML follows in onShow
+$('#tracker-compare').addEventListener('change', (event) => {
+    const input = event.target;
+    if (input.type !== 'radio' || !(input.value in TRACKER_COMPARE)) return;
+    trackerCompare = input.value;
+    const control = input.closest('.segmented');
+    control.style.setProperty('--index', [...control.querySelectorAll('input')].indexOf(input));
+    sunFrame.mount();
+});
 
 new ResizeObserver(placeScrubber).observe(sunFrame.stage);
 document.fonts?.ready.then(placeScrubber);

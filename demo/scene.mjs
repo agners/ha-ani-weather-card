@@ -994,6 +994,17 @@ export const DASHBOARD = [
     ] },
 ];
 
+/**
+ * The sections in the order a screen shows them. In one column (a phone) the frame holds two sections and a start of
+ * the third, so Sydney comes straight after Home: another place is the one thing only this dashboard shows, and
+ * Today's strip over its tracker is the same pair.
+ */
+export function dashboardSections(columns) {
+    if (columns > 1) return DASHBOARD;
+    const away = DASHBOARD.find(s => s.id === 'away');
+    return [DASHBOARD[0], away, ...DASHBOARD.slice(1).filter(s => s !== away)];
+}
+
 /** The dashboard as a sections view, with the cards it shows and a tile for the rest. */
 export function dashboardYaml({ colors = 'sky' } = {}) {
     const theme = colors === 'theme' ? ['color_palette: theme'] : [];
@@ -1400,7 +1411,10 @@ export function trackerHass(data, where = SAMPLE_PLACE) {
     return { ...data, config: { ...data.config, latitude: where.latitude, longitude: where.longitude } };
 }
 
-export function trackerYaml({ layout = 'regular', colors = 'sky' } = {}) {
+/** What the tracker compares today's sun with (daylight_delta), yesterday unless the page picks another */
+export const TRACKER_COMPARE = { day: 'yesterday', week: 'last week', month: 'last month', none: null };
+
+export function trackerYaml({ layout = 'regular', colors = 'sky', compare = 'day' } = {}) {
     const theme = colors === 'theme' ? ['color_palette: theme  # follows your Home Assistant theme'] : [];
     const tracker = [
         'type: custom:animated-sun-tracker-card',
@@ -1409,6 +1423,7 @@ export function trackerYaml({ layout = 'regular', colors = 'sky' } = {}) {
         'moon_entity: sensor.moon_phase',
         'weather_entity: weather.forecast_home',
         ...(layout === 'compact' ? ['compact: true'] : []),
+        ...(compare === 'none' ? ['daylight_delta: none  # no comparison'] : compare !== 'day' && TRACKER_COMPARE[compare] ? [`daylight_delta: ${compare}  # against ${TRACKER_COMPARE[compare]}`] : []),
         ...theme,
     ];
     if (layout === 'wide') tracker.unshift('# Wall: a panel view gives the card the whole screen');

@@ -540,7 +540,8 @@ a { color: inherit; }
     transition: transform 0.36s var(--ease-out-quint);
 }
 .segmented label { position: relative; z-index: 1; }
-.segmented span {
+/* The labels' spans only: the thumb is a span too, and this rule's transition would replace its slide */
+.segmented label span {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1089,6 +1090,8 @@ a { color: inherit; }
 .tracker-title { grid-column: 1; }
 .tracker-copy { grid-column: 2; }
 .tracker-copy .section-lede { margin: 0 0 18px; }
+.tracker-copy .compare-picker { margin-top: 18px; }
+.compare-picker .segmented span { padding-inline: 6px; }
 /* The group under the view waits for the card, then follows it in */
 .tracker-stage .frame-after { transition-delay: 0.35s; }
 /* The section ends where its content ends: the box keeps its size for the
@@ -1869,8 +1872,9 @@ a { color: inherit; }
     .reading-dot, .reading-value { transition-delay: 0ms !important; }
     .weather-live.is-finding .glyph svg { animation: none; opacity: 0.6; }
     .stage.is-ready .stage-light { transition: opacity 0.2s ease !important; }
-    .frame-figure { transition: none; }
-    .frame-after { transition-duration: 0.2s; transition-delay: 0s; }
+    /* With the stages' own selectors: theirs outrank the plain ones, and the frame would still glide */
+    .frame-figure, .dash-stage .frame-figure { transition: none; }
+    .frame-after, .tracker-stage .frame-after { transition-duration: 0.2s; transition-delay: 0s; }
     /* Planes never take off under reduced motion, and the plane button is
        that row's only control */
     .field-actions { display: none !important; }

@@ -216,7 +216,7 @@ cards:
                     <p>In the editor's <b>Forecast and clock</b> section: the <b>Forecast</b> switch, and with <b>Show all settings</b> on, <b>Time and date</b>. The clock puts the time at the start of the location line. The forecast adds today's high and low beside the condition, a line on what turns (<i>Rain from 17:00 to 19:00</i>, <i>Dry all day</i>), and the next hours in a row at the card's foot, under the readings. Both read the forecast your weather integration already provides; there's nothing else to set up.</p>
 
                     <h3 id="forecast-on">Turn it on</h3>
-                    <p>The clock follows your profile's 12- or 24-hour setting and its time zone, and adds no rows. <code>show_date</code> puts the date after it, and <code>hero: clock</code> makes the time the big value, in the temperature's place, with the temperature leading the condition's line. The row shows the temperature first; <code>forecast_metric</code> picks something else. <code>forecast_graph</code> draws it as a line, the line over a soft fill (<code>area</code>), bars, or the values alone (<code>none</code>), the same for every metric.</p>
+                    <p>The clock follows your profile's 12- or 24-hour setting and its time zone, and adds no rows. <code>show_date</code> puts the date after it, and <code>hero: clock</code> makes the time the big value, in the temperature's place, with the temperature leading the condition's line. The row shows the temperature first; <code>forecast_metric</code> picks something else. <code>forecast_graph</code> draws it as a line, the line over a soft fill (<code>area</code>), bars, or the values alone (<code>none</code>), the same for every metric. <code>show_days</code> puts the week under the hours and their chips, <code>forecast_days</code> of them, and the card asks for a row more for every two days.</p>
                     <div class="code" data-lang="yaml">
                         <div class="code-bar"><span class="code-name">Card YAML</span><button type="button" class="copy"><span class="copy-icon" aria-hidden="true"></span><span class="copy-label">Copy</span></button></div>
                         <pre><code>type: custom:animated-weather-card
@@ -229,7 +229,9 @@ show_date: true          # the date after the time
 hero: clock              # the time as the big value
 forecast_metric: chance  # temp, feels, chance, amount, uv, wind, gust, humidity, dew, cloud or pressure
 show_chips: false        # no chips: the hours stay on forecast_metric
-forecast_graph: bars     # line, area, bars or none</code></pre>
+forecast_graph: bars     # line, area, bars or none
+show_days: true          # the week under the hours
+forecast_days: 5         # how many days: 7 unless you say</code></pre>
                     </div>
 
                     <h3 id="slide">Drag through the hours</h3>
