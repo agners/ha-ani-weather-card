@@ -228,6 +228,7 @@ show_forecast: true
 show_date: true          # the date after the time
 hero: clock              # the time as the big value
 forecast_metric: chance  # temp, feels, chance, amount, uv, wind, gust, humidity, dew, cloud or pressure
+show_chips: false        # no chips: the hours stay on forecast_metric
 forecast_graph: bars     # line, area, bars or none</code></pre>
                     </div>
 
@@ -259,6 +260,15 @@ entity: weather.forecast_home
 # Optional
 forecast_days: 5  # 0 to 10
 weather_effects: true  # rain, snow and wind behind it</code></pre>
+                    </div>
+                    <p>For one value per card, say the rain on one and the temperature on another, set what each opens on with <code>forecast_metric</code> (<b>Hours show</b> in its editor) and leave out the chips that change it. A chip you tap on the card isn't kept when the dashboard reloads. <code>show_summary: false</code> leaves out the line at the top too.</p>
+                    <div class="code" data-lang="yaml">
+                        <div class="code-bar"><span class="code-name">Card YAML</span><button type="button" class="copy"><span class="copy-icon" aria-hidden="true"></span><span class="copy-label">Copy</span></button></div>
+                        <pre><code>type: custom:animated-forecast-card
+entity: weather.forecast_home
+forecast_metric: amount  # the rain's amount
+show_chips: false        # no chips: it stays on the amount
+show_summary: false      # no line at the top</code></pre>
                     </div>
                     <p>As a strip, it sits under the compact weather card: the hours alone, lined up with the card's text.</p>
                     <div class="code" data-lang="yaml">
