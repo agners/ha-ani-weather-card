@@ -262,7 +262,7 @@ export function sectionShown<C = Config>(ids: readonly string[], config: C, x: R
 
 /** What the forecast card does when an option is left out */
 export const FORECAST_DEFAULTS: Readonly<Record<string, unknown>> = {
-    compact: false, color_palette: 'default', show_hours: true, forecast_days: 7, forecast_metric: 'temp', show_chips: true, forecast_graph: 'line',
+    compact: false, color_palette: 'default', show_hours: true, show_summary: true, forecast_days: 7, forecast_metric: 'temp', show_chips: true, forecast_graph: 'line',
     weather_effects: false, sun_entity: 'sun.sun', dev_mode: false,
 };
 
@@ -275,6 +275,7 @@ export const FORECAST_TABLE: RowTable = {
         entity: { tier: 'basic', keys: ['entity'] },
         layout: { tier: 'basic', keys: ['compact'] },
         color_palette: { tier: 'basic', keys: ['color_palette'] },
+        show_summary: { tier: 'all', keys: ['show_summary'], when: c => !strip(c) },
         show_hours: { tier: 'all', keys: ['show_hours'], when: c => !strip(c) },
         forecast_days: { tier: 'all', keys: ['forecast_days'], when: c => !strip(c) },
         // What the hours show is the one thing most cards change, so it's a basic: two cards, one on rain, one on the temperature
@@ -291,7 +292,7 @@ export const FORECAST_TABLE: RowTable = {
     },
     sections: {
         forecast: ['entity', 'layout', 'color_palette', 'forecast_metric'],
-        shows: ['show_hours', 'forecast_days', 'show_chips', 'forecast_graph', 'weather_effects'],
+        shows: ['show_summary', 'show_hours', 'forecast_days', 'show_chips', 'forecast_graph', 'weather_effects'],
         sky: ['sun_entity', 'another_place', 'place_fields'],
         interactions: ['actions'],
         dev: ['dev_mode'],

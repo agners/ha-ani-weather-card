@@ -89,6 +89,7 @@ export class AnimatedForecastCardEditor extends HTMLElement {
                   row('forecast_metric', select('forecast_metric', 'Hours show', 'Temperature, rain, wind and the rest: what the hours and the days open on')),
               ].join(''))}
               ${section('shows', ['shows', 'What it shows'], [
+                  row('show_summary', sw('show_summary', 'The line at the top', c.show_summary !== false, 'What turns and when: "Rain from 17:00 to 19:00". While you drag, it names the hour and brings you back to now')),
                   row('show_hours', sw('show_hours', 'The hours', c.show_hours !== false, 'The hourly row and its chips: drag it, and the sky goes there')),
                   row('forecast_days', select('forecast_days', 'Days')),
                   row('show_chips', sw('show_chips', 'Buttons under the hours', c.show_chips !== false, 'One for each value, to change what the hours show. Off, they stay on what Hours show says')),
@@ -132,6 +133,7 @@ export class AnimatedForecastCardEditor extends HTMLElement {
         const onSwitch = (id: string, apply: (checked: boolean) => Partial<ForecastCardConfig>) => {
             this.querySelector(`#${id}`)?.addEventListener('change', (e: Event) => this._update(apply((e.target as HTMLInputElement).checked)));
         };
+        onSwitch('show_summary', checked => ({ show_summary: checked ? undefined : false }));
         onSwitch('show_hours', checked => ({ show_hours: checked ? undefined : false }));
         onSwitch('show_chips', checked => ({ show_chips: checked ? undefined : false }));
         onSwitch('weather_effects', checked => ({ weather_effects: checked || undefined }));

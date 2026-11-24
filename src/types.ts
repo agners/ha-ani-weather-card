@@ -306,6 +306,8 @@ export interface AnimatedWeatherCardConfig {
     show_days?: boolean;
     /** How many days the list shows, on the forecast card and with show_days (0 to 10, default 7) */
     forecast_days?: number;
+    /** The forecast card: the line on what turns, at its top (default true). Without it there's no Now control either: the row's capsule names the hour */
+    show_summary?: boolean;
     /** The forecast card: the hourly row (default true) */
     show_hours?: boolean;
     /** The forecast card: the weather behind it, rain, snow, fog, wind and lightning (default false: the sky alone) */

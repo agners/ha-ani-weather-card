@@ -74,6 +74,8 @@ export function attachForecastCard(host: ForecastHost): ForecastExtras {
         model = buildModel(host, host.current());
         const m = model;
         card.dataset.variant = strip ? 'strip' : wide() ? 'wide' : 'regular';
+        const led = !strip && cfg().show_summary !== false;
+        if (strip || led) delete card.dataset.nolead; else card.dataset.nolead = '';
         if (!m.tl && host.forecast().settled) {
             card.innerHTML = `<p class="fc-empty">${esc(W.no_forecast)}</p>`;
             return;
@@ -81,7 +83,9 @@ export function attachForecastCard(host: ForecastHost): ForecastExtras {
         if (!m.tl) return;
         const left = wide() ? Object.assign(document.createElement('div'), { className: 'fc-left' }) : card;
         if (wide()) card.append(left);
-        if (!strip) {
+        // show_summary: false leaves the lead out, and the Now control with it: the row's capsule names the hour, and
+        // the card comes home dragged back, on Escape, or after its idle half minute
+        if (led) {
             lead = document.createElement('div');
             lead.className = 'fc-lead';
             lead.innerHTML = `<span class="fc-sentence" aria-live="polite"></span><button type="button" class="awc-now fc-now awc-noclaim" tabindex="-1" aria-label="${esc(W.back)}"><i aria-hidden="true"></i>${esc(W.now)}</button>`;

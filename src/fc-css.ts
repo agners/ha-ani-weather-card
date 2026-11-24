@@ -332,6 +332,9 @@ const FCARD_CSS = `
 .fc-fcard[data-variant="regular"] { display: flex; flex-direction: column; }
 /* The lead: the turning line at the forecast card's size (20/26, weight 500, full strength). Away from now it leads
    with the needle's hour, and the way home sits at its end. */
+/* show_summary: false. A narrow card keeps the lead's room (26 px and its 14 px margin): any higher, the row's full-strength
+   labels are in the corner light. A wide card's row is its left half, clear of it, so it rises */
+.fc-fcard[data-variant="regular"][data-nolead]::before { content: ''; flex: none; height: 40px; }
 .fc-lead { position: relative; display: flex; align-items: center; height: 26px; margin-bottom: 14px; white-space: nowrap; }
 /* Full strength holds to 0.75 of the width under the corner light */
 .fc-sentence { font-size: 20px; line-height: 26px; font-weight: 500; letter-spacing: -0.012em; min-width: 0; max-width: calc(75cqi - var(--awc-pad)); overflow: hidden; }

@@ -55,13 +55,14 @@ describe('the forecast card\'s editor', () => {
         expect(sent).toEqual([]);
         expect($('#weather-picker')).toBe(picker);
         expect(openSections()).toEqual(['forecast', 'shows', 'sky', 'interactions', 'dev']);
-        expect(openRows()).toEqual(['entity', 'layout', 'color_palette', 'forecast_metric', 'show_hours', 'forecast_days', 'show_chips', 'forecast_graph',
+        expect(openRows()).toEqual(['entity', 'layout', 'color_palette', 'forecast_metric', 'show_summary', 'show_hours', 'forecast_days', 'show_chips', 'forecast_graph',
             'weather_effects', 'sun_entity', 'another_place', 'actions', 'dev_mode']);
         radio('layout', 'strip');
         expect(sent.at(-1)).toMatchObject({ compact: true });
         expect(openRows()).not.toContain('forecast_days');
         expect(openRows()).not.toContain('show_hours');
         expect(openRows()).not.toContain('show_chips');
+        expect(openRows()).not.toContain('show_summary');
         expect(openRows()).toContain('forecast_graph');
         radio('layout', 'card');
         expect(sent.at(-1)).not.toHaveProperty('compact');

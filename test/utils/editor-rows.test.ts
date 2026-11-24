@@ -12,7 +12,7 @@ const basic: RowContext = { all: false, place: false, note: 'off', noDefaultAi: 
 const rowOf = (key: string) => Object.entries(ROWS).filter(([, spec]) => spec.keys.includes(key)).map(([id]) => id);
 
 /** The forecast card's own options, which the weather card's editor doesn't offer */
-const NOT_THE_WEATHER_CARD = ['type', 'show_hours', 'weather_effects'];
+const NOT_THE_WEATHER_CARD = ['type', 'show_summary', 'show_hours', 'weather_effects'];
 
 /** A value other than the default for each option */
 function sample(key: string): unknown {

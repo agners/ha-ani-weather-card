@@ -95,6 +95,15 @@ describe('the forecast card', () => {
         check('row', grid(range(0.02, 0.89, 0.03), range(0.13, 0.36, 0.02)), forecastSky);
         check('days', grid(range(0.02, 0.98, 0.04), range(0.45, 0.97, 0.04)), forecastSky);
     });
+    it('without its lead (show_summary: false), a narrow card keeps the lead\'s room: the row can\'t rise into the corner light', () => {
+        // Where the row would sit with the room given up, it fails; the rule that keeps the room is in the sheet
+        const high = grid(range(0.02, 0.89, 0.03), range(0.05, 0.09, 0.02));
+        const worst = Math.min(...SKY_CONDITIONS.flatMap(c => SKY_PHASES.flatMap(p => high.map(([x, y]) => { const bg = forecastSky(c, p, x, y); return contrastRatio(text, bg); }))));
+        expect(worst).toBeLessThan(4.5);
+        expect(FORECAST_CSS).toContain('.fc-fcard[data-variant="regular"][data-nolead]::before { content: \'\'; flex: none; height: 40px; }');
+        // A wide card's row is its left half, clear of the light at any height
+        check('row, wide, no lead', grid(range(0.02, 0.5, 0.03), range(0.03, 0.3, 0.02)), forecastSky);
+    });
     it('its chips and lows, tinted', () => {
         check('chips and lows', grid(range(0.02, 0.98, 0.04), range(0.35, 0.97, 0.05)), forecastSky, 0.8);
     });

@@ -550,7 +550,7 @@ entity: weather.forecast_home
 
 Each day has its name, its icon, the low, a bar and the high; the bar takes the width that's left, so the low sits by the icon. The bars share one scale for the week, from the coldest low to the warmest high, and their colour is set by the temperature: the sky's blue-white for cold, white in the middle and the sun's gold for warm. Today's bar has a dot for now, and as you drag the row the days show the day the hour falls in, with the dot on its bar at that hour's temperature. The chips change what the days show, on this card only: Feels like shows each day's feels-like range (from the hours, and the day's own figure where your integration gives one), the chance and the amount show as bars from zero, the chance on a scale to 100% and the amount to the week's wettest day. The UV index, the wind, its gusts, humidity and cloud cover show each day's own figure as a bar from zero; the dew point and the pressure show it as a mark on the week's scale. A day your integration gives no figure for shows a dash. The bars draw in with one sweep across the scale. On the theme palette, they're one solid colour. From 640 px wide, the hours sit on the left and the week on the right. In a frame shorter than it asks for, the days give way from the end. An entity without a forecast says so: "This weather entity has no forecast".
 
-One value per card: `forecast_metric` sets what the hours and the days show, and `show_chips: false` leaves out the chips that change it. A chip you tap on the card changes it only until the card is drawn again; what a card opens on is `forecast_metric`.
+One value per card: `forecast_metric` sets what the hours and the days show, and `show_chips: false` leaves out the chips that change it. `show_summary: false` leaves out the line at the top too, for the hours and the days alone. A chip you tap on the card changes it only until the card is drawn again; what a card opens on is `forecast_metric`.
 
 ```yaml
 type: vertical-stack
@@ -559,6 +559,7 @@ cards:
     entity: weather.forecast_home
     forecast_metric: amount   # the rain's amount
     show_chips: false
+    show_summary: false       # no line at the top
   - type: custom:animated-forecast-card
     entity: weather.forecast_home
     forecast_metric: temp     # the temperature
@@ -585,6 +586,7 @@ cards:
 | `latitude`, `longitude`, `time_zone` | your Home Assistant's | Another place's coordinates and time zone, as on the weather card: its sun, worked out from the coordinates, and its times |
 | `compact` | `false` | The strip: the hours alone, to sit under the compact weather card. Two rows in the sections view |
 | `forecast_days` | `7` | How many days the list shows, 0 to 10. `0` leaves the days out |
+| `show_summary` | `true` | The line at the top on what turns ("Rain from 17:00 to 19:00"). `false` leaves it out, and the Now control with it: while you drag, the capsule on the row names the hour, and the card comes back when you drag it back, or after half a minute. A narrow card keeps the line's room as sky: any higher, the hours would sit in the corner's light |
 | `show_hours` | `true` | Show the hourly row and its chips |
 | `weather_effects` | `false` | The weather behind the forecast: rain, snow, fog, wind and lightning, as on the weather card, going to the hour you drag to. Without it, the sky alone |
 | `forecast_metric` | `temp` | What the row shows first: `temp`, `feels`, `chance`, `amount`, `uv`, `wind`, `gust`, `humidity`, `dew`, `cloud` or `pressure`. One your integration doesn't report starts on the temperature |

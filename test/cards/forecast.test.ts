@@ -271,6 +271,23 @@ describe('the forecast on the weather card', () => {
         expect(card.querySelector('[data-fc-chips] [data-metric="chance"]')?.getAttribute('aria-checked')).toBe('true');
     });
 
+    it('leaves the line at the top out of the forecast card with show_summary: false, and still slides', async () => {
+        const card = mount({ show_summary: false }, undefined, 'animated-forecast-card');
+        await settle();
+        expect(card.querySelector('.fc-lead')).toBeNull();
+        expect(card.querySelector('.fc-now')).toBeNull();
+        expect((card.querySelector('.fc-fcard') as HTMLElement).dataset.nolead).toBe('');
+        expect(card.querySelector('[data-fc-hourly]')).not.toBeNull();
+        const slider = card.querySelector('[role="slider"]') as HTMLElement;
+        slider.focus();
+        slider.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+        expect(slider.getAttribute('aria-valuenow')).not.toBe('0');
+        slider.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        const usual = mount({}, undefined, 'animated-forecast-card');
+        await settle();
+        expect(usual.querySelector('.fc-lead .fc-now')).not.toBeNull();
+    });
+
     it('leaves the chips out with show_chips: false, the row and the days on forecast_metric, on both cards', async () => {
         const card = mount({ show_forecast: true, show_days: true, forecast_metric: 'chance', show_chips: false });
         await settle();
