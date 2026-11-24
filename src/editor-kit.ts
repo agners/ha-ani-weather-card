@@ -3,6 +3,10 @@
 // a choice of two or three and a section; and the pass that shows each row the table (editor-rows.ts) says should.
 // They share the weather card's editor's CSS (styles/editor.ts) too, so the three look and move alike.
 
+import {
+    mdiAirplane, mdiBedOutline, mdiClockOutline, mdiEyeOutline, mdiEyedropperVariant, mdiGauge, mdiGestureTap, mdiMapMarkerOutline,
+    mdiMessageTextOutline, mdiPaletteOutline, mdiShapeOutline, mdiWeatherPartlyCloudy, mdiWeatherWindy, mdiWhiteBalanceSunny,
+} from '@mdi/js';
 import { escapeHtml } from './utils';
 import { rowChanged, rowShown, sectionShown, type RowContext, type RowTable } from './editor-rows';
 
@@ -32,6 +36,19 @@ export function reveal(el: Element, open: boolean, instant = false): void {
 export const CHEVRON = '<svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.4 8.6 12 13.2l4.6-4.6L18 10l-6 6-6-6z"/></svg>';
 export const INFO = '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16z"/></svg>';
 
+/**
+ * An icon per section and drawer, Material Design's as Home Assistant's own are, drawn inline: they're there with the
+ * first paint, where an ha-icon arrives a moment after its row
+ */
+const SECTION_ICONS = {
+    start: mdiShapeOutline, weather: mdiWeatherPartlyCloudy, look: mdiPaletteOutline, nightstand: mdiBedOutline,
+    clock: mdiClockOutline, note: mdiMessageTextOutline, readings: mdiGauge, motion: mdiWeatherWindy,
+    colors: mdiEyedropperVariant, planes: mdiAirplane, interactions: mdiGestureTap, shows: mdiEyeOutline,
+    place: mdiMapMarkerOutline, sun: mdiWhiteBalanceSunny,
+};
+export type SectionIcon = keyof typeof SECTION_ICONS;
+export const sectionIcon = (name: SectionIcon) => `<svg class="sec-i" viewBox="0 0 24 24" aria-hidden="true"><path d="${SECTION_ICONS[name]}"/></svg>`;
+
 // The rows' markup. Labels are the editor's own text; anything from the config goes through escapeHtml
 
 /** A row: the reveal that shows and hides it, around its content */
@@ -48,9 +65,11 @@ export const seg = (key: string, legend: string, options: Array<[string, string]
     `<fieldset class="seg" id="${key}"><legend class="seg-l">${legend}</legend><div class="seg-track">${options.map(([value, label]) =>
         `<label><input type="radio" name="awc-${key}-${uid}" value="${value}"${value === current ? ' checked' : ''}><span>${label}</span></label>`).join('')}</div><p class="help" data-help="${key}"></p></fieldset>`;
 
-/** A section: a quiet heading over its rows, shown while one of them is */
-export const section = (key: string, title: string, body: string) =>
-    `<section class="rv grp" data-sec="${key}"><div class="rv-in"><div class="grp-b">${title ? `<h3 class="grp-h">${title}</h3>` : ''}${body}</div></div></section>`;
+/** A section: its heading, with its icon when it names one, over its rows, shown while one of them is */
+export const section = (key: string, title: string | [SectionIcon, string], body: string) => {
+    const [icon, text] = typeof title === 'string' ? [undefined, title] : title;
+    return `<section class="rv grp" data-sec="${key}"><div class="rv-in"><div class="grp-b">${text ? `<h3 class="grp-h">${icon ? sectionIcon(icon) : ''}<span>${text}</span></h3>` : ''}${body}</div></div></section>`;
+};
 
 /** The switch at the top, and the line a screen reader hears when it's flipped */
 export const allSwitch = (on: boolean) => `<div class="top">

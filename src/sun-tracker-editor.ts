@@ -83,12 +83,12 @@ export class AnimatedSunTrackerEditor extends HTMLElement {
         this.innerHTML = `
             <div class="card-config" data-instant>
               ${allSwitch(this.all)}
-              ${section('sun', 'Sun', [
+              ${section('sun', ['sun', 'Sun'], [
                   row('sun_entity', picker('sun-picker', 'Sun entity', c.sun_entity)),
                   row('layout', seg('layout', 'Layout', [['regular', 'Regular'], ['compact', 'Compact']], c.compact ? 'compact' : 'regular', this.uid)),
                   row('color_palette', seg('color_palette', 'Colors', [['default', 'Sky'], ['theme', 'Theme']], c.color_palette === 'theme' ? 'theme' : 'default', this.uid)),
               ].join(''))}
-              ${section('shows', 'What it shows', [
+              ${section('shows', ['shows', 'What it shows'], [
                   row('title', textField({ id: 'title', label: 'Title (optional)', value: c.title, hint: 'Above the next sunrise or sunset' })),
                   row('show_header', sw('show_header', 'Next sunrise or sunset', c.show_header !== false, 'The headline time and the countdown to it')),
                   row('show_details', sw('show_details', 'Details', c.show_details !== false, 'First and last light, solar noon, daylight and the moon')),
@@ -96,12 +96,12 @@ export class AnimatedSunTrackerEditor extends HTMLElement {
                   row('moon_entity', picker('moon-picker', 'Moon phase', c.moon_entity, 'The Moon integration\'s sensor')),
                   row('direction', select('direction', 'Direction', 'From your location, the sun runs right to left south of the equator')),
               ].join(''))}
-              ${section('sky', 'Sky and place', [
+              ${section('sky', ['place', 'Sky and place'], [
                   row('weather_entity', picker('weather-picker', 'Share the sky of', c.weather_entity, 'Without one, the sky of the weather card on the same sun')),
                   row('another_place', sw('another_place', 'Another place', this.placeOn, 'Its sun, from its coordinates, and its times in its time zone')),
                   row('place_fields', placeFieldsHtml(c)),
               ].join(''))}
-              ${section('interactions', 'Interactions', row('actions', '<div id="st-actions"></div>'))}
+              ${section('interactions', ['interactions', 'Interactions'], row('actions', '<div id="st-actions"></div>'))}
               ${section('dev', '', row('dev_mode', sw('dev_mode', 'Simulated weather', !!c.dev_mode, 'The dev card\'s sun and sky, with no sun entity needed')))}
             </div>
             <style>${getConfigEditorStyles()}${PLACE_FIELDS_CSS}</style>

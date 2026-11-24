@@ -20,7 +20,7 @@ import { mountActionsEditor, updateActionsEditor } from './action-editor';
 import { DRAWERS, ROWS, WEATHER_TABLE, isChanged, tapDefault, type RowContext } from './editor-rows';
 import { PRESETS, PRESET_KEYS, WALL_MIN, presetById, presetOf, type PresetId } from './presets';
 import { PRESET_ART } from './preset-art';
-import { CHEVRON, INFO, allSaid, allSwitch, picker, raf, reveal, row, section, seg as kitSeg, select, storeAll, storedAll, sw, syncRows, why } from './editor-kit';
+import { CHEVRON, INFO, allSaid, allSwitch, picker, raf, reveal, row, section, sectionIcon, seg as kitSeg, select, storeAll, storedAll, sw, syncRows, why, type SectionIcon } from './editor-kit';
 import { readingsOf } from './readings';
 
 type Config = AnimatedWeatherCardConfig;
@@ -197,10 +197,11 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
         const swatch = ([key, label]: [string, string], ink: boolean) =>
             `<div class="swc"><span class="chip${ink ? ` ink ink-${key.replace('_color', '')}` : ''}"><input type="color" id="${key}" value="${escapeHtml(colors[key] || AnimatedWeatherCardEditor.DEFAULT_COLORS[key])}"></span>`
             + `<label for="${key}">${label}</label><button type="button" class="tb color-reset" data-target="${key}" aria-label="Reset ${label}"${colors[key] ? '' : ' data-off'}>Reset</button></div>`;
+        const DRAWER_ICONS: Record<string, SectionIcon> = { readings: 'readings', sky: 'motion', colors: 'colors', planes: 'planes', interactions: 'interactions' };
         const drawer = (key: string, title: string, body: string, i: number) =>
             `<section class="rv drw" data-sec="${key}" style="--i:${i}"><div class="rv-in"><div class="drw-b">`
             + `<h3 class="drw-h"><button type="button" class="drw-btn" data-drawer="${key}" aria-expanded="false" aria-controls="awc-${key}-${id}">`
-            + `<span class="drw-tx"><span class="drw-t">${title}</span><span class="drw-s" data-summary="${key}"></span></span>${CHEVRON}</button></h3>`
+            + `${sectionIcon(DRAWER_ICONS[key])}<span class="drw-tx"><span class="drw-t">${title}</span><span class="drw-s" data-summary="${key}"></span></span>${CHEVRON}</button></h3>`
             + `<div class="rv drw-c" id="awc-${key}-${id}" role="region" aria-label="${title}"><div class="rv-in"><div class="drw-in">${body}</div></div></div></div></div></section>`;
 
         // Start from: the presets, a radio each, the one the card matches checked (none for a look of your own)
@@ -213,9 +214,9 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
       <div class="card-config" data-instant>
         ${allSwitch(this.all)}
 
-        ${section('start', 'Start from', row('preset', presets))}
+        ${section('start', ['start', 'Start from'], row('preset', presets))}
 
-        ${section('weather', 'Weather', [
+        ${section('weather', ['weather', 'Weather'], [
             row('entity', `${picker('entity', 'Weather entity', c.entity)}<p class="status" role="status" data-status="entity" hidden>${INFO}<span>Pick a weather entity to start.</span></p>`),
             row('name', textField({ id: 'name', label: 'Place name', placeholder: 'Weather', value: c.name, hint: 'Shown above the temperature' })),
             row('show_location', sw('show_location', 'Show the place name', c.show_location !== false)),
@@ -225,13 +226,13 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
             row('place_fields', placeFieldsHtml(c)),
         ].join(''))}
 
-        ${section('look', 'Layout and colors', [
+        ${section('look', ['look', 'Layout and colors'], [
             row('layout', seg('layout', 'Layout', [['default', 'Regular'], ['compact', 'Compact'], ['nightstand', 'Nightstand']], layout)),
             row('color_palette', seg('color_palette', 'Colors', [['default', 'Sky'], ['theme', 'Theme']], c.color_palette === 'theme' ? 'theme' : 'default')),
             row('temperature_decimals', sw('temperature_decimals', 'One decimal', Number(c.temperature_decimals) === 1, '21.5° rather than 22°')),
         ].join(''))}
 
-        ${section('nightstand', 'Nightstand', [
+        ${section('nightstand', ['nightstand', 'Nightstand'], [
             row('why_nightstand_only', why('These apply with the Nightstand layout.')),
             row('alarm_entity', picker('alarm_entity', 'Next alarm', c.alarm_entity, 'Optional. Your phone\'s next alarm sensor, or a date and time helper')),
             row('wake_time', textField({ id: 'wake_time', label: 'Wake time', placeholder: '07:00', value: c.wake_time, hint: 'When you get up without an alarm' })),
@@ -242,7 +243,7 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
             row('night_red', sw('night_red', 'Red at night', c.night_red !== false, 'Red on black, like a bedside clock')),
         ].join(''))}
 
-        ${section('forecast', 'Forecast and clock', [
+        ${section('forecast', ['clock', 'Forecast and clock'], [
             row('why_forecast_nightstand', why('The nightstand shows the time, the date and what\'s coming on its own.')),
             row('show_forecast', sw('show_forecast', 'Forecast', !!c.show_forecast, 'Today\'s high and low, the hours ahead, and the week on a tap')),
             row('forecast_days', select('forecast_days', 'Days under the hours')),
@@ -252,7 +253,7 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
             row('hero', seg('hero', 'Big number', [['temperature', 'Temperature'], ['clock', 'Time']], c.hero === 'clock' ? 'clock' : 'temperature')),
         ].join(''))}
 
-        ${section('note', 'Weather note', [
+        ${section('note', ['note', 'Weather note'], [
             row('note', `${select('note_source', 'Note')}<p class="help" data-help="note"></p><p class="status" role="status" id="note_status" hidden></p>`),
             row('why_note_compact', why('The compact card has no room for the note.')),
             row('why_note_nightstand', why('The nightstand doesn\'t show the note.')),

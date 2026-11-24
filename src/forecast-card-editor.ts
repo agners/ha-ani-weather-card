@@ -82,24 +82,24 @@ export class AnimatedForecastCardEditor extends HTMLElement {
         this.innerHTML = `
             <div class="card-config" data-instant>
               ${allSwitch(this.all)}
-              ${section('forecast', 'Forecast', [
+              ${section('forecast', ['weather', 'Forecast'], [
                   row('entity', picker('weather-picker', 'Weather entity', c.entity)),
                   row('layout', seg('layout', 'Layout', [['card', 'Card'], ['strip', 'Strip']], c.compact ? 'strip' : 'card', this.uid)),
                   row('color_palette', seg('color_palette', 'Colors', [['default', 'Sky'], ['theme', 'Theme']], c.color_palette === 'theme' ? 'theme' : 'default', this.uid)),
               ].join(''))}
-              ${section('shows', 'What it shows', [
+              ${section('shows', ['shows', 'What it shows'], [
                   row('show_hours', sw('show_hours', 'The hours', c.show_hours !== false, 'The hourly row and its chips: drag it, and the sky goes there')),
                   row('forecast_days', select('forecast_days', 'Days')),
                   row('forecast_metric', select('forecast_metric', 'Hours open on', 'Under the hours, a button for each value your forecast reports')),
                   row('forecast_graph', select('forecast_graph', 'Graph')),
                   row('weather_effects', sw('weather_effects', 'Weather', !!c.weather_effects, 'Rain, snow, fog, wind and lightning behind the forecast, going to the hour you drag to')),
               ].join(''))}
-              ${section('sky', 'Sun and place', [
+              ${section('sky', ['place', 'Sun and place'], [
                   row('sun_entity', picker('sun-picker', 'Sun', c.sun_entity, 'Sets the sky\'s time of day and the icons\' light. Usually sun.sun')),
                   row('another_place', sw('another_place', 'Weather for another place', this.placeOn, 'Its sun, and its times in its time zone')),
                   row('place_fields', placeFieldsHtml(c)),
               ].join(''))}
-              ${section('interactions', 'Interactions', row('actions', '<div id="fc-actions"></div>'))}
+              ${section('interactions', ['interactions', 'Interactions'], row('actions', '<div id="fc-actions"></div>'))}
               ${section('dev', '', row('dev_mode', sw('dev_mode', 'Simulated weather', !!c.dev_mode, 'The dev card\'s weather, with no weather entity needed')))}
             </div>
             <style>${getConfigEditorStyles()}${PLACE_FIELDS_CSS}</style>

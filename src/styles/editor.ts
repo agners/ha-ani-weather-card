@@ -2,7 +2,7 @@
  * The weather card's editor's CSS. It sits in Home Assistant's card editor
  * dialog beside the live card, so it speaks Home Assistant's vocabulary (its
  * fields and switches, its theme's colours) and adds as little chrome as it
- * can: no boxes and no icons, a hairline and a heading where each section
+ * can: no boxes, a hairline, an icon and a heading where each section
  * starts, hairlines between the drawers and the accent's tint on an open one's header. Motion uses the card's own curves (CURVE, fc-core.ts) and stays
  * under the 420 ms the forecast view takes to open; heights animate by a grid
  * track from 0fr to 1fr on rows that are always there, so nothing is drawn
@@ -19,7 +19,9 @@ ${iconBoxCss('.card-config')}
           --awc-out: cubic-bezier(0.5, 0, 0.75, 0);
           --awc-press: cubic-bezier(0.23, 1, 0.32, 1);
           display: block;
-          padding-bottom: 8px;
+          /* Room of its own either side: an open header's tint and a row's hover reach 8 px past the rows, and
+             Home Assistant's editor column clips what leaves this box */
+          padding: 0 8px 8px;
           color: var(--primary-text-color);
           font-size: 14px;
           line-height: 20px;
@@ -79,12 +81,24 @@ ${iconBoxCss('.card-config')}
           border-top: 1px solid var(--divider-color, rgba(127, 127, 127, 0.3));
         }
         .grp-h {
+          display: flex;
+          align-items: center;
+          gap: 12px;
           margin: 0 0 4px;
           font-size: 16px;
           line-height: 24px;
           font-weight: 500;
           color: var(--primary-text-color);
         }
+        /* Each section's and drawer's icon: quiet, and in the accent on an open drawer */
+        .sec-i {
+          flex: none;
+          width: 20px;
+          height: 20px;
+          fill: var(--secondary-text-color);
+          transition: fill 200ms var(--awc-press);
+        }
+        .drw-btn[aria-expanded="true"] > .sec-i { fill: var(--primary-color); }
         /* After the drawers, while they show, the last one's hairline is this section's */
         .drws[data-open] ~ [data-sec="dev"] .grp-b { margin-top: 0; padding-top: 8px; border-top: 0; }
 
