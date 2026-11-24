@@ -8,7 +8,7 @@
 [![In the Marketplace](https://img.shields.io/badge/Marketplace-Animated_Weather_Card-41BDF5.svg?style=flat-square)](https://my.home-assistant.io/redirect/marketplace_repository/?owner=alexsto1an&repository=ha-ani-weather-card&category=plugin)
 [![License](https://img.shields.io/github/license/alexsto1an/ha-ani-weather-card?style=flat-square)](https://github.com/alexsto1an/ha-ani-weather-card/blob/main/LICENSE)
 
-![Three weather cards over Lisbon, each with its note: a sunny afternoon, a thunderstorm and a clear night](docs/images/hero.webp)
+![Three weather cards over Lisbon, each with its note: a sunny afternoon, a thunderstorm and a clear night under a half moon](docs/images/hero.webp)
 
 Animated Weather Card turns a Home Assistant weather entity into a living sky. The condition and the time of day set the light. Rain, snow, fog, wind, lightning and clouds move behind the numbers, and the temperature, or the time if you'd rather, is always the first thing you read. Turn on the forecast and you can drag the card through the hours ahead. Under the conditions, your AI can write a note about them. A forecast card and a sun tracker card to match come in the same download.
 
@@ -40,19 +40,19 @@ Turn on `show_note` and the card hands Home Assistant's AI the hours ahead: when
 
 Turn on `show_forecast` and the card adds today's high and low, a line on what turns ("Rain from 17:00 to 19:00", "Dry all day") and the next hours in a row at its foot, drawn as a line, a soft area or bars. Drag the card sideways and its sky, its weather (as much rain or cloud as that hour has), the temperature and the readings go to the hour you stop at, and stay there until you come back to now. A forecast card, a sun tracker or another weather card on the same weather goes there with it. A tap opens the whole forecast: the hours, the week and every reading your weather entity reports. The forecast also comes as a card of its own, the card can show the time and the date or make the time its big value, and it can be a bedside clock, red on black at night, or a panel you read across the room. [Set it up](#the-forecast-and-the-clock).
 
-![The weather card with the forecast on a partly cloudy afternoon at 13:10, and the same card dragged to 17:00: rain falls behind the numbers, and the location line reads Now, 17:00, in 4 hr.](docs/images/forecast.webp)
+![The weather card with the forecast on a partly cloudy afternoon at 13:10, and the same card dragged to 17:00: rain falls behind the numbers, and the location line reads Now, 17:00, in 4 hr. Under the hours, the chips run on past Temp, Feels like, Chance and Amount](docs/images/forecast.webp)
 
 ## A sun tracker to match.
 
 The download includes a second card, just for the sun. It shows the sun's path across the day, with the next sunrise or sunset as the headline. Below are first light, last light, solar noon, the length of the day and the moon phase. Its sky follows the sun in the same palette as the weather card. South of the equator, the sun crosses it from right to left, as it crosses your sky.
 
-![The sun tracker in the late afternoon and after dark, with a full moon](docs/images/tracker.webp)
+![The sun tracker in the late afternoon and after dark: the sunset 1m 19s earlier than yesterday's, the sunrise 1m 44s later, the day 3m 3s shorter, and the moon at its first quarter](docs/images/tracker.webp)
 
 ## Better together.
 
 Stack a compact sun tracker under the weather card and the two read as one piece. They share your weather entity's sky, their text lines up, and rain falling out of the weather card passes behind the tracker. With the forecast on, drag the weather card through the hours and the tracker's sun goes there too. [Set it up](#weather-and-sun-tracker).
 
-![A weather card with a compact sun tracker underneath, by day and by night](docs/images/pair.webp)
+![A weather card with a compact sun tracker underneath, by day and by night, the night's under a half moon](docs/images/pair.webp)
 
 ## Fits any frame.
 
@@ -71,7 +71,7 @@ The card works in a narrow phone column, a sections grid or on a wall tablet acr
 
 Connect the [Flightradar24 integration](https://github.com/AlexandrErohin/home-assistant-flightradar24) and each flight that enters your area crosses the card once. It flies at its real heading, altitude and speed, with its flight number and aircraft type beside it, or where it's going. Each is drawn as its aircraft, from its type: an airliner, a wide-body, a 747, a regional or business jet, a turboprop, a light aircraft or a helicopter, longer for a longer aircraft. Cruising traffic flies small and high, and arrivals come in lower and larger. After dark, a plane is its lights: green or red at the wingtip facing you, flashing white strobes and a red beacon.
 
-![A Boeing 787 crossing a clear afternoon sky, and a 747 crossing a clear night, shown by its lights](docs/images/planes.webp)
+![A Boeing 787 crossing a clear afternoon sky, and a 747 crossing a clear night under a half moon, shown by its lights](docs/images/planes.webp)
 
 ## At home in any theme.
 
@@ -205,6 +205,8 @@ The editor opens on seven layouts. Each is a few ordinary options, written into 
 
 [The wall](#the-wall) needs the card at least 640 × 540 px. In a sections view, open the section's settings and set its **Width** to Double, or put the card in a [panel view](#wall-tablet). In a narrower section it's the forecast with the time and date.
 
+![Six presets on the same partly cloudy afternoon in a phone's column: Standard over Strip and Bedside, Simple over Forecast, and Full info with the time, the date, the hours and the week](docs/images/presets.webp)
+
 ```yaml
 type: custom:animated-weather-card
 entity: weather.forecast_home
@@ -263,6 +265,8 @@ The row under the hero holds humidity, wind, pressure and the next sunset or sun
 - **In the view that opens on tap:** a row with `view: true` shows there and not in the card's row. `uv_max` (today's highest UV) and a station's `rain_event`, `rain_week`, `rain_month` and `rain_year` always do. The view also shows the card's air quality and sensors.
 
 A reading that needs a sensor and names none isn't shown. One whose sensor hasn't reported yet shows "--" until it does. Drag the card through the hours and every reading the forecast reports goes to the hour, in the weather entity's units; the rest stay as they are.
+
+![Two cards with six readings each: on a sunny day, humidity, wind, a UV index of 6 High, air quality at 38 Good, CO₂ and the sunset; in the rain, Rain now at 1.2 mm/h in the UV index's place and the pressure in the sunset's](docs/images/readings.webp)
 
 ```yaml
 type: custom:animated-weather-card
