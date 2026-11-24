@@ -197,28 +197,28 @@
             </h2>
             <div class="ahead-copy">
                 <p class="section-lede">Turn on the forecast and the card adds today's high and low, when the rain starts and stops, and the hours ahead in a row. Drag it sideways and its sky, its weather and its numbers go to that hour, and the other cards on the same weather go with it. The forecast card holds the hours and the week, and its strip sits under the compact card. A tap opens the whole forecast, and the same card can be a bedside clock, red on black at night, or a panel you read across the room.</p>
+                <div class="ahead-hero" id="ahead-hero" role="radiogroup" aria-labelledby="ahead-hero-label">
+                    <span class="ahead-hero-label" id="ahead-hero-label">Big value</span>
+                    <div class="segmented" style="--count: 2; --index: 0">
+                        <span class="segmented-thumb" aria-hidden="true"></span>
+                        <label><input type="radio" name="ahead-hero" value="temperature" checked><span>Temperature</span></label>
+                        <label><input type="radio" name="ahead-hero" value="clock"><span>Time</span></label>
+                    </div>
+                </div>
+                <div class="ahead-hero ahead-days" id="ahead-days" role="radiogroup" aria-labelledby="ahead-days-label">
+                    <span class="ahead-hero-label" id="ahead-days-label">The week</span>
+                    <div class="segmented" style="--count: 2; --index: 0">
+                        <span class="segmented-thumb" aria-hidden="true"></span>
+                        <label><input type="radio" name="ahead-days" value="off" checked><span>Off</span></label>
+                        <label><input type="radio" name="ahead-days" value="on"><span>On</span></label>
+                    </div>
+                </div>
             </div>
 
             <div class="ahead-stage" id="ahead-stage" role="region" aria-label="Live preview of the forecast">
                 <figure class="ahead-slot room" id="ahead-hours" data-slot="hours" data-dashboard="dark">
                     <div class="stage-light" aria-hidden="true"></div>
                     <div class="ahead-scenes"></div>
-                    <div class="ahead-hero" id="ahead-hero" role="radiogroup" aria-labelledby="ahead-hero-label">
-                        <span class="ahead-hero-label" id="ahead-hero-label">Big value</span>
-                        <div class="segmented" style="--count: 2; --index: 0">
-                            <span class="segmented-thumb" aria-hidden="true"></span>
-                            <label><input type="radio" name="ahead-hero" value="temperature" checked><span>Temperature</span></label>
-                            <label><input type="radio" name="ahead-hero" value="clock"><span>Time</span></label>
-                        </div>
-                    </div>
-                    <div class="ahead-hero ahead-days" id="ahead-days" role="radiogroup" aria-labelledby="ahead-days-label">
-                        <span class="ahead-hero-label" id="ahead-days-label">The week</span>
-                        <div class="segmented" style="--count: 2; --index: 0">
-                            <span class="segmented-thumb" aria-hidden="true"></span>
-                            <label><input type="radio" name="ahead-days" value="off" checked><span>Off</span></label>
-                            <label><input type="radio" name="ahead-days" value="on"><span>On</span></label>
-                        </div>
-                    </div>
                     <figcaption class="frame-caption ahead-caption"><span class="caption-text">Drag it through the hours. It stays where you leave it, and Now brings it home. The week can sit under the hours too.</span> <button type="button" class="code-toggle" aria-expanded="false" aria-controls="ahead-hours-code"><span class="code-toggle-label">View code</span><span class="code-toggle-icon" aria-hidden="true"></span></button></figcaption>
                     <div class="snippet-slot" id="ahead-hours-code">
                         <div class="code-fold">

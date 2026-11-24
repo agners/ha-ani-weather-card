@@ -31,6 +31,50 @@ const EASE = {
     outExpo: 'cubic-bezier(0.16, 1, 0.3, 1)',
 };
 
+/**
+ * A new scene of another height, in a stage whose scenes stack in one cell. Until it's shown the new scene is out of
+ * flow (`is-out`), so setting it up moves nothing. Then the two change places in one layout pass: the stage takes the
+ * new height, and everything after it on the page is carried from where it was to where it now is by transform, on
+ * the frames' own curve, while the stage is uncovered (or covered) from its bottom edge and the scenes cross together.
+ * Returns false where there's nothing to carry (the same height, the first scene, reduced motion): the caller fades.
+ */
+const RESIZE = { duration: 520, easing: 'cubic-bezier(0.32, 0.72, 0, 1)', id: 'resize' };
+/**
+ * Let `change` give `container` another height without the page jumping: everything it moves (its siblings, and those
+ * of each box it's in) is carried from where it was to where it now is, and the container is uncovered, or
+ * covered, from its bottom edge alone, so the weather still spills past the other three. Returns whether it moved.
+ */
+function carry(container, change) {
+    if (reduceMotion) { change(); return false; }
+    const below = [];
+    // Every sibling, not only the later ones: CSS order can put an earlier one under it (the station's list on a phone)
+    for (let node = container; node && node !== document.body; node = node.parentElement) {
+        for (const other of node.parentElement?.children ?? []) if (other !== node) below.push(other);
+    }
+    const top = (el) => el.getBoundingClientRect().top;
+    const from = container.getBoundingClientRect().height;
+    const tops = below.map(top);
+    for (const el of [container, ...below]) el.getAnimations().forEach((animation) => { if (animation.id === 'resize') animation.cancel(); });
+    change();
+    const to = container.getBoundingClientRect().height;
+    below.forEach((el, i) => {
+        const by = tops[i] - top(el);
+        if (Math.abs(by) > 0.5) el.animate([{ translate: `0 ${by.toFixed(1)}px` }, { translate: '0 0' }], RESIZE);
+    });
+    if (Math.abs(to - from) < 0.5) return false;
+    const clip = (bottom) => `inset(-400px -400px ${bottom.toFixed(1)}px -400px)`;
+    container.animate([{ clipPath: clip(to - from) }, { clipPath: clip(0) }], RESIZE);
+    return true;
+}
+function swapSized(container, old, scene, remove) {
+    const settle = () => scene.el.classList.remove('is-out');
+    if (!old || reduceMotion || Math.abs(scene.el.offsetHeight - old.el.offsetHeight) < 1) { settle(); return false; }
+    carry(container, () => { old.el.classList.add('is-out'); settle(); });
+    scene.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 320, easing: EASE.outQuart });
+    old.el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, easing: EASE.inSoft, fill: 'forwards' }).finished.then(remove, remove);
+    return true;
+}
+
 // The page has one clock, in minutes of the day. The time of day (the
 // sky) follows from where that puts the sun.
 const opened = new Date();
@@ -677,7 +721,11 @@ function link({ fly = true } = {}) {
         flight.handOver();
     });
     // The rest follow in the station's order, so a sensor added to it is never left out
-    STATION.filter(row => row.id !== 'temperature').forEach((row, i) => at(700 + i * 60, () => push(row.id)));
+    // The readings that add a row to the card arrive together, and the card opens for them once
+    const rest = STATION.filter(row => row.id !== 'temperature');
+    const adds = rest.filter(row => row.reading && !['humidity', 'wind', 'pressure'].includes(row.reading));
+    rest.filter(row => !adds.includes(row)).forEach((row, i) => at(700 + i * 60, () => push(row.id)));
+    at(700 + (rest.length - adds.length) * 60, () => carry(stationCard, () => push(...adds.map(row => row.id))));
 }
 function unlink() {
     handoff.forEach(clearTimeout);
@@ -687,7 +735,7 @@ function unlink() {
     station.linked.clear();
     sensorsSwitch.checked = false;
     setLinkedRows(false);
-    pushStation();
+    carry(stationCard, pushStation);
     renderYaml();
 }
 
@@ -1474,6 +1522,8 @@ const layouts = (() => {
         const scene = build();
         scene.el.style.opacity = '0';
         scene.el.inert = true;
+        // Beside the one on show, not under it: its height is the stage's only once it's shown
+        if (view.current) scene.el.classList.add('is-out');
         feed(scene, hass());
         size(scene);
         scenesEl.append(scene.el);
@@ -1496,9 +1546,11 @@ const layouts = (() => {
             return;
         }
         scene.el.style.opacity = '';
+        const remove = () => old?.el.remove();
+        const carried = swapSized(scenesEl, old, scene, remove);
         lightCard(light, scene.el.querySelector('.cards'), slotEl);
         watchSky();
-        const remove = () => old?.el.remove();
+        if (carried) return;
         if (reduceMotion) {
             scene.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200 });
             old?.el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, fill: 'forwards' }).finished.then(remove, remove);
@@ -1631,6 +1683,7 @@ const ahead = (() => {
             const scene = build(slot);
             scene.el.style.opacity = '0';
             scene.el.inert = true;
+            if (slot.current) scene.el.classList.add('is-out');
             feed(scene, data);
             slot.scenesEl.append(scene.el);
             return scene;
@@ -1656,6 +1709,8 @@ const ahead = (() => {
             }
             scene.el.style.opacity = '';
             const remove = () => old?.el.remove();
+            // The week makes the card taller: the page below is carried there
+            if (swapSized(slot.scenesEl, old, scene, remove)) return;
             if (reduceMotion) {
                 scene.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200 });
                 old?.el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, fill: 'forwards' }).finished.then(remove, remove);
@@ -2197,7 +2252,10 @@ function createLab({ section, condition, phase = null, config = () => ({}), data
         scene.el.style.opacity = '';
         place();
         watchSky();
-        const remove = () => old.el.remove();
+        // Two cards at most: one still on its way out when the next arrives goes at once
+        lab.leaving?.el.remove();
+        lab.leaving = old;
+        const remove = () => { old.el.remove(); if (lab.leaving === old) lab.leaving = null; };
         if (reduceMotion) {
             scene.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200 });
             old.el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, fill: 'forwards' }).onfinish = remove;
@@ -2358,8 +2416,9 @@ const mountTune = settled(() => tuneLab.mount(), 220);
 tuneModeEl.addEventListener('change', (event) => {
     tune.mode = event.target.value === 'manual' ? 'manual' : 'auto';
     tuneModeEl.querySelector('.segmented').style.setProperty('--index', tune.mode === 'manual' ? 1 : 0);
-    drawSliders();
-    drawTune();
+    // Seven sliders for five, or back: what's under them is carried there, and the new rows fade in
+    carry(slidersEl, () => { drawSliders(); drawTune(); });
+    slidersEl.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, easing: EASE.outQuart });
     tuneLab.mount();
 });
 
@@ -2380,8 +2439,19 @@ slidersEl.addEventListener('input', (event) => {
     tune.settings[row.id] = Number(event.target.value);
     tuneLab.showWeather(row.shows);
     drawTune();
-    mountTune();
+    // Under a hand, the card waits for it to let go: a new card at every pause restarts the weather each time
+    if (tuneHeld) tuneDue = true; else mountTune();
 });
+let tuneHeld = false;
+let tuneDue = false;
+slidersEl.addEventListener('pointerdown', () => { tuneHeld = true; });
+for (const type of ['pointerup', 'pointercancel']) {
+    addEventListener(type, () => {
+        if (!tuneHeld) return;
+        tuneHeld = false;
+        if (tuneDue) { tuneDue = false; tuneLab.mount(); }
+    });
+}
 $('#quiet-list').addEventListener('change', (event) => {
     const id = event.target.dataset.id;
     if (!id) return;

@@ -998,6 +998,8 @@ a { color: inherit; }
     overflow-clip-margin: 12px;
 }
 .layouts-scene { grid-area: 1 / 1; width: auto; max-width: 100%; justify-self: center; }
+/* Out of flow: the scene on its way in, until it's shown, and then the one on its way out (swapSized) */
+.layouts-scene.is-out { position: absolute; top: 0; left: 0; right: 0; margin-inline: auto; width: fit-content; }
 .layouts-scene .cards { align-items: center; }
 .layouts-box { max-width: 100%; }
 .layouts-box > * { display: block; height: 100%; }
@@ -1055,12 +1057,14 @@ a { color: inherit; }
     overflow-clip-margin: 12px;
 }
 .ahead-scene { grid-area: 1 / 1; width: 100%; }
+.ahead-scene.is-out { position: absolute; top: 0; left: 0; }
 .ahead-box { width: 100%; }
 .ahead-box > * { display: block; height: 100%; }
 .ahead-caption,
 .ahead-slot .snippet-slot,
 .ahead-hero { position: relative; z-index: 1; }
-/* The big value, temperature or time, under the first card: its label and its two choices on one line */
+/* The big value, temperature or time, and the week, with the section's words, where a taller card can't move them:
+   a label and two choices on one line each */
 .ahead-hero { display: flex; align-items: center; gap: 14px; margin-top: 18px; }
 .ahead-hero-label { font-size: 14px; font-weight: 500; color: var(--text-2); white-space: nowrap; min-width: 4.6em; }
 .ahead-hero .segmented { flex: 0 1 220px; }
@@ -1074,7 +1078,7 @@ a { color: inherit; }
 .ahead-caption,
 .ahead-slot .snippet-slot,
 .ahead-hero { transition: opacity 0.6s var(--ease-out-quart) 0.35s; }
-.js .ahead-stage:not(.is-shown) :is(.stage-light, .ahead-caption, .snippet-slot, .ahead-hero) { opacity: 0; }
+.js .ahead-stage:not(.is-shown) :is(.stage-light, .ahead-caption, .snippet-slot) { opacity: 0; }
 
 /* ── The sun tracker: its sizes, and the day under your finger ──────── */
 .tracker {
