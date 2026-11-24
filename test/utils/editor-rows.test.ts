@@ -158,7 +158,7 @@ describe('the forecast card\'s and the tracker\'s rows', () => {
     };
     const keysOf = (table: RowTable<never>) => new Set(Object.values(table.rows).flatMap(spec => spec.keys));
     const cards: Array<[string, RowTable<never>, string[], string[]]> = [
-        ['the forecast card', FORECAST_TABLE as RowTable<never>, documented('### The forecast card', '\n### '), ['entity', 'layout', 'color_palette']],
+        ['the forecast card', FORECAST_TABLE as RowTable<never>, documented('### The forecast card', '\n### '), ['entity', 'layout', 'color_palette', 'forecast_metric']],
         ['the tracker', TRACKER_TABLE as RowTable<never>, documented('### Sun tracker card', '\n### '), ['sun_entity', 'layout', 'color_palette']],
     ];
 
@@ -172,7 +172,7 @@ describe('the forecast card\'s and the tracker\'s rows', () => {
             expect([...placed].sort()).toEqual(Object.keys(table.rows).sort());
         });
 
-        it(`show ${name} three basics, every option with all settings, and an option set away from its default either way`, () => {
+        it(`show ${name} its basics, every option with all settings, and an option set away from its default either way`, () => {
             const fresh = {};
             const shown = (config: object, x: RowContext, pinned = new Set<string>()) =>
                 Object.keys(table.rows).filter(id => rowShown(id, config as never, x, pinned, table));

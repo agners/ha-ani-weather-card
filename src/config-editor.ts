@@ -248,6 +248,7 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
             row('show_forecast', sw('show_forecast', 'Forecast', !!c.show_forecast, 'Today\'s high and low, the hours ahead, and the week on a tap')),
             row('forecast_days', select('forecast_days', 'Days under the hours')),
             row('forecast_metric', select('forecast_metric', 'Hours open on', 'Under the hours, a button for each value your forecast reports')),
+            row('show_chips', sw('show_chips', 'Buttons under the hours', c.show_chips !== false, 'One for each value, to change what the hours show. Off, they stay on the one above')),
             row('forecast_graph', select('forecast_graph', 'Graph')),
             row('time_date', select('time_date', 'Time and date', 'Before the place name, in your profile\'s 12- or 24-hour format')),
             row('hero', seg('hero', 'Big number', [['temperature', 'Temperature'], ['clock', 'Time']], c.hero === 'clock' ? 'clock' : 'temperature')),
@@ -397,6 +398,7 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
             this._set({ night_lux: Number.isFinite(v) && v > 0 && v !== 5 ? v : undefined });
         });
         on('#night_red', 'change', el => this._set({ night_red: el.checked ? undefined : false }));
+        on('#show_chips', 'change', el => this._set({ show_chips: el.checked ? undefined : false }));
 
         // Forecast and clock
         on('#show_forecast', 'change', el => {

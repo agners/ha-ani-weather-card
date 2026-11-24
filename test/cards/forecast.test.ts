@@ -271,6 +271,23 @@ describe('the forecast on the weather card', () => {
         expect(card.querySelector('[data-fc-chips] [data-metric="chance"]')?.getAttribute('aria-checked')).toBe('true');
     });
 
+    it('leaves the chips out with show_chips: false, the row and the days on forecast_metric, on both cards', async () => {
+        const card = mount({ show_forecast: true, show_days: true, forecast_metric: 'chance', show_chips: false });
+        await settle();
+        expect(card.querySelector('[data-fc-chips]')).toBeNull();
+        expect(card.querySelector('[data-fc-hourly]')?.getAttribute('data-metric')).toBe('chance');
+        expect((card.querySelector('[data-fc-daily]') as HTMLElement)?.dataset.metric).toBe('chance');
+        const forecast = mount({ forecast_metric: 'chance', show_chips: false }, undefined, 'animated-forecast-card');
+        await settle();
+        expect(forecast.querySelector('[data-fc-chips]')).toBeNull();
+        expect(forecast.querySelector('[data-fc-hourly]')?.getAttribute('data-metric')).toBe('chance');
+        expect((forecast.querySelector('[data-fc-daily]') as HTMLElement)?.dataset.metric).toBe('chance');
+        // With them, as always
+        const usual = mount({ forecast_metric: 'chance' }, undefined, 'animated-forecast-card');
+        await settle();
+        expect(usual.querySelector('[data-fc-chips]')).not.toBeNull();
+    });
+
     it('asks for eight rows with an hourly forecast, five without one, one more with a note; the nightstand six', () => {
         expect(mount({ show_forecast: true }).getGridOptions().rows).toBe(8);
         expect(mount({ show_forecast: true }, makeHass(1)).getGridOptions().rows).toBe(5);

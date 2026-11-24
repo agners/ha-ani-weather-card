@@ -288,7 +288,7 @@ const CARD_CSS = `
 /* show_days: the days under the row and its chips, only while the fit keeps them (data-fc="days") */
 .animated-weather-card:not([data-fc="days"]) .fc-section .fc-daily { display: none; }
 .fc-section .fc-daily { margin-top: 8px; }
-.fc-section .fc-hourly + .fc-chips + .fc-daily, .fc-section .fc-chips + .fc-daily { margin-top: 12px; }
+.fc-section .fc-hourly + .fc-chips + .fc-daily, .fc-section .fc-chips + .fc-daily, .fc-section .fc-hourly + .fc-daily { margin-top: 12px; }
 .theme-colors .weather-attributes ~ .fc-section::before { background: var(--divider-color, rgba(0, 0, 0, 0.12)); opacity: 1; }
 @container awc (min-width: 640px) { .fc-section { margin-top: 16px; align-self: flex-start; --fc-bleed: 20px; } }
 .animated-weather-card:is([data-fc="none"], [data-fc="bare"]) .fc-section { display: none; }

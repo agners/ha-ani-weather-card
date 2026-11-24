@@ -107,7 +107,8 @@ export function attachForecastCard(host: ForecastHost): ForecastExtras {
             });
             if (strip) hourly.el.style.marginLeft = `${13 - pitch / 2}px`;
             left.append(hourly.el);
-            if (!strip) {
+            // show_chips: false leaves the row, and the days, on forecast_metric
+            if (!strip && cfg().show_chips !== false) {
                 chips = createChips({ W, metrics: m.metrics, value: metric, noun: m.noun, onChange: (k, { keys }) => { metric = k; hourly?.setMetric(k, { animate: !keys }); daily?.setMetric(k, { animate: !keys }); } });
                 left.append(chips.el);
             }

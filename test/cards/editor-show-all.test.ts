@@ -38,9 +38,9 @@ const FORECAST = { type: 'custom:animated-forecast-card', entity: 'weather.home'
 const TRACKER = { type: 'custom:animated-sun-tracker-card', sun_entity: 'sun.sun' };
 
 describe('the forecast card\'s editor', () => {
-    it('opens on three basics: the weather, the card or the strip, and the colors', async () => {
+    it('opens on four basics: the weather, the card or the strip, the colors and what the hours show', async () => {
         await open('animated-forecast-card-editor', FORECAST);
-        expect(openRows()).toEqual(['entity', 'layout', 'color_palette']);
+        expect(openRows()).toEqual(['entity', 'layout', 'color_palette', 'forecast_metric']);
         expect(openSections()).toEqual(['forecast']);
         // The rest are drawn, closed, so the switch draws nothing again
         expect($('[data-row="forecast_graph"]').hasAttribute('data-open')).toBe(false);
@@ -55,12 +55,13 @@ describe('the forecast card\'s editor', () => {
         expect(sent).toEqual([]);
         expect($('#weather-picker')).toBe(picker);
         expect(openSections()).toEqual(['forecast', 'shows', 'sky', 'interactions', 'dev']);
-        expect(openRows()).toEqual(['entity', 'layout', 'color_palette', 'show_hours', 'forecast_days', 'forecast_metric', 'forecast_graph',
+        expect(openRows()).toEqual(['entity', 'layout', 'color_palette', 'forecast_metric', 'show_hours', 'forecast_days', 'show_chips', 'forecast_graph',
             'weather_effects', 'sun_entity', 'another_place', 'actions', 'dev_mode']);
         radio('layout', 'strip');
         expect(sent.at(-1)).toMatchObject({ compact: true });
         expect(openRows()).not.toContain('forecast_days');
         expect(openRows()).not.toContain('show_hours');
+        expect(openRows()).not.toContain('show_chips');
         expect(openRows()).toContain('forecast_graph');
         radio('layout', 'card');
         expect(sent.at(-1)).not.toHaveProperty('compact');
@@ -71,7 +72,7 @@ describe('the forecast card\'s editor', () => {
 
     it('shows what the config has changed with the switch off, and keeps it while it\'s cleared', async () => {
         await open('animated-forecast-card-editor', { ...FORECAST, forecast_graph: 'bars', weather_effects: true, hold_action: { action: 'toggle' } });
-        expect(openRows()).toEqual(['entity', 'layout', 'color_palette', 'forecast_graph', 'weather_effects', 'actions']);
+        expect(openRows()).toEqual(['entity', 'layout', 'color_palette', 'forecast_metric', 'forecast_graph', 'weather_effects', 'actions']);
         expect(openSections()).toEqual(['forecast', 'shows', 'interactions']);
         flip('#weather_effects', false);
         expect(sent.at(-1)).not.toHaveProperty('weather_effects');

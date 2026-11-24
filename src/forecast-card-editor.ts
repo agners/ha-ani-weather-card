@@ -86,11 +86,12 @@ export class AnimatedForecastCardEditor extends HTMLElement {
                   row('entity', picker('weather-picker', 'Weather entity', c.entity)),
                   row('layout', seg('layout', 'Layout', [['card', 'Card'], ['strip', 'Strip']], c.compact ? 'strip' : 'card', this.uid)),
                   row('color_palette', seg('color_palette', 'Colors', [['default', 'Sky'], ['theme', 'Theme']], c.color_palette === 'theme' ? 'theme' : 'default', this.uid)),
+                  row('forecast_metric', select('forecast_metric', 'Hours show', 'Temperature, rain, wind and the rest: what the hours and the days open on')),
               ].join(''))}
               ${section('shows', ['shows', 'What it shows'], [
                   row('show_hours', sw('show_hours', 'The hours', c.show_hours !== false, 'The hourly row and its chips: drag it, and the sky goes there')),
                   row('forecast_days', select('forecast_days', 'Days')),
-                  row('forecast_metric', select('forecast_metric', 'Hours open on', 'Under the hours, a button for each value your forecast reports')),
+                  row('show_chips', sw('show_chips', 'Buttons under the hours', c.show_chips !== false, 'One for each value, to change what the hours show. Off, they stay on what Hours show says')),
                   row('forecast_graph', select('forecast_graph', 'Graph')),
                   row('weather_effects', sw('weather_effects', 'Weather', !!c.weather_effects, 'Rain, snow, fog, wind and lightning behind the forecast, going to the hour you drag to')),
               ].join(''))}
@@ -132,6 +133,7 @@ export class AnimatedForecastCardEditor extends HTMLElement {
             this.querySelector(`#${id}`)?.addEventListener('change', (e: Event) => this._update(apply((e.target as HTMLInputElement).checked)));
         };
         onSwitch('show_hours', checked => ({ show_hours: checked ? undefined : false }));
+        onSwitch('show_chips', checked => ({ show_chips: checked ? undefined : false }));
         onSwitch('weather_effects', checked => ({ weather_effects: checked || undefined }));
         onSwitch('dev_mode', checked => ({ dev_mode: checked || undefined }));
         bindSelect(this, 'forecast_metric', METRIC_OPTIONS, c.forecast_metric ?? 'temp', v => this._update({ forecast_metric: v === 'temp' ? undefined : v as ForecastCardConfig['forecast_metric'] }));

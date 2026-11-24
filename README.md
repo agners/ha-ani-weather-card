@@ -428,6 +428,7 @@ show_forecast: true
 show_date: true          # the date after the time
 hero: clock              # the time as the big value
 forecast_metric: chance  # temp, feels, chance, amount, uv, wind, gust, humidity, dew, cloud or pressure
+show_chips: false        # no chips: the hours stay on forecast_metric
 forecast_graph: bars     # line, area, bars or none
 ```
 
@@ -549,6 +550,21 @@ entity: weather.forecast_home
 
 Each day has its name, its icon, the low, a bar and the high; the bar takes the width that's left, so the low sits by the icon. The bars share one scale for the week, from the coldest low to the warmest high, and their colour is set by the temperature: the sky's blue-white for cold, white in the middle and the sun's gold for warm. Today's bar has a dot for now, and as you drag the row the days show the day the hour falls in, with the dot on its bar at that hour's temperature. The chips change what the days show, on this card only: Feels like shows each day's feels-like range (from the hours, and the day's own figure where your integration gives one), the chance and the amount show as bars from zero, the chance on a scale to 100% and the amount to the week's wettest day. The UV index, the wind, its gusts, humidity and cloud cover show each day's own figure as a bar from zero; the dew point and the pressure show it as a mark on the week's scale. A day your integration gives no figure for shows a dash. The bars draw in with one sweep across the scale. On the theme palette, they're one solid colour. From 640 px wide, the hours sit on the left and the week on the right. In a frame shorter than it asks for, the days give way from the end. An entity without a forecast says so: "This weather entity has no forecast".
 
+One value per card: `forecast_metric` sets what the hours and the days show, and `show_chips: false` leaves out the chips that change it. A chip you tap on the card changes it only until the card is drawn again; what a card opens on is `forecast_metric`.
+
+```yaml
+type: vertical-stack
+cards:
+  - type: custom:animated-forecast-card
+    entity: weather.forecast_home
+    forecast_metric: amount   # the rain's amount
+    show_chips: false
+  - type: custom:animated-forecast-card
+    entity: weather.forecast_home
+    forecast_metric: temp     # the temperature
+    show_chips: false
+```
+
 As a strip, it sits under the compact weather card: the hours' labels, icons and line, with no words or chips, its first and last labels on the weather card's text edges.
 
 ```yaml
@@ -572,6 +588,7 @@ cards:
 | `show_hours` | `true` | Show the hourly row and its chips |
 | `weather_effects` | `false` | The weather behind the forecast: rain, snow, fog, wind and lightning, as on the weather card, going to the hour you drag to. Without it, the sky alone |
 | `forecast_metric` | `temp` | What the row shows first: `temp`, `feels`, `chance`, `amount`, `uv`, `wind`, `gust`, `humidity`, `dew`, `cloud` or `pressure`. One your integration doesn't report starts on the temperature |
+| `show_chips` | `true` | The chips under the hours, which change what the hours and the days show. `false` leaves them out, so the card stays on `forecast_metric`; the view on tap keeps them |
 | `forecast_graph` | `line` | The hours' graph, the same for every metric: `line`, `area` (the line over a soft fill), `bars`, or `none` (the values alone) |
 | `color_palette` | `default` | `default` for the sky, or `theme` for your dashboard's colours |
 | `dev_mode` | `false` | The card always runs on the [dev card](#the-dev-card)'s simulated weather, and needs no `entity`, as the weather card's `dev_mode` |
@@ -779,6 +796,7 @@ sunset_hour: 19
 | `hero` | `temperature` | The big value: `temperature`, or `clock` for the time in the temperature's place and size, with the temperature leading the condition's line ("21° Partly cloudy"). Dragged through the hours, it shows the hour under the needle. `temperature_color` colours whichever is the big value. The nightstand always has the time |
 | `show_forecast` | `false` | Today's high and low beside the condition, the line on what turns under it, the hourly row with its chips, and the slide through the hours. A tap opens the forecast view. Eight rows in the sections view, or five without an hourly forecast |
 | `forecast_metric` | `temp` | What the row shows first: `temp`, `feels` (feels like), `chance` (the chance of rain), `amount` (the rain amount), `uv` (the UV index), `wind`, `gust` (wind gusts), `humidity`, `dew` (the dew point), `cloud` (cloud cover) or `pressure`. One your integration doesn't report starts on the temperature |
+| `show_chips` | `true` | The chips under the hourly row, which change what it shows. `false` leaves them out, and the row and the days stay on `forecast_metric`; the view on tap keeps them |
 | `forecast_graph` | `line` | The hours' graph, the same for every metric: `line`, `area` (the line over a soft fill), `bars`, or `none` (the values alone). The view on tap and the wall follow it; the forecast card has its own |
 | `show_days` | `false` | With `show_forecast`, the days under the hourly row and its chips. A row more for every two days in the sections view; in a shorter frame they give way first, from the end |
 | `forecast_days` | `7` | How many days `show_days` shows, 1 to 10 |

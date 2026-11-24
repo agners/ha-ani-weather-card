@@ -298,6 +298,8 @@ export interface AnimatedWeatherCardConfig {
     show_forecast?: boolean;
     /** The chip the row opens on: one the hourly forecast reports, else the temperature */
     forecast_metric?: 'temp' | 'feels' | 'chance' | 'amount' | 'uv' | 'wind' | 'gust' | 'humidity' | 'dew' | 'cloud' | 'pressure';
+    /** The chips under the hourly row, which change what it shows (default true). Without them the row stays on forecast_metric */
+    show_chips?: boolean;
     /** The hours' graph, the same for every metric: a line (default), the line with a soft fill under it, bars, or none */
     forecast_graph?: 'line' | 'area' | 'bars' | 'none';
     /** With show_forecast, the days under the hourly row (default false) */

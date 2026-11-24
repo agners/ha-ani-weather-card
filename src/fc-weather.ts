@@ -357,8 +357,11 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
                 conditionName: c => conditionNoun(c, host.hass(), s => host.conditionName(s)),
             });
             sec.append(hourly.el);
-            chips = createChips({ W, metrics: m.metrics, value: metric, noun: m.noun, onChange: (k, { keys }) => { metric = k; hourly?.setMetric(k, { animate: !keys }); daily?.setMetric(k, { animate: !keys }); writeCompanionAway(); } });
-            sec.append(chips.el);
+            // show_chips: false leaves the row on forecast_metric, with nothing to change it by
+            if (host.config().show_chips !== false) {
+                chips = createChips({ W, metrics: m.metrics, value: metric, noun: m.noun, onChange: (k, { keys }) => { metric = k; hourly?.setMetric(k, { animate: !keys }); daily?.setMetric(k, { animate: !keys }); writeCompanionAway(); } });
+                sec.append(chips.el);
+            }
         }
         // The days, as the forecast card draws them, lit by the sky where they sit: low in a narrow card, the hero's column on a wide one
         if (sec && wk?.days.length) {

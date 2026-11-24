@@ -31,7 +31,7 @@ export interface RowContext {
 export const DEFAULTS: Readonly<Record<string, unknown>> = {
     show_location: true, temperature_decimals: 0, compact: false, layout: 'default', color_palette: 'default',
     hero: 'temperature', show_clock: false, show_date: false, show_forecast: false, show_days: false, forecast_days: 7,
-    forecast_metric: 'temp', forecast_graph: 'line',
+    forecast_metric: 'temp', show_chips: true, forecast_graph: 'line',
     show_attributes: true, show_attribute_labels: true, show_attribute_icons: true, show_indoor: true, indoor_style: 'label',
     show_flight_labels: true, flight_label: 'flight', plane_speed: 1, planes_on_load: false,
     animate: true, spill_particles: true, disable_lightning_shake: false, auto_pause: false, dev_mode: false,
@@ -136,6 +136,7 @@ export const ROWS: Readonly<Record<string, RowSpec>> = {
     show_forecast: { tier: 'basic', keys: ['show_forecast'], when: (c, x) => x.all || !nightstand(c) },
     forecast_days: { tier: 'all', keys: ['show_days', 'forecast_days'], when: forecastRow },
     forecast_metric: { tier: 'all', keys: ['forecast_metric'], when: forecastRow },
+    show_chips: { tier: 'all', keys: ['show_chips'], when: forecastRow },
     forecast_graph: { tier: 'all', keys: ['forecast_graph'], when: forecastRow },
     time_date: { tier: 'all', keys: ['show_clock', 'show_date'] },
     hero: { tier: 'all', keys: ['hero'] },
@@ -206,7 +207,7 @@ export const SECTIONS: Readonly<Record<string, readonly string[]>> = {
     weather: ['entity', 'name', 'show_location', 'outdoor_sensor_entity', 'feels_like_entity', 'another_place', 'place_fields'],
     look: ['layout', 'color_palette', 'temperature_decimals'],
     nightstand: ['why_nightstand_only', 'alarm_entity', 'wake_time', 'night', 'night_sensor', 'night_lux', 'bed_time', 'night_red'],
-    forecast: ['why_forecast_nightstand', 'show_forecast', 'forecast_days', 'forecast_metric', 'forecast_graph', 'time_date', 'hero'],
+    forecast: ['why_forecast_nightstand', 'show_forecast', 'forecast_days', 'forecast_metric', 'show_chips', 'forecast_graph', 'time_date', 'hero'],
     note: ['note', 'why_note_compact', 'why_note_nightstand', 'note_tone', 'note_ai_task_entity', 'note_calendar', 'note_entity', 'note_attribute', 'note_max_age'],
     readings: ['show_attributes', 'readings', 'reading_style', 'indoor_temperature_entity', 'indoor_humidity_entity', 'indoor_line'],
     sky: ['animate', 'spill_particles', 'lightning', 'auto_pause', 'sky_follows', 'day_hours', 'sun_entity', 'moon_entity', 'engine_mode', 'amounts'],
@@ -257,11 +258,11 @@ export function sectionShown<C = Config>(ids: readonly string[], config: C, x: R
     return ids.some(id => !table.rows[id]?.reason && rowShown(id, config, x, pinned, table));
 }
 
-// The forecast card's editor: the weather, the card or the strip, and the colours are its basics
+// The forecast card's editor: the weather, the card or the strip, the colours and what the hours show are its basics
 
 /** What the forecast card does when an option is left out */
 export const FORECAST_DEFAULTS: Readonly<Record<string, unknown>> = {
-    compact: false, color_palette: 'default', show_hours: true, forecast_days: 7, forecast_metric: 'temp', forecast_graph: 'line',
+    compact: false, color_palette: 'default', show_hours: true, forecast_days: 7, forecast_metric: 'temp', show_chips: true, forecast_graph: 'line',
     weather_effects: false, sun_entity: 'sun.sun', dev_mode: false,
 };
 
@@ -276,7 +277,9 @@ export const FORECAST_TABLE: RowTable = {
         color_palette: { tier: 'basic', keys: ['color_palette'] },
         show_hours: { tier: 'all', keys: ['show_hours'], when: c => !strip(c) },
         forecast_days: { tier: 'all', keys: ['forecast_days'], when: c => !strip(c) },
-        forecast_metric: { tier: 'all', keys: ['forecast_metric'], when: hoursShown },
+        // What the hours show is the one thing most cards change, so it's a basic: two cards, one on rain, one on the temperature
+        forecast_metric: { tier: 'basic', keys: ['forecast_metric'], when: hoursShown },
+        show_chips: { tier: 'all', keys: ['show_chips'], when: c => !strip(c) && hoursShown(c) },
         forecast_graph: { tier: 'all', keys: ['forecast_graph'], when: hoursShown },
         weather_effects: { tier: 'all', keys: ['weather_effects'] },
         sun_entity: { tier: 'all', keys: ['sun_entity'] },
@@ -287,8 +290,8 @@ export const FORECAST_TABLE: RowTable = {
         dev_mode: { tier: 'all', keys: ['dev_mode'] },
     },
     sections: {
-        forecast: ['entity', 'layout', 'color_palette'],
-        shows: ['show_hours', 'forecast_days', 'forecast_metric', 'forecast_graph', 'weather_effects'],
+        forecast: ['entity', 'layout', 'color_palette', 'forecast_metric'],
+        shows: ['show_hours', 'forecast_days', 'show_chips', 'forecast_graph', 'weather_effects'],
         sky: ['sun_entity', 'another_place', 'place_fields'],
         interactions: ['actions'],
         dev: ['dev_mode'],
