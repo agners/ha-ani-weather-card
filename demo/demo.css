@@ -550,7 +550,8 @@ a { color: inherit; }
     border-radius: 8px;
     font-size: 14px;
     font-weight: 500;
-    color: var(--text-3);
+    /* 4.5:1 on the track, which --text-3 misses */
+    color: var(--text-quiet);
     white-space: nowrap;
     transition: color 0.2s ease;
 }
@@ -1004,7 +1005,7 @@ a { color: inherit; }
 .layouts-box { max-width: 100%; }
 .layouts-box > * { display: block; height: 100%; }
 .layouts-caption,
-.layouts-slot .snippet-slot { position: relative; z-index: 1; width: min(100%, 560px); }
+.layouts-slot .snippet-slot { position: relative; z-index: 1; width: min(100%, 500px); }
 .layouts-caption { margin: 18px 0 0; font-size: 14px; color: var(--text-3); text-wrap: pretty; }
 .layouts-slot:has(.snippet-slot[data-open]) .code-toggle-icon svg { transform: rotate(180deg); }
 .layouts-slot .stage-light { transition: opacity 1.6s var(--ease-in-out-sine) 0.2s, transform 0.52s var(--ease-out-quint); }
@@ -1375,8 +1376,8 @@ a { color: inherit; }
     font-size: 12.5px;
     line-height: 18px;
     color: var(--text-3);
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    /* Whole, on a second line where the column is narrow: an id cut short can't be read or copied */
+    overflow-wrap: anywhere;
 }
 .reading-value {
     overflow: hidden;
@@ -1502,8 +1503,7 @@ a { color: inherit; }
     color: var(--text-3);
 }
 /* The tune lab's amounts: the weather's own, or by hand */
-.tune-mode { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; }
-.tune-mode .segmented { flex: 0 1 260px; }
+.tune-mode { margin-bottom: 22px; }
 .sliders-head { display: flex; justify-content: space-between; align-items: baseline; }
 .sliders-head h3 { margin: 0; font: inherit; color: inherit; }
 .reset {
@@ -1794,7 +1794,8 @@ a { color: inherit; }
    Once it sticks, a band of the room sits behind it, and the content
    scrolls up under a soft edge (demo.js sets is-stuck). */
 @media (max-width: 640px) {
-    .topnav a:not(:last-child) { display: none; }
+    /* A phone keeps the way to the other page and to the code; the rest are a scroll away */
+    .topnav a.nav-wide { display: none; }
     .hero { padding-top: 28px; }
     .instrument { margin-top: 28px; }
     .stage,
@@ -1882,4 +1883,13 @@ a { color: inherit; }
     /* Planes never take off under reduced motion, and the plane button is
        that row's only control */
     .field-actions { display: none !important; }
+}
+
+/* Fingers: every control the page adds is at least 44 px tall */
+@media (pointer: coarse) {
+    .segmented label span { min-height: 44px; }
+    .layout-chip span, .chip { min-height: 44px; }
+    .stepper { width: 44px; height: 44px; }
+    .station-switch, .quiet-switch { min-height: 44px; }
+    .code-toggle { padding-block: 11px; margin-block: -11px; }
 }

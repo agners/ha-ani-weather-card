@@ -390,11 +390,36 @@ function reveal(scene) {
 function update() {
     const data = hass();
     for (const scene of document.querySelectorAll('.scene:not(.lab-scene)')) {
+        // A screen or more away, a card's 3.2 s dissolve is work nobody sees, and a page of them drops frames:
+        // it hears the news when it comes near
+        if (farAway(scene)) { waiting.add(scene); continue; }
+        waiting.delete(scene);
         for (const card of scene.querySelectorAll('animated-weather-card, animated-forecast-card, animated-sun-tracker-card')) give(card, data);
     }
     for (const lab of labs) lab.refresh();
     watchSky();
 }
+/** Scenes that missed an update while far from view, fed as they come within a screen of it */
+const waiting = new Set();
+const farAway = (el) => {
+    const box = el.getBoundingClientRect();
+    return box.bottom < -innerHeight || box.top > 2 * innerHeight;
+};
+let catching = 0;
+addEventListener('scroll', () => {
+    if (!waiting.size || catching) return;
+    catching = requestAnimationFrame(() => {
+        catching = 0;
+        let data = null;
+        for (const scene of [...waiting]) {
+            if (!scene.isConnected) { waiting.delete(scene); continue; }
+            if (farAway(scene)) continue;
+            waiting.delete(scene);
+            data ??= hass();
+            for (const card of scene.querySelectorAll('animated-weather-card, animated-forecast-card, animated-sun-tracker-card')) give(card, data);
+        }
+    });
+}, { passive: true });
 
 // ── The room's light, cast by the screen ───────────────────────────────
 // The sky is the light source: the light lies over the weather card and
@@ -523,7 +548,7 @@ readingsEl.innerHTML = `
         <div class="reading" data-id="${row.id}">
             <span class="reading-dot" aria-hidden="true"></span>
             <span class="reading-name"><span class="reading-label">${row.label}</span><span class="reading-entity">${row.entity}</span></span>
-            <span class="reading-value"><span class="reading-number">${formatReading(row)}</span><span class="reading-unit">${row.unit}</span></span>
+            <span class="reading-value"><span class="reading-number">${formatReading(row)}</span><span class="reading-unit">${row.shown ?? row.unit}</span></span>
             <span class="steppers">${row.step ? `
                 <button type="button" class="stepper" data-step="-1" aria-label="Lower the ${group.toLowerCase()} ${row.label.toLowerCase()}">${svgIcon('mdi:minus')}</button>
                 <button type="button" class="stepper" data-step="1" aria-label="Raise the ${group.toLowerCase()} ${row.label.toLowerCase()}">${svgIcon('mdi:plus')}</button>` : ''}
@@ -1458,7 +1483,7 @@ const layouts = (() => {
     const caption = $('#layouts-caption');
     const code = $('#layouts-yaml');
     const render = snippetRenderer(code);
-    const view = { near: false, visible: false, revealed: false, stale: true, job: null, current: null, pick: 'full', text: '' };
+    const view = { near: false, visible: false, revealed: false, stale: true, job: null, current: null, pick: 'forecast', text: '' };
     copyButton($('#layouts-copy'), () => view.text, code);
 
     $('#layout-chips').innerHTML = PRESETS.map(p => `
@@ -1495,6 +1520,8 @@ const layouts = (() => {
     }
     function captionFor(scene) {
         const preset = PRESETS.find(p => p.id === view.pick) ?? PRESETS[0];
+        // Its night is the page's: the Time of day at the top sets every card's sun
+        if (preset.id === 'bedside') return `${preset.description}. Set Time of day to Night, at the top of the page, to see it.`;
         if (preset.id !== 'wall') return `${preset.description}.`;
         return scene.wall
             ? `${preset.description}: in a section of Double width, ten rows tall, or a panel view.`
@@ -1872,9 +1899,9 @@ const sunFrame = createFrame({
     layout: 'regular',
     build: buildTrackerScene,
     captions: {
-        regular: 'On a phone, at its real width.',
+        regular: 'On a phone, at its real width. South of the equator the sun runs right to left, as it crosses your sky.',
         compact: 'Under the weather card, sharing its sky. After the countdown, how much earlier or later than the day you compare with.',
-        wide: 'In a section that spans two columns, or a panel view.',
+        wide: 'In a section that spans two columns, or a panel view. Drag a weather card through the hours and this sun goes there too.',
     },
     label: (name) => `Live preview of the sun tracker, ${name}`,
     // Narrower than this, a "wall" would be a phone held sideways
@@ -2362,7 +2389,7 @@ function drawSliders() {
         </span>
     </label>`;
     }).join('');
-    $('#sliders-title').textContent = tune.mode === 'auto' ? 'Your weather' : 'Engine';
+    $('#sliders-title').textContent = tune.mode === 'auto' ? 'What your weather reports' : 'Your amounts';
 }
 $('#quiet-list').innerHTML = QUIET.map(row => `
     <label class="toggle quiet-switch">
@@ -2414,8 +2441,7 @@ const mountTune = settled(() => tuneLab.mount(), 220);
 
 // The weather's own amounts, or by hand: a new card, with the sliders of its mode
 tuneModeEl.addEventListener('change', (event) => {
-    tune.mode = event.target.value === 'manual' ? 'manual' : 'auto';
-    tuneModeEl.querySelector('.segmented').style.setProperty('--index', tune.mode === 'manual' ? 1 : 0);
+    tune.mode = event.target.checked ? 'auto' : 'manual';
     // Seven sliders for five, or back: what's under them is carried there, and the new rows fade in
     carry(slidersEl, () => { drawSliders(); drawTune(); });
     slidersEl.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, easing: EASE.outQuart });
@@ -2457,7 +2483,8 @@ $('#quiet-list').addEventListener('change', (event) => {
     if (!id) return;
     tune.quiet[id] = event.target.checked;
     drawTune();
-    mountTune();
+    // A switch is one decision: no pause to wait out
+    tuneLab.mount();
 });
 tuneReset.addEventListener('click', () => {
     // The weather's values reach the card as an update; the engine's settings and the switches set it up again
@@ -2544,7 +2571,8 @@ palettesEl.addEventListener('change', (event) => {
     if (!palette) return;
     paint.colors = { ...palette.colors };
     drawPaint();
-    mountPaint();
+    // A palette is one decision: no pause to wait out, as a colour picker's drag has
+    paintLab.mount();
 });
 copyButton($('#paint-copy'), () => paintText, $('#paint-yaml'));
 

@@ -32,7 +32,9 @@
     transition: opacity 1.4s var(--ease-in-out-sine);
 }
 .guide-window.is-lit .guide-light { opacity: 1; }
-.guide-slot { position: relative; z-index: 1; min-height: 240px; }
+/* The card's own height with its note (342 px; 367 at a phone's width), so the page under it doesn't move as it draws */
+.guide-slot { position: relative; z-index: 1; min-height: 342px; }
+@media (max-width: 640px) { .guide-slot { min-height: 367px; } }
 .guide-slot animated-weather-card {
     display: block;
     border-radius: 12px;
