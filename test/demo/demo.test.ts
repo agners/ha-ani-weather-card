@@ -247,7 +247,7 @@ describe('the demo\'s sample world', () => {
         expect(configYaml({ tone: 'dry' }).split('\n')).toContain('note_tone: dry');
         // The compact strip has no note, so no voice
         expect(configYaml({ layout: 'compact', tone: 'dry' })).not.toContain('note_tone');
-        expect(noteYaml('friendly')).toBe('show_note: true\nnote_tone: friendly  # snarky, calm, friendly or dry\n');
+        expect(noteYaml('friendly')).toBe('show_note: true\n# snarky, calm, friendly or dry\nnote_tone: friendly\n');
     });
 
     it('adds your sensors to the YAML only when they are on', () => {
@@ -274,7 +274,7 @@ describe('the demo\'s sample world', () => {
 
         // Compare with: nothing for yesterday, the card's default; the option otherwise
         expect(card).not.toContain('daylight_delta');
-        expect(trackerYaml({ compare: 'week' })).toContain('daylight_delta: week  # against last week');
+        expect(trackerYaml({ compare: 'week' })).toContain('# Against last week\ndaylight_delta: week');
         expect(trackerYaml({ compare: 'none' })).toContain('daylight_delta: none');
         for (const option of options(trackerYaml({ compare: 'month' }))) expect(tracker).toContain(`config.${option}`);
 

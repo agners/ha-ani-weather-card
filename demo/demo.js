@@ -2452,7 +2452,7 @@ function drawSlider(row) {
 function tuneYaml() {
     const quiet = Object.entries(quietOptions(tune.quiet)).map(([key, value]) => `${key}: ${value}`);
     const engine = tune.mode === 'auto' ? weatherYaml().trimEnd()
-        : engineYaml(tune.settings).trimEnd() || 'engine_mode: manual  # every amount at its default';
+        : engineYaml(tune.settings).trimEnd() || '# Every amount at its default\nengine_mode: manual';
     return [...quiet, engine].join('\n') + '\n';
 }
 const tuneChanged = () => (tune.mode === 'auto'

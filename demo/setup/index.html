@@ -229,13 +229,20 @@ sun_entity: sun.sun
 show_clock: true
 show_forecast: true
 # Optional
-show_date: true          # the date after the time
-hero: clock              # the time as the big value
-forecast_metric: chance  # temp, feels, chance, amount, uv, wind, gust, humidity, dew, cloud or pressure
-show_chips: false        # no chips: the hours stay on forecast_metric
-forecast_graph: bars     # line, area, bars or none
-show_days: true          # the week under the hours
-forecast_days: 5         # how many days: 7 unless you say</code></pre>
+# The date after the time
+show_date: true
+# The time as the big value
+hero: clock
+# What the hours open on: temp, feels, chance, amount, uv, wind, gust, humidity, dew, cloud or pressure
+forecast_metric: chance
+# No chips: the hours stay on forecast_metric
+show_chips: false
+# line, area, bars or none
+forecast_graph: bars
+# The week under the hours
+show_days: true
+# How many days: 7 unless you say
+forecast_days: 5</code></pre>
                     </div>
 
                     <h3 id="slide">Drag through the hours</h3>
@@ -264,17 +271,22 @@ forecast_days: 5         # how many days: 7 unless you say</code></pre>
                         <pre><code>type: custom:animated-forecast-card
 entity: weather.forecast_home
 # Optional
-forecast_days: 5  # 0 to 10
-weather_effects: true  # rain, snow and wind behind it</code></pre>
+# 0 to 10
+forecast_days: 5
+# Rain, snow and wind behind it
+weather_effects: true</code></pre>
                     </div>
                     <p>For one value per card, say the rain on one and the temperature on another, set what each opens on with <code>forecast_metric</code> (<b>Hours show</b> in its editor) and leave out the chips that change it. A chip you tap on the card isn't kept when the dashboard reloads. <code>show_summary: false</code> leaves out the line at the top too.</p>
                     <div class="code" data-lang="yaml">
                         <div class="code-bar"><span class="code-name">Card YAML</span><button type="button" class="copy"><span class="copy-icon" aria-hidden="true"></span><span class="copy-label">Copy</span></button></div>
                         <pre><code>type: custom:animated-forecast-card
 entity: weather.forecast_home
-forecast_metric: amount  # the rain's amount
-show_chips: false        # no chips: it stays on the amount
-show_summary: false      # no line at the top</code></pre>
+# The rain's amount
+forecast_metric: amount
+# No chips: it stays on the amount
+show_chips: false
+# No line at the top
+show_summary: false</code></pre>
                     </div>
                     <p>As a strip, it sits under the compact weather card: the hours alone, lined up with the card's text.</p>
                     <div class="code" data-lang="yaml">
@@ -297,10 +309,14 @@ cards:
 entity: weather.forecast_home
 layout: nightstand
 # Optional
-alarm_entity: sensor.phone_next_alarm      # the Companion app's next alarm
-night_sensor: sensor.bedroom_illuminance   # night when the room is dark
-night_lux: 5                               # how dark, in lux: raise it if night never comes
-wake_time: "07:00"                         # without an alarm</code></pre>
+# The Companion app's next alarm
+alarm_entity: sensor.phone_next_alarm
+# Night when the room is dark
+night_sensor: sensor.bedroom_illuminance
+# How dark, in lux: raise it if night never comes
+night_lux: 5
+# Without an alarm
+wake_time: "07:00"</code></pre>
                     </div>
                     <p>The alarm can be any timestamp sensor: the Android Companion app's next alarm sensor, or an input_datetime that an iOS Shortcut sets. It counts when it's within 18 hours.</p>
                 </section>
@@ -342,8 +358,10 @@ entity: weather.forecast_home
 sun_entity: sun.sun
 show_note: true
 # Optional
-note_tone: calm                 # snarky, calm, friendly or dry
-note_calendar: calendar.family  # when you're out, for what to wear</code></pre>
+# snarky, calm, friendly or dry
+note_tone: calm
+# When you're out, for what to wear
+note_calendar: calendar.family</code></pre>
                     </div>
 
                     <h3 id="note-see">What you'll see</h3>

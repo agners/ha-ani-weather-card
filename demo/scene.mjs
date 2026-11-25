@@ -843,7 +843,8 @@ export function weatherYaml() {
         'readings:',
         '  - type: rain',
         `    entity: ${ENTITIES.rainToday}`,
-        `    rate_entity: ${ENTITIES.rainRate}  # how hard it's raining`,
+        '    # How hard it\'s raining',
+        `    rate_entity: ${ENTITIES.rainRate}`,
         '  - cloud_cover',
         '  - visibility',
         '  - wind',
@@ -930,7 +931,7 @@ export function engineYaml(settings) {
 
 /** The note lab's options: the note, in the voice picked. */
 export function noteYaml(tone = 'snarky') {
-    return `show_note: true\nnote_tone: ${tone}  # snarky, calm, friendly or dry\n`;
+    return `show_note: true\n# snarky, calm, friendly or dry\nnote_tone: ${tone}\n`;
 }
 
 /** `custom_colors:` for the colours that are set, or nothing. */
@@ -1077,13 +1078,13 @@ export function presetYaml(id, { colors = 'sky' } = {}) {
         if (value && typeof value === 'object') lines.push(`${key}:`, ...Object.entries(value).map(([k, v]) => `  ${k}: ${v}`));
         else lines.push(`${key}: ${value}`);
     }
-    if (colors === 'theme') lines.push('color_palette: theme  # follows your Home Assistant theme');
+    if (colors === 'theme') lines.push('# Follows your Home Assistant theme', 'color_palette: theme');
     return lines.join('\n') + '\n';
 }
 
 /** Each of the forecast section's cards as YAML, with the theme's line when the page follows the theme. */
 export function aheadYaml(slot, { colors = 'sky', hero = false, days = false } = {}) {
-    const theme = colors === 'theme' ? ['color_palette: theme  # follows your Home Assistant theme'] : [];
+    const theme = colors === 'theme' ? ['# Follows your Home Assistant theme', 'color_palette: theme'] : [];
     const base = ['entity: weather.forecast_home', 'sun_entity: sun.sun'];
     // The time as the big value needs no small clock; the date then leads the place's line
     const clock = hero
@@ -1386,7 +1387,7 @@ export function configYaml({ layout = 'regular', colors = 'sky', station = false
             'show_note: true',
             ...(tone === 'snarky' ? [] : [`note_tone: ${tone}`]),
         ]),
-        ...(colors === 'theme' ? ['color_palette: theme  # follows your Home Assistant theme'] : []),
+        ...(colors === 'theme' ? ['# Follows your Home Assistant theme', 'color_palette: theme'] : []),
         ...Object.entries(quietOptions(quiet)).map(([key, value]) => `${key}: ${value}`),
         ...engineLines(engine),
         // Custom skies paint the sky palette only
@@ -1420,7 +1421,7 @@ export function trackerHass(data, where = SAMPLE_PLACE) {
 export const TRACKER_COMPARE = { day: 'yesterday', week: 'last week', month: 'last month', none: null };
 
 export function trackerYaml({ layout = 'regular', colors = 'sky', compare = 'day' } = {}) {
-    const theme = colors === 'theme' ? ['color_palette: theme  # follows your Home Assistant theme'] : [];
+    const theme = colors === 'theme' ? ['# Follows your Home Assistant theme', 'color_palette: theme'] : [];
     const tracker = [
         'type: custom:animated-sun-tracker-card',
         'sun_entity: sun.sun',
@@ -1428,7 +1429,7 @@ export function trackerYaml({ layout = 'regular', colors = 'sky', compare = 'day
         'moon_entity: sensor.moon_phase',
         'weather_entity: weather.forecast_home',
         ...(layout === 'compact' ? ['compact: true'] : []),
-        ...(compare === 'none' ? ['daylight_delta: none  # no comparison'] : compare !== 'day' && TRACKER_COMPARE[compare] ? [`daylight_delta: ${compare}  # against ${TRACKER_COMPARE[compare]}`] : []),
+        ...(compare === 'none' ? ['# No comparison', 'daylight_delta: none'] : compare !== 'day' && TRACKER_COMPARE[compare] ? [`# Against ${TRACKER_COMPARE[compare]}`, `daylight_delta: ${compare}`] : []),
         ...theme,
     ];
     if (layout === 'wide') tracker.unshift('# Wall: a panel view gives the card the whole screen');
