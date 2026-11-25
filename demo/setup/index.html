@@ -89,7 +89,7 @@ entity: weather.forecast_home</code></pre>
                 </li>
                 <li class="step">
                     <h3>Make it yours</h3>
-                    <p>Start from <a href="#presets">one of seven layouts</a>, add <a href="#forecast">the forecast and the clock</a>, have <a href="#note">your AI write a note</a> about the hours ahead, wire in <a href="#sensors">your own sensors</a>, pair it with <a href="#tracker">the sun tracker</a>, or watch <a href="#planes">real planes</a> cross it.</p>
+                    <p>Start from <a href="#presets">one of seven layouts</a>, add <a href="#forecast">the forecast and the clock</a>, have <a href="#note">your AI write a note</a> about the hours ahead, wire in <a href="#sensors">your own sensors</a> and choose <a href="#readings">the readings</a> under the temperature, show <a href="#place">another place</a>, pair it with <a href="#tracker">the sun tracker</a>, or watch <a href="#planes">real planes</a> cross it.</p>
                 </li>
             </ol>
         </section>
@@ -97,12 +97,16 @@ entity: weather.forecast_home</code></pre>
         <div class="guide-body">
             <nav class="toc" aria-label="On this page">
                 <p class="toc-title">On this page</p>
-                <ol>
+                <button type="button" class="toc-toggle" id="toc-toggle" aria-expanded="false" aria-controls="toc-list">
+                    <span class="toc-toggle-label">On this page</span><span class="toc-now" id="toc-now"></span>
+                    <svg class="toc-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.41 8.58 12 13.17l4.59-4.59L18 10l-6 6-6-6z"/></svg>
+                </button>
+                <ol id="toc-list">
                     <li><a href="#install">Install</a></li>
                     <li><a href="#first-card">Your first card</a></li>
                     <li><a href="#forecast">The forecast</a></li>
                     <li><a href="#note">The weather note</a></li>
-                    <li><a href="#extras">Extras</a></li>
+                    <li><a href="#extras">Sensors, places and more</a></li>
                     <li><a href="#troubleshooting">Troubleshooting</a></li>
                 </ol>
             </nav>
@@ -366,7 +370,7 @@ note_entity: input_text.weather_note</code></pre>
                 </section>
 
                 <section class="chapter" id="extras" aria-labelledby="extras-title">
-                    <h2 id="extras-title"><a class="anchor" href="#extras">Extras</a></h2>
+                    <h2 id="extras-title"><a class="anchor" href="#extras">Sensors, places and more</a></h2>
 
                     <h3 id="sensors">Your own sensors</h3>
                     <p>Your sensors take the place of the weather entity's values; indoor readings sit under the condition. Without a feels-like sensor, the card uses the weather entity's apparent temperature if it has one. The readings in the row take their sensors in <code>readings</code>: a wind speed sensor there also sets how fast the weather moves, and a wind direction sensor can report degrees or a compass point like NW.</p>

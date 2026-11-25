@@ -85,6 +85,10 @@
     --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
     --ease-in-out-sine: cubic-bezier(0.37, 0, 0.63, 1);
     --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+    /* One length for each gesture, whichever section makes it: a stage's light coming up or going down, and how far
+       a button gives under a press. The scripts' own are REVEAL, LEAVE and RESIZE (demo.js) */
+    --light: 1.6s var(--ease-in-out-sine);
+    --press: 0.97;
 
     --gutter: clamp(20px, 4vw, 64px);
     --page: 1360px;
@@ -265,7 +269,7 @@ a { color: inherit; }
     transition: background-color 0.2s ease, transform 0.2s var(--ease-out-quart);
 }
 .button-primary:hover { background: oklch(1 0 0); }
-.button-primary:active { transform: scale(0.97); transition-duration: 0.2s, 0.08s; }
+.button-primary:active { transform: scale(var(--press)); transition-duration: 0.2s, 0.08s; }
 .button-quiet {
     display: inline-flex;
     gap: 6px;
@@ -475,7 +479,7 @@ a { color: inherit; }
     background: var(--button);
     color: var(--button-ink);
 }
-.weather-option:active .glyph { transform: scale(0.95); transition-duration: 0.18s, 0.18s, 0.08s; }
+.weather-option:active .glyph { transform: scale(var(--press)); transition-duration: 0.18s, 0.18s, 0.08s; }
 @media (hover: hover) and (pointer: fine) {
     .weather-option:hover input:not(:checked) + .glyph,
     .weather-live:not([aria-pressed="true"]):hover .glyph { background: var(--high); color: var(--text); }
@@ -627,7 +631,7 @@ a { color: inherit; }
     transition: background-color 0.18s ease, transform 0.2s var(--ease-out-quart);
 }
 .plane-button:hover { background: var(--high); }
-.plane-button:active { transform: scale(0.97); transition-duration: 0.18s, 0.08s; }
+.plane-button:active { transform: scale(var(--press)); transition-duration: 0.18s, 0.08s; }
 .plane-icon {
     display: grid;
     width: 18px;
@@ -918,7 +922,7 @@ a { color: inherit; }
 .frame-scene[data-layout="wide"] .cards > * { flex: 1; min-height: 0; }
 .frame-scene animated-sun-tracker-card { height: auto; }
 
-.frame-stage .stage-light { transition: opacity 1.6s var(--ease-in-out-sine) 0.2s, transform 0.52s var(--ease-drawer); }
+.frame-stage .stage-light { transition: opacity var(--light) 0.2s, transform 0.52s var(--ease-drawer); }
 .js .frame-stage:not(.is-shown) .frame-box,
 .js .frame-stage:not(.is-shown) .stage-light,
 .js .frame-stage:not(.is-shown) .frame-after { opacity: 0; }
@@ -974,7 +978,7 @@ a { color: inherit; }
     transition: background-color 0.18s ease, color 0.18s ease, transform 0.2s var(--ease-out-quart);
 }
 .layout-chip input:checked + span { background: var(--button); color: var(--button-ink); }
-.layout-chip:active span { transform: scale(0.97); transition-duration: 0.18s, 0.18s, 0.08s; }
+.layout-chip:active span { transform: scale(var(--press)); transition-duration: 0.18s, 0.18s, 0.08s; }
 .layout-chip input:focus-visible + span { outline: 2px solid var(--text); outline-offset: 2px; }
 @media (hover: hover) and (pointer: fine) {
     .layout-chip:hover input:not(:checked) + span { background: var(--high); color: var(--text); }
@@ -1008,8 +1012,8 @@ a { color: inherit; }
 .layouts-slot .snippet-slot { position: relative; z-index: 1; width: min(100%, 500px); }
 .layouts-caption { margin: 18px 0 0; font-size: 14px; color: var(--text-3); text-wrap: pretty; }
 .layouts-slot:has(.snippet-slot[data-open]) .code-toggle-icon svg { transform: rotate(180deg); }
-.layouts-slot .stage-light { transition: opacity 1.6s var(--ease-in-out-sine) 0.2s, transform 0.52s var(--ease-out-quint); }
-.layouts-slot .stage-light.is-placing { transition: opacity 1.6s var(--ease-in-out-sine) 0.2s; }
+.layouts-slot .stage-light { transition: opacity var(--light) 0.2s, transform 0.52s var(--ease-out-quint); }
+.layouts-slot .stage-light.is-placing { transition: opacity var(--light) 0.2s; }
 .layouts-caption,
 .layouts-slot .snippet-slot { transition: opacity 0.6s var(--ease-out-quart) 0.35s; }
 .js .layouts-slot:not(.is-shown) :is(.stage-light, .layouts-caption, .snippet-slot) { opacity: 0; }
@@ -1069,16 +1073,17 @@ a { color: inherit; }
 .ahead-hero { display: flex; align-items: center; gap: 14px; margin-top: 18px; }
 .ahead-hero-label { font-size: 14px; font-weight: 500; color: var(--text-2); white-space: nowrap; min-width: 4.6em; }
 .ahead-hero .segmented { flex: 0 1 220px; }
-/* The week, under the big value: the same line, a little closer */
-.ahead-hero + .ahead-hero { margin-top: 12px; }
-.ahead-caption { justify-self: start; width: auto; max-width: 100%; transform: none; text-wrap: pretty; }
+/* The week, under the big value: a switch, as every on and off on the page is */
+.ahead-days { margin-top: 16px; z-index: 1; }
+.ahead-caption { justify-self: start; width: auto; max-width: 100%; padding-left: 0; transform: none; text-wrap: pretty; }
 .ahead-slot .snippet-slot { width: 100%; }
 .ahead-slot:has(.snippet-slot[data-open]) .code-toggle-icon svg { transform: rotate(180deg); }
-.ahead-slot .stage-light { transition: opacity 1.6s var(--ease-in-out-sine) 0.2s, transform 0.52s var(--ease-out-quint); }
-.ahead-slot .stage-light.is-placing { transition: opacity 1.6s var(--ease-in-out-sine) 0.2s; }
+.ahead-slot .stage-light { transition: opacity var(--light) 0.2s, transform 0.52s var(--ease-out-quint); }
+.ahead-slot .stage-light.is-placing { transition: opacity var(--light) 0.2s; }
 .ahead-caption,
 .ahead-slot .snippet-slot,
-.ahead-hero { transition: opacity 0.6s var(--ease-out-quart) 0.35s; }
+.ahead-hero,
+.ahead-days { transition: opacity 0.6s var(--ease-out-quart) 0.35s; }
 .js .ahead-stage:not(.is-shown) :is(.stage-light, .ahead-caption, .snippet-slot) { opacity: 0; }
 
 /* ── The sun tracker: its sizes, and the day under your finger ──────── */
@@ -1096,6 +1101,8 @@ a { color: inherit; }
 .tracker-copy { grid-column: 2; }
 .tracker-copy .section-lede { margin: 0 0 18px; }
 .tracker-copy .compare-picker { margin-top: 18px; }
+/* Where the words take the page's width, the pickers keep the width they have beside the title */
+.tracker-copy .segmented { max-width: 352px; }
 .compare-picker .segmented span { padding-inline: 6px; }
 /* The group under the view waits for the card, then follows it in */
 .tracker-stage .frame-after { transition-delay: 0.35s; }
@@ -1225,6 +1232,21 @@ a { color: inherit; }
 .frame-after:has(.snippet-slot[data-open]) .code-toggle-icon svg { transform: rotate(180deg); }
 .lab-controls .code-toggle { justify-self: start; margin-top: 18px; padding: 8px 0; }
 .frame-caption .code-toggle { margin-left: 6px; vertical-align: baseline; }
+/* A caption's own button (the bedside clock's way to the night): the code toggle's type, underlined as a link is */
+.caption-action {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--text-2);
+    font: inherit;
+    font-weight: 500;
+    text-decoration: underline;
+    text-decoration-color: var(--hairline-strong);
+    text-underline-offset: 3px;
+    cursor: pointer;
+}
+.caption-action:hover { color: var(--text); }
 .code-fold {
     display: grid;
     grid-template-rows: 0fr;
@@ -1268,7 +1290,7 @@ a { color: inherit; }
     transition: background-color 0.18s ease, color 0.18s ease, transform 0.2s var(--ease-out-quart);
 }
 .copy:hover { background: var(--higher); }
-.copy:active { transform: scale(0.97); transition-duration: 0.18s, 0.18s, 0.08s; }
+.copy:active { transform: scale(var(--press)); transition-duration: 0.18s, 0.18s, 0.08s; }
 .copy-icon { display: grid; width: 15px; height: 15px; }
 .copy-icon svg { width: 15px; height: 15px; fill: currentColor; }
 .copy.is-done { color: var(--sun); }
@@ -1304,6 +1326,11 @@ a { color: inherit; }
 .y-val { color: var(--text); }
 .y-punct, .y-dash { color: var(--text-3); }
 .y-comment { color: var(--text-3); font-style: italic; }
+/* On a phone a comment's line wraps under its own words, so none is cut at the block's edge. Copy takes the text
+   itself, where each is still one line. */
+@media (max-width: 640px) {
+    .y-line:has(> .y-comment:only-child) { white-space: pre-wrap; padding-left: 2ch; text-indent: -2ch; }
+}
 
 /* ── Your station: the card stays, the readings run beside it ────────── */
 .station {
@@ -1490,8 +1517,8 @@ a { color: inherit; }
 }
 .lab-stage .scene { width: 100%; }
 .js .lab-stage:not(.is-shown) .stage-light { opacity: 0; }
-.lab-stage.is-shown .stage-light { transition: opacity 1.6s var(--ease-in-out-sine) 0.2s, transform 0.52s var(--ease-out-quint); }
-.lab-stage.is-shown .stage-light.is-placing { transition: opacity 1.6s var(--ease-in-out-sine) 0.2s; }
+.lab-stage.is-shown .stage-light { transition: opacity var(--light) 0.2s, transform 0.52s var(--ease-out-quint); }
+.lab-stage.is-shown .stage-light.is-placing { transition: opacity var(--light) 0.2s; }
 
 .sliders-head,
 .quiet h3,
@@ -1617,7 +1644,7 @@ a { color: inherit; }
     box-shadow: inset 0 0 0 1px oklch(1 0 0 / 0.14);
 }
 .chip:hover { background: var(--high); color: var(--text); }
-.chip:active { transform: scale(0.97); }
+.chip:active { transform: scale(var(--press)); }
 .chip:has(input:checked) { background: var(--button); color: var(--button-ink); }
 .chip:has(input:focus-visible) { outline: 2px solid var(--text); outline-offset: 3px; }
 
@@ -1720,8 +1747,8 @@ a { color: inherit; }
    The words arrive first, then the console, then the card as soon as it
    has drawn its sky (demo.js), and the room's light comes up behind it. */
 .js .stage:not(.is-ready) .stage-light { opacity: 0; }
-.stage.is-ready .stage-light { transition: opacity 1.8s var(--ease-in-out-sine) 0.2s, transform 0.52s var(--ease-out-quint); }
-.stage.is-ready .stage-light.is-placing { transition: opacity 1.8s var(--ease-in-out-sine) 0.2s; }
+.stage.is-ready .stage-light { transition: opacity var(--light) 0.2s, transform 0.52s var(--ease-out-quint); }
+.stage.is-ready .stage-light.is-placing { transition: opacity var(--light) 0.2s; }
 
 @media (prefers-reduced-motion: no-preference) {
     .js .line > span { animation: line-in 1s var(--ease-out-expo) both; }
@@ -1872,7 +1899,7 @@ a { color: inherit; }
     .lab-stage.is-shown .stage-light,
     .ahead-slot .stage-light,
     .layouts-slot .stage-light { transition: opacity 0.2s ease !important; }
-    .ahead-caption, .ahead-slot .snippet-slot, .ahead-hero,
+    .ahead-caption, .ahead-slot .snippet-slot, .ahead-hero, .ahead-days,
     .layouts-caption, .layouts-slot .snippet-slot { transition-duration: 0.2s; transition-delay: 0s; }
     .reading-dot, .reading-value { transition-delay: 0ms !important; }
     .weather-live.is-finding .glyph svg { animation: none; opacity: 0.6; }
@@ -1891,5 +1918,5 @@ a { color: inherit; }
     .layout-chip span, .chip { min-height: 44px; }
     .stepper { width: 44px; height: 44px; }
     .station-switch, .quiet-switch { min-height: 44px; }
-    .code-toggle { padding-block: 11px; margin-block: -11px; }
+    .code-toggle, .caption-action { padding-block: 11px; margin-block: -11px; }
 }

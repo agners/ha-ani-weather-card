@@ -304,7 +304,7 @@ describe('the demo\'s sample world', () => {
         expect(STATION.every(row => !!row.option !== !!row.reading)).toBe(true);
     });
 
-    it('shows the UV index, air quality and CO₂ only once their sensors are on, the default four before', () => {
+    it('shows the rain, the UV index, air quality and CO₂ only once their sensors are on, the default four before', () => {
         expect(stationReadings(new Set())).toEqual([
             { type: 'humidity', entity: 'sensor.garden_humidity' },
             { type: 'wind', entity: 'sensor.garden_wind_speed', direction_entity: 'sensor.garden_wind_direction' },
@@ -315,7 +315,11 @@ describe('the demo\'s sample world', () => {
             { type: 'uv', entity: 'sensor.garden_uv_index' },
             { type: 'sensor', entity: 'sensor.living_room_co2', name: 'CO₂' },
         ]);
-        expect(stationReadings()).toHaveLength(7);
+        expect(stationReadings()[4]).toEqual({ type: 'rain', entity: ENTITIES.rainToday, rate_entity: ENTITIES.rainRate });
+        // Eight, so the card's rows are even
+        expect(stationReadings()).toHaveLength(8);
+        // Every row can be changed
+        expect(STATION.every(row => row.step > 0)).toBe(true);
     });
 
     it('adds the station to hass only when it is on, so the card falls back to the forecast', () => {

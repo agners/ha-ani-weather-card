@@ -75,7 +75,20 @@ function follow() {
         if (id === current) link.setAttribute('aria-current', 'location');
         else link.removeAttribute('aria-current');
     }
+    tocNow.textContent = links.get(current)?.textContent ?? '';
 }
+// On a narrow screen the contents are one line that stays at the top edge and opens to the list
+const toc = document.querySelector('.toc');
+const tocToggle = document.getElementById('toc-toggle');
+const tocNow = document.getElementById('toc-now');
+function openToc(open) {
+    toc.toggleAttribute('data-open', open);
+    tocToggle.setAttribute('aria-expanded', String(open));
+}
+tocToggle.addEventListener('click', () => openToc(!toc.hasAttribute('data-open')));
+toc.addEventListener('click', (event) => { if (event.target.closest('a')) openToc(false); });
+addEventListener('keydown', (event) => { if (event.key === 'Escape' && toc.hasAttribute('data-open')) { openToc(false); tocToggle.focus(); } });
+addEventListener('pointerdown', (event) => { if (!toc.contains(event.target)) openToc(false); });
 addEventListener('scroll', () => { frame ||= requestAnimationFrame(follow); }, { passive: true });
 addEventListener('resize', () => { frame ||= requestAnimationFrame(follow); });
 follow();

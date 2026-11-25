@@ -720,25 +720,29 @@ export function noteFor(conditionId, phase, tone = 'snarky') {
  * fast the weather moves. Pressure and the wind start where the clear-sky
  * forecast has them, so wiring the sensors in doesn't show as a change.
  * The wind's direction wraps round the compass instead of stopping.
+ * The rain is one reading from two sensors: the rate while it's above 0
+ * ("Rain now"), else today's total.
  */
 export const STATION = [
     { id: 'temperature', group: 'Outside', label: 'Temperature', option: 'outdoor_sensor_entity', entity: 'sensor.garden_temperature', value: 18.4, unit: '°C', decimals: 1, step: 1, deviceClass: 'temperature' },
-    { id: 'feelsLike', group: 'Outside', label: 'Feels like', option: 'feels_like_entity', entity: 'sensor.garden_feels_like', value: 17.6, unit: '°C', decimals: 1, deviceClass: 'temperature' },
-    { id: 'humidity', group: 'Outside', label: 'Humidity', reading: 'humidity', entity: 'sensor.garden_humidity', value: 61, unit: '%', decimals: 0, deviceClass: 'humidity' },
+    { id: 'feelsLike', group: 'Outside', label: 'Feels like', option: 'feels_like_entity', entity: 'sensor.garden_feels_like', value: 17.6, unit: '°C', decimals: 1, step: 1, deviceClass: 'temperature' },
+    { id: 'humidity', group: 'Outside', label: 'Humidity', reading: 'humidity', entity: 'sensor.garden_humidity', value: 61, unit: '%', decimals: 0, step: 5, deviceClass: 'humidity' },
     { id: 'windSpeed', group: 'Outside', label: 'Wind speed', reading: 'wind', entity: 'sensor.garden_wind_speed', value: 11, unit: 'km/h', decimals: 0, step: 5, deviceClass: 'wind_speed' },
     { id: 'windDirection', group: 'Outside', label: 'Wind direction', reading: 'wind', entity: 'sensor.garden_wind_direction', value: 300, unit: '°', decimals: 0, step: 45, wrap: 360, deviceClass: 'wind_direction' },
     { id: 'pressure', group: 'Outside', label: 'Pressure', reading: 'pressure', entity: 'sensor.garden_pressure', value: 1019, unit: 'hPa', decimals: 0, step: 1, deviceClass: 'pressure' },
+    { id: 'rainToday', group: 'Outside', label: 'Rain today', reading: 'rain', entity: ENTITIES.rainToday, value: 2.4, unit: 'mm', decimals: 1, step: 0.5, deviceClass: 'precipitation' },
+    { id: 'rainRate', group: 'Outside', label: 'Rain rate', reading: 'rain', entity: ENTITIES.rainRate, value: 0, unit: 'mm/h', decimals: 1, step: 0.5, deviceClass: 'precipitation_intensity' },
     { id: 'uv', group: 'Outside', label: 'UV index', reading: 'uv', entity: 'sensor.garden_uv_index', value: 3, unit: 'UV index', shown: '', decimals: 0, step: 1 },
     { id: 'airQuality', group: 'Outside', label: 'Air quality', reading: 'aqi', entity: 'sensor.garden_air_quality', value: 38, unit: 'AQI', decimals: 0, step: 10, deviceClass: 'aqi' },
-    { id: 'indoorTemperature', group: 'Indoors', label: 'Temperature', option: 'indoor_temperature_entity', entity: 'sensor.living_room_temperature', value: 21.8, unit: '°C', decimals: 1, deviceClass: 'temperature' },
-    { id: 'indoorHumidity', group: 'Indoors', label: 'Humidity', option: 'indoor_humidity_entity', entity: 'sensor.living_room_humidity', value: 46, unit: '%', decimals: 0, deviceClass: 'humidity' },
+    { id: 'indoorTemperature', group: 'Indoors', label: 'Temperature', option: 'indoor_temperature_entity', entity: 'sensor.living_room_temperature', value: 21.8, unit: '°C', decimals: 1, step: 1, deviceClass: 'temperature' },
+    { id: 'indoorHumidity', group: 'Indoors', label: 'Humidity', option: 'indoor_humidity_entity', entity: 'sensor.living_room_humidity', value: 46, unit: '%', decimals: 0, step: 5, deviceClass: 'humidity' },
     { id: 'co2', group: 'Indoors', label: 'CO₂', reading: 'sensor', name: 'CO₂', entity: 'sensor.living_room_co2', value: 640, unit: 'ppm', decimals: 0, step: 50, deviceClass: 'carbon_dioxide' },
 ];
 
 /**
  * The station card's readings: humidity, wind and pressure from their sensors (the weather entity's own while a sensor
- * isn't there) and the next sunset, as the card shows by default; then the UV index, air quality and CO₂, each once
- * its sensor is on (`linked`), since they have nothing to fall back to. All of them for the YAML.
+ * isn't there) and the next sunset, as the card shows by default; then the rain, the UV index, air quality and CO₂,
+ * each once its sensor is on (`linked`), since they have nothing to fall back to: eight, so the card's rows are even. All of them for the YAML.
  */
 export function stationReadings(linked = new Set(STATION.map(row => row.id))) {
     const row = (id) => STATION.find(r => r.id === id);
@@ -748,6 +752,7 @@ export function stationReadings(linked = new Set(STATION.map(row => row.id))) {
         { ...reading('windSpeed'), direction_entity: row('windDirection').entity },
         reading('pressure'),
         'sun',
+        ...(linked.has('rainToday') ? [{ ...reading('rainToday'), rate_entity: row('rainRate').entity }] : []),
         ...['uv', 'airQuality', 'co2'].filter(id => linked.has(id)).map(reading),
     ];
 }

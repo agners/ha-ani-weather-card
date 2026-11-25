@@ -31,6 +31,11 @@ const EASE = {
     outExpo: 'cubic-bezier(0.16, 1, 0.3, 1)',
 };
 
+/** A stage's first arrival, the same in every section: it fades in as it rises into place. */
+const REVEAL = { fade: 700, rise: 1000, from: 'translateY(16px)' };
+/** How long the old scene takes to leave once the new one is drawn over it */
+const LEAVE = 120;
+
 /**
  * A new scene of another height, in a stage whose scenes stack in one cell. Until it's shown the new scene is out of
  * flow (`is-out`), so setting it up moves nothing. Then the two change places in one layout pass: the stage takes the
@@ -347,8 +352,8 @@ function revealFirst(scene) {
         if (reduceMotion) {
             scene.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200 });
         } else {
-            scene.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 800, easing: EASE.outQuart });
-            scene.el.animate([{ transform: 'translateY(20px)' }, { transform: 'none' }], { duration: 1100, easing: EASE.outExpo });
+            scene.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: REVEAL.fade, easing: EASE.outQuart });
+            scene.el.animate([{ transform: REVEAL.from }, { transform: 'none' }], { duration: REVEAL.rise, easing: EASE.outExpo });
         }
         watchSky();
     }, Math.max(0, 400 - performance.now()));
@@ -381,7 +386,7 @@ function reveal(scene) {
     placeLight();
     scene.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 320, easing: EASE.outQuart }).onfinish = () => {
         // Covered now, but its spilled weather and shadow aren't: let them go softly
-        old.el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 120, easing: EASE.inSoft, fill: 'forwards' })
+        old.el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: LEAVE, easing: EASE.inSoft, fill: 'forwards' })
             .onfinish = remove;
     };
 }
@@ -506,13 +511,15 @@ const LANDS_ON = {
     pressure: ['.attribute[data-kind="pressure"] .attribute-value'],
     windSpeed: ['.attribute[data-kind="wind"] .attribute-value'],
     windDirection: ['.attribute[data-kind="wind"] .wind-bearing-arrow'],
+    rainToday: ['.attribute[data-kind="rain"] .attribute-value'],
+    rainRate: ['.attribute[data-kind="rain"] .attribute-value'],
     uv: ['.attribute[data-kind="uv"] .attribute-value'],
     airQuality: ['.attribute[data-kind="aqi"] .attribute-value'],
     co2: ['.attribute[data-kind="sensor"] .attribute-value'],
     indoorTemperature: ['.indoor-climate-inline'],
     indoorHumidity: ['.indoor-climate-inline'],
 };
-const LIMITS = { temperature: [-30, 45], pressure: [950, 1050], windSpeed: [0, 90], uv: [0, 11], airQuality: [0, 300], co2: [400, 2000] };
+const LIMITS = { temperature: [-30, 45], feelsLike: [-30, 45], humidity: [0, 100], rainToday: [0, 80], rainRate: [0, 50], indoorTemperature: [10, 35], indoorHumidity: [0, 100], pressure: [950, 1050], windSpeed: [0, 90], uv: [0, 11], airQuality: [0, 300], co2: [400, 2000] };
 
 const station = {
     on: false,
@@ -1080,7 +1087,7 @@ function createFrame({ section, layout, build, captions, label, wallFrom, probe 
             if (!old) return;
             const from = getComputedStyle(old.el).opacity;
             old.el.getAnimations().forEach(animation => animation.cancel());
-            old.el.animate([{ opacity: from }, { opacity: 0 }], { duration: reduceMotion ? 200 : 140, delay, easing: EASE.inSoft, fill: 'both' })
+            old.el.animate([{ opacity: from }, { opacity: 0 }], { duration: reduceMotion ? 200 : LEAVE, delay, easing: EASE.inSoft, fill: 'both' })
                 .onfinish = () => old.el.remove();
         };
         if (!view.revealed) {
@@ -1115,8 +1122,8 @@ function createFrame({ section, layout, build, captions, label, wallFrom, probe 
             frame.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200 });
             return;
         }
-        frame.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 600, easing: EASE.outQuart });
-        frame.animate([{ transform: 'translateY(16px)' }, { transform: 'none' }], { duration: 900, easing: EASE.outExpo });
+        frame.animate([{ opacity: 0 }, { opacity: 1 }], { duration: REVEAL.fade, easing: EASE.outQuart });
+        frame.animate([{ transform: REVEAL.from }, { transform: 'none' }], { duration: REVEAL.rise, easing: EASE.outExpo });
         view.current.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, delay: 200, easing: EASE.outQuart, fill: 'backwards' });
     }
 
@@ -1367,7 +1374,7 @@ const dash = (() => {
         const leave = (delay) => {
             const from = getComputedStyle(old.el).opacity;
             old.el.getAnimations().forEach(animation => animation.cancel());
-            old.el.animate([{ opacity: from }, { opacity: 0 }], { duration: reduceMotion ? 200 : 140, delay, easing: EASE.inSoft, fill: 'both' })
+            old.el.animate([{ opacity: from }, { opacity: 0 }], { duration: reduceMotion ? 200 : LEAVE, delay, easing: EASE.inSoft, fill: 'both' })
                 .onfinish = () => old.el.remove();
         };
         if (reduceMotion) {
@@ -1390,8 +1397,8 @@ const dash = (() => {
             frame.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200 });
             return;
         }
-        frame.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 600, easing: EASE.outQuart });
-        frame.animate([{ transform: 'translateY(16px)' }, { transform: 'none' }], { duration: 900, easing: EASE.outExpo });
+        frame.animate([{ opacity: 0 }, { opacity: 1 }], { duration: REVEAL.fade, easing: EASE.outQuart });
+        frame.animate([{ transform: REVEAL.from }, { transform: 'none' }], { duration: REVEAL.rise, easing: EASE.outExpo });
         view.current.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, delay: 200, easing: EASE.outQuart, fill: 'backwards' });
     }
 
@@ -1520,13 +1527,31 @@ const layouts = (() => {
     }
     function captionFor(scene) {
         const preset = PRESETS.find(p => p.id === view.pick) ?? PRESETS[0];
-        // Its night is the page's: the Time of day at the top sets every card's sun
-        if (preset.id === 'bedside') return `${preset.description}. Set Time of day to Night, at the top of the page, to see it.`;
         if (preset.id !== 'wall') return `${preset.description}.`;
         return scene.wall
             ? `${preset.description}: in a section of Double width, ten rows tall, or a panel view.`
             : `On a screen this narrow it's the forecast with the time and date. The wall needs ${WALL_MIN.width} × ${WALL_MIN.height} px: a section of Double width, or a panel view.`;
     }
+    /**
+     * The caption, and under the bedside clock a button to the page's night and back: its red needs the dark, and
+     * its night is the page's (the Time of day at the top sets every card's sun).
+     */
+    function writeCaption(scene = view.current) {
+        if (!scene) return;
+        caption.textContent = captionFor(scene);
+        if (view.pick !== 'bedside') return;
+        const night = state.phase === 'night';
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'caption-action';
+        button.dataset.phase = night ? 'day' : 'night';
+        button.textContent = night ? 'Back to day' : 'See it at night';
+        caption.append(' ', button);
+    }
+    caption.addEventListener('click', (event) => {
+        const phase = event.target.closest('.caption-action')?.dataset.phase;
+        if (phase) setPhase(phase);
+    });
     function renderYaml() {
         view.text = presetYaml(view.pick, { colors: state.colors === 'sky' ? 'sky' : 'theme' });
         render(view.text);
@@ -1566,7 +1591,7 @@ const layouts = (() => {
         view.current = scene;
         scene.el.inert = false;
         if (old) old.el.inert = true;
-        caption.textContent = captionFor(scene);
+        writeCaption(scene);
         if (!view.revealed) {
             old?.el.remove();
             reveal();
@@ -1584,7 +1609,7 @@ const layouts = (() => {
             return;
         }
         scene.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 320, easing: EASE.outQuart }).onfinish = () => {
-            old?.el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 120, easing: EASE.inSoft, fill: 'forwards' }).finished.then(remove, remove);
+            old?.el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: LEAVE, easing: EASE.inSoft, fill: 'forwards' }).finished.then(remove, remove);
         };
     }
     /** Once, when the card starts to come into view and has drawn: it rises in, and its light comes up */
@@ -1600,8 +1625,8 @@ const layouts = (() => {
             el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200 });
             return;
         }
-        el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 700, easing: EASE.outQuart });
-        el.animate([{ transform: 'translateY(16px)' }, { transform: 'none' }], { duration: 1000, easing: EASE.outExpo });
+        el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: REVEAL.fade, easing: EASE.outQuart });
+        el.animate([{ transform: REVEAL.from }, { transform: 'none' }], { duration: REVEAL.rise, easing: EASE.outExpo });
     }
 
     section.querySelector('#layout-chips').addEventListener('change', (event) => {
@@ -1630,7 +1655,7 @@ const layouts = (() => {
     addRoom({ stage: slotEl, sky: () => view.current?.card.querySelector('.animated-weather-card'), storm: () => !!view.current && state.conditionId === 'lightning-rainy' });
 
     renderYaml();
-    return { stage: slotEl, mount, renderYaml };
+    return { stage: slotEl, mount, renderYaml, writeCaption };
 })();
 
 const ahead = (() => {
@@ -1744,7 +1769,7 @@ const ahead = (() => {
                 return;
             }
             scene.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 320, easing: EASE.outQuart }).onfinish = () => {
-                old?.el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 120, easing: EASE.inSoft, fill: 'forwards' }).finished.then(remove, remove);
+                old?.el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: LEAVE, easing: EASE.inSoft, fill: 'forwards' }).finished.then(remove, remove);
             };
         });
         if (view.revealed) {
@@ -1769,8 +1794,8 @@ const ahead = (() => {
                 return;
             }
             const delay = i * 90;
-            el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 700, delay, easing: EASE.outQuart, fill: 'backwards' });
-            el.animate([{ transform: 'translateY(16px)' }, { transform: 'none' }], { duration: 1000, delay, easing: EASE.outExpo, fill: 'backwards' });
+            el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: REVEAL.fade, delay, easing: EASE.outQuart, fill: 'backwards' });
+            el.animate([{ transform: REVEAL.from }, { transform: 'none' }], { duration: REVEAL.rise, delay, easing: EASE.outExpo, fill: 'backwards' });
         });
     }
 
@@ -1805,8 +1830,7 @@ const ahead = (() => {
     // The week under the hours: the card asks for its rows, so its box grows by them
     const daysEl = section.querySelector('#ahead-days');
     daysEl.addEventListener('change', (event) => {
-        days = event.target.value === 'on';
-        daysEl.querySelector('.segmented').style.setProperty('--index', days ? 1 : 0);
+        days = event.target.checked;
         renderYaml();
         mount(['hours']);
     });
@@ -2070,6 +2094,7 @@ function syncTime() {
     placeKnob(knobX);
     const stop = document.querySelector(`input[name="phase"][value="${state.phase}"]`);
     if (stop) stop.checked = true;
+    layouts.writeCaption();
     nameWeatherOptions();
     nameForecastOptions();
 }
@@ -2117,6 +2142,10 @@ function setPhase(phase) {
     update();
     pushStation();
     moveKnob(STOPS[phase]);
+    // From the bedside caption's button the stop wasn't the one pressed
+    const stop = document.querySelector(`input[name="phase"][value="${phase}"]`);
+    if (stop) stop.checked = true;
+    layouts.writeCaption();
     nameWeatherOptions();
     nameForecastOptions();
     announce();
@@ -2289,7 +2318,7 @@ function createLab({ section, condition, phase = null, config = () => ({}), data
             return;
         }
         scene.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 320, easing: EASE.outQuart }).onfinish = () => {
-            old.el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 120, easing: EASE.inSoft, fill: 'forwards' }).onfinish = remove;
+            old.el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: LEAVE, easing: EASE.inSoft, fill: 'forwards' }).onfinish = remove;
         };
     }
     /** Once, when a quarter of the stage is in view and its card has drawn: the card rises in and its light comes up. */
@@ -2305,8 +2334,8 @@ function createLab({ section, condition, phase = null, config = () => ({}), data
             scene.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200 });
             return;
         }
-        scene.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 700, easing: EASE.outQuart });
-        scene.el.animate([{ transform: 'translateY(16px)' }, { transform: 'none' }], { duration: 1000, easing: EASE.outExpo });
+        scene.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: REVEAL.fade, easing: EASE.outQuart });
+        scene.el.animate([{ transform: REVEAL.from }, { transform: 'none' }], { duration: REVEAL.rise, easing: EASE.outExpo });
     }
     /** The clock moved, or the lab's weather changed: a live update, as on a dashboard. */
     function refresh() {
@@ -2640,9 +2669,13 @@ let lastCondition = state.conditionId;
 let liveRequest = 0;
 let liveTimer = 0;
 
+/** The line under the weather keys. It comes and goes with the page carried around it, never in one jump. */
 function note(text) {
-    liveNote.textContent = text;
-    liveNote.hidden = !text;
+    if (liveNote.textContent === text) return;
+    carry(liveNote, () => {
+        liveNote.textContent = text;
+        liveNote.hidden = !text;
+    });
 }
 function checkCondition(id) {
     const input = form.querySelector(`input[name="condition"][value="${id}"]`);

@@ -86,6 +86,7 @@
                             </svg>
                             <div class="dial-stops" id="phases"></div>
                         </div>
+                        <p class="field-note">At night, the moon is in tonight's real phase.</p>
                     </fieldset>
 
                     <fieldset class="field">
@@ -207,14 +208,11 @@
                         <label><input type="radio" name="ahead-hero" value="clock"><span>Time</span></label>
                     </div>
                 </div>
-                <div class="ahead-hero ahead-days" id="ahead-days" role="radiogroup" aria-labelledby="ahead-days-label">
-                    <span class="ahead-hero-label" id="ahead-days-label">The week</span>
-                    <div class="segmented" style="--count: 2; --index: 0">
-                        <span class="segmented-thumb" aria-hidden="true"></span>
-                        <label><input type="radio" name="ahead-days" value="off" checked><span>Off</span></label>
-                        <label><input type="radio" name="ahead-days" value="on"><span>On</span></label>
-                    </div>
-                </div>
+                <label class="toggle ahead-days" id="ahead-days">
+                    <input type="checkbox" role="switch">
+                    <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb"></span></span>
+                    <span>Days under the hours</span>
+                </label>
             </div>
 
             <div class="ahead-stage" id="ahead-stage" role="region" aria-label="Live preview of the forecast">
@@ -324,7 +322,7 @@
                 <span class="title-quiet">The forecast still paints the sky.</span>
             </h2>
             <div class="station-copy">
-                <p class="section-lede">Point the card at your own sensors and it shows what they measure: temperature, feels like, humidity, wind and pressure, the UV index and air quality, indoors and out, and any other sensor you have, such as CO₂. Your wind also sets how fast the weather moves; the sky still comes from your weather entity.</p>
+                <p class="section-lede">Point the card at your own sensors and it shows what they measure, indoors and out: the usual four, your station's rain, the UV index, air quality, and any sensor you add, such as CO₂. Your wind also sets how fast the weather moves. The sky still comes from your weather entity.</p>
                 <label class="toggle station-switch">
                     <input type="checkbox" id="use-sensors" role="switch">
                     <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb"></span></span>
