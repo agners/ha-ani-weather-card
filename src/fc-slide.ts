@@ -36,6 +36,7 @@ import {
     CONTAINER, LAYER_NAMES, LAYER_OF, Lab, Slot, Timeline, clamp, cssOf, haptic, isWet, labOf, phaseWeights, reducedMotion,
     rubber, smooth, spring, sunDrop, sunModel,
 } from './fc-core';
+import { cardNow } from './clock';
 
 export const SLIDE = {
     slopPx: 10, catchPx: 3, angle: 1.2,   // the claim; a caught slide tracks after 3 px
@@ -417,6 +418,8 @@ export function attachSlide(o: SlideOptions): Slide {
     const link = host.surface !== 'view' && tl.unit === 'hour'
         ? { entity: host.config().entity ?? '', sun: host.config().sun_entity || 'sun.sun' } : null;
     let linked = false;
+    /** The hour's amounts the card shows (auto mode), which the needle carries to the cards that follow it */
+    let shownAmounts: import('./types').EngineAmounts | null = null;
     /** Between now's reading and the next hour's value in the first hour, between two hours' values after it */
     function temperatureAt(h: number): number | null {
         const lo = Math.floor(h), f = h - lo;
@@ -438,18 +441,31 @@ export function attachSlide(o: SlideOptions): Slide {
         const h = slotsAt(state.offset);
         linked = true;
         sendHour({
-            source: host.element, ...link, at: Date.now() + h * tl.slotMs, temperature: temperatureAt(h),
-            sky: host.config().color_palette === 'theme' ? null : skyCss, weather: weatherShown(),
+            source: host.element, ...link, at: cardNow() + h * tl.slotMs, temperature: temperatureAt(h),
+            sky: host.config().color_palette === 'theme' ? null : skyCss, weather: weatherShown(), amounts: shownAmounts,
         });
     }
     function emitHome() {
         if (!link || !linked || o.followOnly) return;
         linked = false;
-        sendHour({ source: host.element, ...link, at: null, temperature: null, sky: null, weather: null });
+        sendHour({ source: host.element, ...link, at: null, temperature: null, sky: null, weather: null, amounts: null });
     }
     const groupOpacity = (v: number | null) => { for (const el of o.group()) el.style.opacity = v === null ? '' : v.toFixed(3); };
+    /**
+     * Each hour's own amounts (auto mode): its rain, cloud and wind, shown at once as the hour comes under the needle;
+     * home, and a slide that steps by days, show the card's own. A main bundle without them (manual, or older) has none.
+     */
+    function showAmounts(s: Slot | null) {
+        const layers = host.layers();
+        if (!layers?.amountsAt || !layers.showAmounts || still()) return;
+        const amounts = s && tl.unit === 'hour' ? layers.amountsAt(s) ?? null : null;
+        if (JSON.stringify(amounts) === JSON.stringify(shownAmounts)) return;
+        shownAmounts = amounts;
+        layers.showAmounts(amounts);
+    }
     function showSlot(k: number) {
         const s = k === 0 ? null : tl.slots[k];
+        showAmounts(s);
         ext?.select?.(k);
         o.onSlot(s, k);
         slider.setAttribute('aria-valuenow', String(k));
@@ -461,7 +477,7 @@ export function attachSlide(o: SlideOptions): Slide {
         else if (railRuler) railRuler.style.transform = `translate3d(${(-state.offset).toFixed(2)}px, 0, 0)`;
         stepSky(dt);
         emit();
-        if (o.onNeedle) { const h = slotsAt(state.offset); o.onNeedle(Date.now() + h * tl.slotMs, temperatureAt(h)); }
+        if (o.onNeedle) { const h = slotsAt(state.offset); o.onNeedle(cardNow() + h * tl.slotMs, temperatureAt(h)); }
         // On the way home the capsule counts the hours back as they pass under it, and is "Now" once the words have crossed
         if (rel) ext?.select?.(rel.swapped ? 0 : slotOf(state.offset));
         // The readout follows the needle: while held, while settling, and on the keys
@@ -494,6 +510,7 @@ export function attachSlide(o: SlideOptions): Slide {
         vis = null;
         home = null;
         skyCss = null;
+        showAmounts(null);
         groupOpacity(null);
         clearTimeout(state.idleTimer);
         schedulePrewarmStop();
@@ -713,6 +730,8 @@ export function attachSlide(o: SlideOptions): Slide {
     let wheelTimer = 0;
     on(gesture, 'wheel', ((e: WheelEvent) => {
         if (Math.abs(e.deltaX) <= Math.abs(e.deltaY) || o.followOnly || o.disabled?.()) return;
+        // A control of its own scrolls itself: the chips, where they're more than fit
+        if (e.composedPath().some(n => n instanceof Element && n.matches('.awc-noclaim'))) return;
         e.preventDefault();
         if (!state.dragging) claim(state.active ? state.offset : 0);
         setRaw(clamp((state.raw || 0) + clamp(e.deltaX, -SLIDE.wheelClamp, SLIDE.wheelClamp), -40, maxPx() + 40));
@@ -736,7 +755,7 @@ export function attachSlide(o: SlideOptions): Slide {
         Object.assign(state, { settling: false, settleTau: 0, parked: false, v: 0 });
         clearTimeout(state.idleTimer);
         root.classList.add('awc-dial');
-        setRaw(clamp(((at - Date.now()) / tl.slotMs) * pxs, 0, maxPx()));
+        setRaw(clamp(((at - cardNow()) / tl.slotMs) * pxs, 0, maxPx()));
         kick();
     }
     const unfollow = link ? onHour(l => { if (l.source !== host.element && l.entity === link.entity) follow(l.at); }) : null;

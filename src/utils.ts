@@ -1,6 +1,6 @@
 // Utility functions for Animated Weather Card
 
-import { DEFAULT_ENGINE_SETTINGS, DEV_MODE_TEMPERATURES, DEV_MODE_CONDITION_NAMES, DAY_NIGHT_ANIMATION_COLORS } from './constants';
+import { DEFAULT_ENGINE_SETTINGS, DAY_NIGHT_ANIMATION_COLORS, ENGINE_RANGES } from './constants';
 import type { 
     AnimatedWeatherCardConfig, 
     WeatherEngineSettings, 
@@ -10,18 +10,7 @@ import type {
     GSAPAnimation,
     HassEntity
 } from './types';
-
-/**
- * Type guard to check if a value is a valid weather condition
- */
-export function isValidWeatherCondition(condition: string): condition is WeatherCondition {
-    const validConditions: readonly WeatherCondition[] = [
-        'sunny', 'clear-night', 'partly-cloudy', 'cloudy', 'rainy', 'light-rain', 
-        'pouring', 'stormy', 'snowy', 'snowy-rainy', 'snowy-stormy', 'sleety', 
-        'sleety-stormy', 'windy', 'foggy'
-    ] as const;
-    return validConditions.includes(condition as WeatherCondition);
-}
+import { cardDate } from './clock';
 
 /**
  * Type guard to check if a value is a valid number within range
@@ -210,7 +199,32 @@ export function devLog(enabled: boolean | undefined, message: string, ...args: r
 }
 
 /**
- * Get weather engine settings with defaults and type validation
+ * Whether a card's engine_settings tune anything: a value in its range that isn't the default, as the editor counts a
+ * change. An old editor wrote a slider dragged back to its default, so that alone isn't tuning.
+ */
+export function hasEngineTuning(config: Partial<AnimatedWeatherCardConfig> | undefined): boolean {
+    const settings = config?.engine_settings as Record<string, unknown> | undefined;
+    if (!settings || typeof settings !== 'object') return false;
+    return (Object.keys(DEFAULT_ENGINE_SETTINGS) as Array<keyof typeof DEFAULT_ENGINE_SETTINGS>).some((key) => {
+        const value = settings[key];
+        const [min, max] = ENGINE_RANGES[key];
+        return isValidNumber(value, min, max) && Math.abs(value - DEFAULT_ENGINE_SETTINGS[key]) > 1e-9;
+    });
+}
+
+/**
+ * The weather engine's mode: `engine_mode` when it says one; else manual for a card tuned by hand (its engine_settings
+ * are respected) and auto for the rest, where the weather's own values set the amounts and the settings are ignored.
+ */
+export function engineMode(config: Partial<AnimatedWeatherCardConfig> | undefined): 'auto' | 'manual' {
+    const mode = config?.engine_mode;
+    if (mode === 'auto' || mode === 'manual') return mode;
+    return hasEngineTuning(config) ? 'manual' : 'auto';
+}
+
+/**
+ * Get weather engine settings with defaults and type validation. In auto mode the card's engine_settings are ignored:
+ * every amount is its default here, and the weather's own values move them (engine.ts)
  * @param config - The card configuration
  * @param realWindSpeed - Actual wind speed from weather data (optional)
  * @throws {Error} If configuration contains invalid values
@@ -219,7 +233,7 @@ export function getWeatherSettings(
     config: AnimatedWeatherCardConfig, 
     realWindSpeed?: number
 ): WeatherEngineSettings {
-    const engineSettings = config.engine_settings || {};
+    const engineSettings: Partial<WeatherEngineSettings> = engineMode(config) === 'manual' ? (config.engine_settings || {}) : {};
     
     // Validate engine settings with type checking
     const validateSetting = (value: unknown, defaultValue: number, min: number, max: number): number => {
@@ -256,35 +270,6 @@ export function getWeatherSettings(
         cloudCount: validateSetting(engineSettings.cloudCount, DEFAULT_ENGINE_SETTINGS.cloudCount, 1, 20),
         splashBounce: validateSetting(engineSettings.splashBounce, DEFAULT_ENGINE_SETTINGS.splashBounce, 40, 120)
     } as const;
-}
-
-/**
- * Update weather info for dev mode with type validation
- * @param element - The HTML element to update
- * @param condition - The weather condition
- * @throws {Error} If element is invalid or condition is not supported
- */
-export function updateDevModeWeatherInfo(element: HTMLElement | null, condition: string): void {
-    if (!element) {
-        throw new Error('Invalid element provided to updateDevModeWeatherInfo');
-    }
-    
-    if (!isValidWeatherCondition(condition)) {
-        console.warn(`Unknown weather condition: ${condition}, using default`);
-        condition = 'sunny';
-    }
-    const conditionNames = DEV_MODE_CONDITION_NAMES;
-
-    // Different temperatures for different conditions - add degree symbols
-    const temperatures = Object.fromEntries(
-        Object.entries(DEV_MODE_TEMPERATURES).map(([key, value]) => [key, value + '°'])
-    );
-
-    const tempElement = element.querySelector('.temperature');
-    const descElement = element.querySelector('.weather-desc');
-
-    if (tempElement) tempElement.textContent = (temperatures as Record<string, string>)[condition] || '22°';
-    if (descElement) descElement.textContent = (conditionNames as Record<string, string>)[condition] || condition;
 }
 
 /**
@@ -370,7 +355,6 @@ export interface ClearSkyTime {
  */
 export function getWeatherClass(
     condition: string,
-    isDevMode: boolean,
     sunriseHour?: number,
     sunsetHour?: number,
     timeZone?: string,
@@ -378,12 +362,6 @@ export function getWeatherClass(
 ): WeatherCondition {
     if (typeof condition !== 'string') {
         console.warn('Invalid condition type provided, using sunny as fallback');
-        return 'sunny';
-    }
-    if (isDevMode && isValidWeatherCondition(condition)) {
-        return condition;
-    } else if (isDevMode) {
-        console.warn(`Invalid dev mode condition: ${condition}, using sunny`);
         return 'sunny';
     }
 
@@ -430,7 +408,7 @@ export function getWeatherClass(
         // The clock's hours: the day/night cycle's, or the defaults when
         // nothing else says. Use HA's timezone if provided, so the hour is
         // HA's even when the dashboard is viewed from another timezone.
-        const now = new Date();
+        const now = cardDate();
         let hour: number;
         if (timeZone) {
             try {

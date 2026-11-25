@@ -10,11 +10,14 @@ import { join } from 'node:path';
 import {
     AHEAD_ROWS, CARD_ROWS, CONDITIONS, DASHBOARD, DEVICES, ENGINE, ENTITIES, HA, NOTES, NOTE_FORECASTS, NOTE_VOICES, OPEN_METEO, PAINTS, PALETTES, PHASES,
     QUIET, STATION, VOICE_NOTES, aheadYaml, buildHass, forgetNotes, liveForecast, noteYaml, rowsHeight,
-    colorsYaml, conditionIcon, configYaml, customColors, dashboardLayout, dashboardYaml, engineSettings, engineYaml,
+    colorsYaml, conditionIcon, configYaml, customColors, dashboardLayout, dashboardSections, dashboardYaml, engineSettings, engineYaml,
     formatEngineValue, liveReading, minutesFor, moonPhase, nextFlight, paletteOf, phaseForHour, phaseForSun, placeName,
     noteFor, quietOptions, solarAt, solarElevation, solarTimes, stationStates, sunAt, sunAttributes, trackerYaml, weatherState,
-    wmoCondition, SUN_TIMES,
+    wmoCondition, SUN_TIMES, SAMPLE_PLACE, trackerHass, STATION_OPTIONS, stationReadings,
+    WEATHER_INPUTS, WEATHER_READINGS, formatWeatherInput, weatherInputs, weatherYaml, PRESETS as DEMO_PRESETS, WALL_MIN as DEMO_WALL_MIN, presetYaml,
 } from '../../demo/scene.mjs';
+import { PRESETS, WALL_MIN, presetOf } from '../../src/presets';
+import { READING_TYPES } from '../../src/readings';
 import { PAGE_FILES, iconNames, resolveIcons } from '../../demo/build.mjs';
 import { LOGO_PHASES, logoSvg } from '../../demo/logo.mjs';
 
@@ -244,13 +247,16 @@ describe('the demo\'s sample world', () => {
         expect(configYaml({ tone: 'dry' }).split('\n')).toContain('note_tone: dry');
         // The compact strip has no note, so no voice
         expect(configYaml({ layout: 'compact', tone: 'dry' })).not.toContain('note_tone');
-        expect(noteYaml('friendly')).toBe('show_note: true\nnote_tone: friendly  # snarky, calm, friendly or dry\n');
+        expect(noteYaml('friendly')).toBe('show_note: true\n# snarky, calm, friendly or dry\nnote_tone: friendly\n');
     });
 
     it('adds your sensors to the YAML only when they are on', () => {
         expect(configYaml({ station: false })).not.toContain('sensor.garden');
         const lines = configYaml({ station: true }).split('\n');
-        for (const row of STATION) expect(lines).toContain(`${row.option}: ${row.entity}`);
+        for (const row of STATION_OPTIONS) expect(lines).toContain(`${row.option}: ${row.entity}`);
+        expect(lines).toContain('readings:');
+        for (const row of STATION.filter(r => r.reading)) expect(lines.some(line => line.endsWith(`: ${row.entity}`))).toBe(true);
+        expect(lines).toContain('    name: CO₂');
     });
 
     it('writes the tracker at each size with options it really has', () => {
@@ -265,6 +271,12 @@ describe('the demo\'s sample world', () => {
         expect(card.split('\n')[0]).toBe('type: custom:animated-sun-tracker-card');
         for (const option of options(card)) expect(tracker).toContain(`config.${option}`);
         expect(card).toContain('# The moon phase comes from the Moon integration\nmoon_entity: sensor.moon_phase');
+
+        // Compare with: nothing for yesterday, the card's default; the option otherwise
+        expect(card).not.toContain('daylight_delta');
+        expect(trackerYaml({ compare: 'week' })).toContain('# Against last week\ndaylight_delta: week');
+        expect(trackerYaml({ compare: 'none' })).toContain('daylight_delta: none');
+        for (const option of options(trackerYaml({ compare: 'month' }))) expect(tracker).toContain(`config.${option}`);
 
         const wall = trackerYaml({ layout: 'wide', colors: 'theme' });
         expect(wall.startsWith('# Wall: ')).toBe(true);
@@ -285,7 +297,29 @@ describe('the demo\'s sample world', () => {
 
     it('wires the station through real card options', () => {
         const types = readFileSync(join(process.cwd(), 'src/types.ts'), 'utf8');
-        for (const row of STATION) expect(types).toContain(`${row.option}?: string`);
+        for (const row of STATION_OPTIONS) expect(types).toContain(`${row.option}?: string`);
+        // The rest are readings, of types the card knows
+        const known = readFileSync(join(process.cwd(), 'src/readings.ts'), 'utf8');
+        for (const row of STATION.filter(r => !r.option)) expect(known).toContain(`'${row.reading}'`);
+        expect(STATION.every(row => !!row.option !== !!row.reading)).toBe(true);
+    });
+
+    it('shows the rain, the UV index, air quality and CO₂ only once their sensors are on, the default four before', () => {
+        expect(stationReadings(new Set())).toEqual([
+            { type: 'humidity', entity: 'sensor.garden_humidity' },
+            { type: 'wind', entity: 'sensor.garden_wind_speed', direction_entity: 'sensor.garden_wind_direction' },
+            { type: 'pressure', entity: 'sensor.garden_pressure' },
+            'sun',
+        ]);
+        expect(stationReadings(new Set(['uv', 'co2'])).slice(4)).toEqual([
+            { type: 'uv', entity: 'sensor.garden_uv_index' },
+            { type: 'sensor', entity: 'sensor.living_room_co2', name: 'CO₂' },
+        ]);
+        expect(stationReadings()[4]).toEqual({ type: 'rain', entity: ENTITIES.rainToday, rate_entity: ENTITIES.rainRate });
+        // Eight, so the card's rows are even
+        expect(stationReadings()).toHaveLength(8);
+        // Every row can be changed
+        expect(STATION.every(row => row.step > 0)).toBe(true);
     });
 
     it('adds the station to hass only when it is on, so the card falls back to the forecast', () => {
@@ -314,12 +348,68 @@ describe('the demo\'s sample world', () => {
         expect(formatEngineValue('windSpeed', 3.5)).toBe('3.5×');
     });
 
+    it('lets the tune lab set the weather\'s own values, which a card in auto mode follows in place', async () => {
+        // Each slider steps through its stops, starts on one, and shows a weather the page has
+        for (const row of WEATHER_INPUTS) {
+            expect([...row.stops].sort((a, b) => a - b), row.id).toEqual(row.stops);
+            expect(row.stops, row.id).toContain(row.value);
+            expect(CONDITIONS.some(c => c.id === row.shows), row.id).toBe(true);
+        }
+        expect(formatWeatherInput('rate', 1.5)).toBe('1.5 mm/h');
+        expect(formatWeatherInput('cloud', 70)).toBe('70%');
+        // The card's readings show what it follows
+        for (const r of WEATHER_READINGS) expect(READING_TYPES).toContain(typeof r === 'string' ? r : r.type);
+        expect(weatherYaml()).toContain(`rate_entity: ${ENTITIES.rainRate}`);
+        // The weather entity reports the values set; the station's rain is set only while it rains
+        const inputs = Object.fromEntries(WEATHER_INPUTS.map(row => [row.id, row.value]));
+        const rainy = buildHass({ conditionId: 'rainy', phase: 'day', ...weatherInputs({ ...inputs, rate: 15, cloud: 100 }, 'rainy') });
+        expect(rainy.states[ENTITIES.weather].attributes).toMatchObject({ cloud_coverage: 100, visibility: 0.5, wind_speed: 30, wind_gust_speed: 40 });
+        expect(rainy.states[ENTITIES.rainRate].state).toBe('15');
+        expect(buildHass({ conditionId: 'cloudy', phase: 'day', ...weatherInputs(inputs, 'cloudy') }).states[ENTITIES.rainRate].state).toBe('0');
+        // The real card, in auto mode: a new rain rate reaches its weather without a new card
+        vi.useFakeTimers();
+        const card = document.createElement('animated-weather-card') as HTMLElement & { setConfig(c: object): void; hass: unknown };
+        card.setConfig({ type: 'custom:animated-weather-card', entity: ENTITIES.weather, readings: WEATHER_READINGS });
+        card.hass = buildHass({ conditionId: 'rainy', phase: 'day', ...weatherInputs({ ...inputs, rate: 0.2 }, 'rainy') });
+        document.body.append(card);
+        await vi.advanceTimersByTimeAsync(500);
+        const amounts = () => (card as unknown as { animationController: { amounts: { rain: { kind: string } } | null } }).animationController.amounts;
+        expect(amounts()?.rain.kind).toBe('light');
+        card.hass = buildHass({ conditionId: 'rainy', phase: 'day', ...weatherInputs({ ...inputs, rate: 15 }, 'rainy') });
+        await vi.advanceTimersByTimeAsync(500);
+        expect(amounts()?.rain.kind).toBe('pouring');
+        card.remove();
+        vi.useRealTimers();
+    });
+
+    it('offers the editor\'s presets, as the card has them, each as YAML the card reads back as that preset', () => {
+        expect(DEMO_PRESETS).toEqual(PRESETS);
+        expect(DEMO_WALL_MIN).toEqual(WALL_MIN);
+        for (const preset of DEMO_PRESETS) {
+            const yaml = presetYaml(preset.id);
+            expect(yaml).toContain('type: custom:animated-weather-card');
+            // The YAML, read back: the options it writes and nothing else of the preset's
+            const lines = yaml.trimEnd().split('\n').slice(3);
+            const read: Record<string, unknown> = {};
+            let block: Record<string, unknown> | null = null;
+            for (const line of lines) {
+                const [key, value] = line.trim().split(': ');
+                if (line.startsWith('  ')) block![key] = isNaN(Number(value)) ? value : Number(value);
+                else if (value === undefined) { block = {}; read[key.replace(':', '')] = block; }
+                else read[key] = value === 'true' ? true : value === 'false' ? false : value;
+            }
+            expect(read, preset.id).toEqual(preset.options);
+            expect(presetOf(read), preset.id).toBe(preset.id);
+        }
+        expect(presetYaml('standard', { colors: 'theme' })).toContain('color_palette: theme');
+    });
+
     it('writes only the engine settings and quiet switches that change something', () => {
         const defaults = Object.fromEntries(ENGINE.map(row => [row.id, row.value]));
         expect(engineSettings(defaults)).toEqual({});
         expect(engineYaml(defaults)).toBe('\n');
         expect(engineSettings({ ...defaults, rainCount: 2.6, cloudCount: 6 })).toEqual({ rainCount: 2.6, cloudCount: 6 });
-        expect(engineYaml({ ...defaults, rainCount: 2 })).toBe('engine_settings:\n  rainCount: 2\n');
+        expect(engineYaml({ ...defaults, rainCount: 2 })).toBe('engine_mode: manual\nengine_settings:\n  rainCount: 2\n');
         expect(quietOptions({})).toEqual({});
         expect(quietOptions({ still: true, numbers: true }))
             .toEqual({ animate: false, show_attribute_labels: false, show_attribute_icons: false });
@@ -362,12 +452,18 @@ describe('the demo\'s sample world', () => {
         expect(configYaml({})).not.toMatch(/engine_settings|custom_colors|animate: false/);
         const lines = configYaml({ engine: { rainCount: 2 }, paints: { sunny_bg: '#1f6f8b' }, quiet: { inside: true } }).split('\n');
         expect(lines).toContain('spill_particles: false');
+        expect(lines).toContain('engine_mode: manual');
         expect(lines).toContain('engine_settings:');
         expect(lines).toContain('  rainCount: 2');
         expect(lines).toContain('custom_colors:');
         expect(lines).toContain('  sunny_bg: "#1f6f8b"');
         // Custom skies paint the sky palette only
         expect(configYaml({ colors: 'theme', paints: { sunny_bg: '#1f6f8b' } })).not.toContain('custom_colors');
+    });
+
+    it('puts Sydney straight after Home in one column, where the frame holds two sections, and leaves the order alone in more', () => {
+        expect(dashboardSections(1).map(s => s.id)).toEqual(['home', 'away', 'today', 'house']);
+        expect(dashboardSections(2)).toBe(DASHBOARD);
     });
 
     it('lays the dashboard out as Home Assistant does on each screen', () => {
@@ -392,6 +488,9 @@ describe('the demo\'s sample world', () => {
         expect(rowsOf('animated-weather-card', { entity: 'weather.home', show_note: true })).toBe(CARD_ROWS.weather);
         expect(rowsOf('animated-weather-card', { entity: 'weather.home', compact: true })).toBe(CARD_ROWS.compact);
         expect(rowsOf('animated-sun-tracker-card', { sun_entity: 'sun.sun', compact: true })).toBe(CARD_ROWS.tracker);
+        // Sydney's pair: the compact card with its clock, and the compact tracker, for another place
+        expect(rowsOf('animated-weather-card', { entity: 'weather.sydney', compact: true, show_clock: true, latitude: -33.87, longitude: 151.21, time_zone: 'Australia/Sydney' })).toBe(CARD_ROWS.away);
+        expect(rowsOf('animated-sun-tracker-card', { compact: true, latitude: -33.87, longitude: 151.21 })).toBe(CARD_ROWS.awayTracker);
         const cards = DASHBOARD.flatMap(section => section.cards);
         for (const kind of Object.keys(CARD_ROWS)) expect(cards.filter(item => item.card === kind)).toHaveLength(1);
         for (const item of cards) {
@@ -409,29 +508,37 @@ describe('the demo\'s sample world', () => {
         const weather = source('src/types.ts');
         const yaml = dashboardYaml();
         const lines = yaml.trimEnd().split('\n');
+        // One column lists the sections as a phone shows them: Sydney after Home
+        const headings = (text: string) => text.split('\n').filter(line => line.includes('heading: ')).map(line => line.split('heading: ')[1]);
+        expect(headings(yaml)).toEqual(['Home', 'Today', 'Sydney']);
+        expect(headings(dashboardYaml({ columns: 1 }))).toEqual(['Home', 'Sydney', 'Today']);
         expect(lines[0]).toBe('views:');
         expect(lines).toContain('  - type: sections');
         expect(lines).toContain('        column_span: 2');
         expect(lines).toContain('          - type: heading');
         expect(lines).toContain('          - type: tile');
-        expect(lines.filter(line => line.includes('custom:animated-weather-card'))).toHaveLength(2);
-        expect(lines.filter(line => line.includes('custom:animated-sun-tracker-card'))).toHaveLength(1);
+        expect(lines.filter(line => line.includes('custom:animated-weather-card'))).toHaveLength(3);
+        expect(lines.filter(line => line.includes('custom:animated-sun-tracker-card'))).toHaveLength(2);
+        // Sydney: its own weather, and its sun and clock from its coordinates and time zone
+        expect(lines).toContain('            time_zone: Australia/Sydney');
+        expect(lines).toContain('            show_clock: true');
         expect(lines).toContain('            compact: true');
         expect(lines).toContain('            show_sun: false');
         expect(yaml).not.toContain('- #');
         // Each card's own options, checked against the card that takes them
         const items = yaml.split(/\n {10}- /).slice(1);
         const custom = items.filter(item => item.startsWith('type: custom:'));
-        expect(custom).toHaveLength(3);
+        expect(custom).toHaveLength(5);
         for (const item of custom) {
             const options = item.split('\n').slice(1).filter(line => /^ {12}[a-z_]+:/.test(line)).map(line => line.trim().split(':')[0]);
             expect(options.length).toBeGreaterThan(0);
             for (const option of options) {
-                if (item.includes('sun-tracker')) expect(tracker).toContain(`config.${option}`);
+                // The tracker reads some through place.ts: then its config type declares them
+                if (item.includes('sun-tracker')) expect(tracker.includes(`config.${option}`) || tracker.includes(`    ${option}?:`), option).toBe(true);
                 else expect(weather).toContain(`${option}?:`);
             }
         }
-        expect(dashboardYaml({ colors: 'theme' }).split('\n').filter(line => line.endsWith('color_palette: theme'))).toHaveLength(3);
+        expect(dashboardYaml({ colors: 'theme' }).split('\n').filter(line => line.endsWith('color_palette: theme'))).toHaveLength(5);
     });
 
     /** The forecast a hass answers with, as the cards subscribe to it. */
@@ -607,6 +714,8 @@ describe('the demo\'s sample world', () => {
             return card.getGridOptions().rows;
         };
         expect(rowsOf('animated-weather-card', { show_forecast: true, show_clock: true })).toBe(AHEAD_ROWS.hours);
+        // The week under the hours asks for its rows besides
+        expect(rowsOf('animated-weather-card', { show_forecast: true, show_clock: true, show_days: true })).toBe(AHEAD_ROWS.hours + AHEAD_ROWS.days);
         expect(rowsOf('animated-forecast-card', {})).toBe(AHEAD_ROWS.card);
         expect(rowsOf('animated-weather-card', { compact: true })).toBe(AHEAD_ROWS.compact);
         expect(rowsOf('animated-forecast-card', { compact: true })).toBe(AHEAD_ROWS.strip);
@@ -629,6 +738,9 @@ describe('the demo\'s sample world', () => {
         expect(big).toContain('hero: clock');
         expect(big).toContain('show_date: true');
         expect(big).not.toContain('show_clock');
+        expect(hours).not.toContain('show_days');
+        expect(aheadYaml('hours', { days: true })).toContain('show_days: true');
+        expect(aheadYaml('hours', { days: true, hero: true })).toMatch(/show_days: true[\s\S]*hero: clock/);
         expect(aheadYaml('card').split('\n')[0]).toBe('type: custom:animated-forecast-card');
         const strip = aheadYaml('strip');
         expect(strip.split('\n').slice(0, 2)).toEqual(['type: vertical-stack', 'cards:']);
@@ -907,5 +1019,21 @@ describe('the setup guide', () => {
 
     it('keeps to the voice: no em dashes', () => {
         expect(page).not.toContain('—');
+    });
+});
+
+describe('the trackers\' place', () => {
+    it('gives only the trackers coordinates to compare the sun from: the sample place\'s, or the visitor\'s while theirs is live', () => {
+        const data = buildHass({ conditionId: 'clear', phase: 'day' });
+        const sample = trackerHass(data);
+        expect(sample.config).toMatchObject({ latitude: SAMPLE_PLACE.latitude, longitude: SAMPLE_PLACE.longitude, time_zone: data.config.time_zone });
+        expect(sample.states).toBe(data.states);
+        // The weather cards keep a Home Assistant without them, so the sample's forecast keeps the sample's sun
+        expect(data.config).not.toHaveProperty('latitude');
+        expect(trackerHass(data, { latitude: -33.87, longitude: 151.21 }).config).toMatchObject({ latitude: -33.87, longitude: 151.21 });
+        const page = readFileSync(join(__dirname, '../../demo/demo.js'), 'utf8');
+        expect(page).toMatch(/card\.localName === 'animated-sun-tracker-card' \? trackerHass\(data, state\.live && liveWhere \? liveWhere : SAMPLE_PLACE\) : data/);
+        // Wherever the visitor is, the tracker section's sun runs the scrubber's way
+        expect(page).toMatch(/direction: 'left_to_right'/);
     });
 });

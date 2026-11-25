@@ -10,7 +10,7 @@
 // the hours, the forecast card, the strip, the view that opens on tap, the
 // nightstand and the wall.
 
-import type { AnimatedWeatherCardConfig, HomeAssistant } from './types';
+import type { AnimatedWeatherCardConfig, EngineAmounts, HomeAssistant } from './types';
 import type { ForecastEntry, ForecastType } from './forecast-data';
 import type { SkyColors, SkyCondition, SkyPhase } from './sky';
 import type { HourLink } from './hour-link';
@@ -23,6 +23,10 @@ export interface WeatherLayers {
     animations: Record<string, { isActive: boolean }>;
     startAnimation(type: string, config?: { intensity?: number }): Promise<void>;
     stopAnimation(type: string): Promise<void>;
+    /** Auto mode (engine_mode): an hour of the forecast as the weather's amounts. None in manual, nor from an older main bundle */
+    amountsAt?(entry: ForecastEntry): EngineAmounts | undefined;
+    /** Show an hour's amounts at once (its rain, cloud, fog and wind), or null for the card's own */
+    showAmounts?(amounts: EngineAmounts | null): void;
 }
 
 /** The card, as the forecast bundle sees it */
@@ -58,6 +62,28 @@ export interface ForecastHost {
     still(): boolean;
     /** Home Assistant's own more-info dialog for the entity */
     moreInfo(): void;
+    /**
+     * A reading as the card shows it, in its words: the UV index now (uv_entity, else the weather entity's) or at a
+     * value, its number, its level's word and the level; today's rain (rain_entity) or the rain rate while it rains (rain_rate_entity).
+     * Null when there's none. Optional: an older main bundle has none
+     */
+    reading?(kind: 'uv' | 'rain_today' | 'rain_now', value?: number): Reading | null;
+    /**
+     * The readings of the card's own that the view adds to its tiles at now: air quality and any sensor, in the row
+     * or view only. Optional: an older main bundle has none
+     */
+    readings?(): Reading[];
+}
+
+/** One reading in the card's words */
+export interface Reading {
+    label: string;
+    /** The figure, with its unit ("6", "4.2 mm") */
+    value: string;
+    /** What follows it on the card: the UV's level ("High") */
+    word?: string;
+    /** The UV's level, which colours its icon */
+    level?: string;
 }
 
 /** What the forecast bundle adds to one card */

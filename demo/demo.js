@@ -5,11 +5,11 @@
 // over the old one. Each room is lit by its card's own sky.
 
 import {
-    AHEAD_ROWS, CARD_ROWS, CONDITIONS, DASHBOARD, DEVICES, ENGINE, ENTITIES, NOTE_FORECASTS, NOTE_VOICES, OPEN_METEO, PAINTS, PALETTES, PHASES, QUIET,
-    STATION, SUN_TIMES, aheadYaml, buildHass, colorsYaml, conditionIcon, configYaml, customColors, dashboardLayout, dashboardYaml,
+    AHEAD_ROWS, AWAY, CARD_ROWS, CONDITIONS, DASHBOARD, DEVICES, ENGINE, ENTITIES, HA, NOTE_FORECASTS, NOTE_VOICES, OPEN_METEO, PAINTS, PALETTES, PHASES, PRESETS, QUIET, WALL_MIN, presetYaml,
+    STATION, SUN_TIMES, aheadYaml, buildHass, colorsYaml, conditionIcon, configYaml, customColors, dashboardLayout, dashboardSections, dashboardYaml,
     engineSettings, engineYaml, forgetNotes, formatEngineValue, liveReading, minutesFor, nextFlight, noteYaml, paletteOf,
-    phaseForHour, phaseForSun, placeName, quietOptions, rowsHeight,
-    solarAt, solarTimes, stationStates, sunAt, trackerYaml, weatherState, wmoCondition,
+    phaseForHour, phaseForSun, placeName, quietOptions, rowsHeight, WEATHER_INPUTS, WEATHER_READINGS, formatWeatherInput, weatherInputs, weatherYaml,
+    solarAt, solarTimes, stationStates, stationReadings, STATION_OPTIONS, sunAt, trackerYaml, trackerHass, TRACKER_COMPARE, SAMPLE_PLACE, weatherState, wmoCondition,
 } from './scene.mjs';
 import { copyButton, highlight, svgIcon } from './code.mjs';
 
@@ -30,6 +30,55 @@ const EASE = {
     inSoft: 'cubic-bezier(0.4, 0, 1, 1)',
     outExpo: 'cubic-bezier(0.16, 1, 0.3, 1)',
 };
+
+/** A stage's first arrival, the same in every section: it fades in as it rises into place. */
+const REVEAL = { fade: 700, rise: 1000, from: 'translateY(16px)' };
+/** How long the old scene takes to leave once the new one is drawn over it */
+const LEAVE = 120;
+
+/**
+ * A new scene of another height, in a stage whose scenes stack in one cell. Until it's shown the new scene is out of
+ * flow (`is-out`), so setting it up moves nothing. Then the two change places in one layout pass: the stage takes the
+ * new height, and everything after it on the page is carried from where it was to where it now is by transform, on
+ * the frames' own curve, while the stage is uncovered (or covered) from its bottom edge and the scenes cross together.
+ * Returns false where there's nothing to carry (the same height, the first scene, reduced motion): the caller fades.
+ */
+const RESIZE = { duration: 520, easing: 'cubic-bezier(0.32, 0.72, 0, 1)', id: 'resize' };
+/**
+ * Let `change` give `container` another height without the page jumping: everything it moves (its siblings, and those
+ * of each box it's in) is carried from where it was to where it now is, and the container is uncovered, or
+ * covered, from its bottom edge alone, so the weather still spills past the other three. Returns whether it moved.
+ */
+function carry(container, change) {
+    if (reduceMotion) { change(); return false; }
+    const below = [];
+    // Every sibling, not only the later ones: CSS order can put an earlier one under it (the station's list on a phone)
+    for (let node = container; node && node !== document.body; node = node.parentElement) {
+        for (const other of node.parentElement?.children ?? []) if (other !== node) below.push(other);
+    }
+    const top = (el) => el.getBoundingClientRect().top;
+    const from = container.getBoundingClientRect().height;
+    const tops = below.map(top);
+    for (const el of [container, ...below]) el.getAnimations().forEach((animation) => { if (animation.id === 'resize') animation.cancel(); });
+    change();
+    const to = container.getBoundingClientRect().height;
+    below.forEach((el, i) => {
+        const by = tops[i] - top(el);
+        if (Math.abs(by) > 0.5) el.animate([{ translate: `0 ${by.toFixed(1)}px` }, { translate: '0 0' }], RESIZE);
+    });
+    if (Math.abs(to - from) < 0.5) return false;
+    const clip = (bottom) => `inset(-400px -400px ${bottom.toFixed(1)}px -400px)`;
+    container.animate([{ clipPath: clip(to - from) }, { clipPath: clip(0) }], RESIZE);
+    return true;
+}
+function swapSized(container, old, scene, remove) {
+    const settle = () => scene.el.classList.remove('is-out');
+    if (!old || reduceMotion || Math.abs(scene.el.offsetHeight - old.el.offsetHeight) < 1) { settle(); return false; }
+    carry(container, () => { old.el.classList.add('is-out'); settle(); });
+    scene.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 320, easing: EASE.outQuart });
+    old.el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, easing: EASE.inSoft, fill: 'forwards' }).finished.then(remove, remove);
+    return true;
+}
 
 // The page has one clock, in minutes of the day. The time of day (the
 // sky) follows from where that puts the sun.
@@ -213,8 +262,13 @@ function buildScene(layout = 'regular', extra = {}) {
     return { el, weather, tracker: null };
 }
 
+/** A card's Home Assistant: a tracker's with a place to compare its sun from, yours while your weather is live */
+function give(card, data) {
+    card.hass = card.localName === 'animated-sun-tracker-card' ? trackerHass(data, state.live && liveWhere ? liveWhere : SAMPLE_PLACE) : data;
+}
+
 function feed(scene, current = hass()) {
-    for (const card of scene.cards ?? [scene.weather, scene.tracker]) if (card) card.hass = current;
+    for (const card of scene.cards ?? [scene.weather, scene.tracker]) if (card) give(card, current);
 }
 
 /**
@@ -298,8 +352,8 @@ function revealFirst(scene) {
         if (reduceMotion) {
             scene.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200 });
         } else {
-            scene.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 800, easing: EASE.outQuart });
-            scene.el.animate([{ transform: 'translateY(20px)' }, { transform: 'none' }], { duration: 1100, easing: EASE.outExpo });
+            scene.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: REVEAL.fade, easing: EASE.outQuart });
+            scene.el.animate([{ transform: REVEAL.from }, { transform: 'none' }], { duration: REVEAL.rise, easing: EASE.outExpo });
         }
         watchSky();
     }, Math.max(0, 400 - performance.now()));
@@ -332,7 +386,7 @@ function reveal(scene) {
     placeLight();
     scene.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 320, easing: EASE.outQuart }).onfinish = () => {
         // Covered now, but its spilled weather and shadow aren't: let them go softly
-        old.el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 120, easing: EASE.inSoft, fill: 'forwards' })
+        old.el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: LEAVE, easing: EASE.inSoft, fill: 'forwards' })
             .onfinish = remove;
     };
 }
@@ -341,11 +395,42 @@ function reveal(scene) {
 function update() {
     const data = hass();
     for (const scene of document.querySelectorAll('.scene:not(.lab-scene)')) {
-        for (const card of scene.querySelectorAll('animated-weather-card, animated-forecast-card, animated-sun-tracker-card')) card.hass = data;
+        // A screen or more away, a card's 3.2 s dissolve is work nobody sees, and a page of them drops frames:
+        // it hears the news when it comes near
+        // (never the hero's: the page's own tint is read from its sky)
+        if (!stage.contains(scene) && farAway(scene)) { waiting.add(scene); continue; }
+        waiting.delete(scene);
+        for (const card of scene.querySelectorAll('animated-weather-card, animated-forecast-card, animated-sun-tracker-card')) give(card, data);
     }
     for (const lab of labs) lab.refresh();
     watchSky();
 }
+/** Scenes that missed an update while far from view, fed as they come within a screen of it */
+const waiting = new Set();
+const farAway = (el) => {
+    const box = el.getBoundingClientRect();
+    return box.bottom < -innerHeight || box.top > 2 * innerHeight;
+};
+let catching = 0;
+function catchUp() {
+    if (!waiting.size || catching) return;
+    catching = requestAnimationFrame(() => {
+        catching = 0;
+        let data = null;
+        for (const scene of [...waiting]) {
+            if (!scene.isConnected) { waiting.delete(scene); continue; }
+            if (farAway(scene)) continue;
+            waiting.delete(scene);
+            data ??= hass();
+            for (const card of scene.querySelectorAll('animated-weather-card, animated-forecast-card, animated-sun-tracker-card')) give(card, data);
+        }
+        // Their skies dissolve now: the light around them follows
+        if (data) watchSky();
+    });
+}
+// A scene comes near on a scroll, and when the page above it changes height
+addEventListener('scroll', catchUp, { passive: true });
+addEventListener('resize', catchUp);
 
 // ── The room's light, cast by the screen ───────────────────────────────
 // The sky is the light source: the light lies over the weather card and
@@ -432,10 +517,15 @@ const LANDS_ON = {
     pressure: ['.attribute[data-kind="pressure"] .attribute-value'],
     windSpeed: ['.attribute[data-kind="wind"] .attribute-value'],
     windDirection: ['.attribute[data-kind="wind"] .wind-bearing-arrow'],
+    rainToday: ['.attribute[data-kind="rain"] .attribute-value'],
+    rainRate: ['.attribute[data-kind="rain"] .attribute-value'],
+    uv: ['.attribute[data-kind="uv"] .attribute-value'],
+    airQuality: ['.attribute[data-kind="aqi"] .attribute-value'],
+    co2: ['.attribute[data-kind="sensor"] .attribute-value'],
     indoorTemperature: ['.indoor-climate-inline'],
     indoorHumidity: ['.indoor-climate-inline'],
 };
-const LIMITS = { temperature: [-30, 45], pressure: [950, 1050], windSpeed: [0, 90] };
+const LIMITS = { temperature: [-30, 45], feelsLike: [-30, 45], humidity: [0, 100], rainToday: [0, 80], rainRate: [0, 50], indoorTemperature: [10, 35], indoorHumidity: [0, 100], pressure: [950, 1050], windSpeed: [0, 90], uv: [0, 11], airQuality: [0, 300], co2: [400, 2000] };
 
 const station = {
     on: false,
@@ -471,7 +561,7 @@ readingsEl.innerHTML = `
         <div class="reading" data-id="${row.id}">
             <span class="reading-dot" aria-hidden="true"></span>
             <span class="reading-name"><span class="reading-label">${row.label}</span><span class="reading-entity">${row.entity}</span></span>
-            <span class="reading-value"><span class="reading-number">${formatReading(row)}</span><span class="reading-unit">${row.unit}</span></span>
+            <span class="reading-value"><span class="reading-number">${formatReading(row)}</span><span class="reading-unit">${row.shown ?? row.unit}</span></span>
             <span class="steppers">${row.step ? `
                 <button type="button" class="stepper" data-step="-1" aria-label="Lower the ${group.toLowerCase()} ${row.label.toLowerCase()}">${svgIcon('mdi:minus')}</button>
                 <button type="button" class="stepper" data-step="1" aria-label="Raise the ${group.toLowerCase()} ${row.label.toLowerCase()}">${svgIcon('mdi:plus')}</button>` : ''}
@@ -492,18 +582,27 @@ function nameForecastOptions() {
 // so the rest fall back to the forecast, as they do in Home Assistant
 const stationCards = $('#station-cards');
 const stationCard = document.createElement('animated-weather-card');
-stationCard.setConfig({
+// Its readings grow as the UV index, air quality and CO₂ come on: the row redraws, the weather keeps going
+const stationConfig = () => ({
     type: 'custom:animated-weather-card',
     entity: ENTITIES.weather,
     sun_entity: ENTITIES.sun,
-    ...Object.fromEntries(STATION.map(row => [row.option, row.entity])),
+    ...Object.fromEntries(STATION_OPTIONS.map(row => [row.option, row.entity])),
+    readings: stationReadings(station.linked),
 });
+let stationSet = JSON.stringify(stationConfig());
+stationCard.setConfig(stationConfig());
 
 function stationHass() {
     const readings = Object.fromEntries([...station.linked].map(id => [id, station.readings[id]]));
     return buildHass({ conditionId: station.condition, phase: state.phase, sun: sunNow(state.minutes), sensors: stationStates(readings), sunTimes });
 }
 function pushStation() {
+    const config = stationConfig();
+    if (JSON.stringify(config) !== stationSet) {
+        stationSet = JSON.stringify(config);
+        stationCard.setConfig(config);
+    }
     stationCard.hass = stationHass();
     watchSky();
     // Values change width as they fade through; keep the rings on them
@@ -660,7 +759,11 @@ function link({ fly = true } = {}) {
         flight.handOver();
     });
     // The rest follow in the station's order, so a sensor added to it is never left out
-    STATION.filter(row => row.id !== 'temperature').forEach((row, i) => at(700 + i * 60, () => push(row.id)));
+    // The readings that add a row to the card arrive together, and the card opens for them once
+    const rest = STATION.filter(row => row.id !== 'temperature');
+    const adds = rest.filter(row => row.reading && !['humidity', 'wind', 'pressure'].includes(row.reading));
+    rest.filter(row => !adds.includes(row)).forEach((row, i) => at(700 + i * 60, () => push(row.id)));
+    at(700 + (rest.length - adds.length) * 60, () => carry(stationCard, () => push(...adds.map(row => row.id))));
 }
 function unlink() {
     handoff.forEach(clearTimeout);
@@ -670,7 +773,7 @@ function unlink() {
     station.linked.clear();
     sensorsSwitch.checked = false;
     setLinkedRows(false);
-    pushStation();
+    carry(stationCard, pushStation);
     renderYaml();
 }
 
@@ -990,7 +1093,7 @@ function createFrame({ section, layout, build, captions, label, wallFrom, probe 
             if (!old) return;
             const from = getComputedStyle(old.el).opacity;
             old.el.getAnimations().forEach(animation => animation.cancel());
-            old.el.animate([{ opacity: from }, { opacity: 0 }], { duration: reduceMotion ? 200 : 140, delay, easing: EASE.inSoft, fill: 'both' })
+            old.el.animate([{ opacity: from }, { opacity: 0 }], { duration: reduceMotion ? 200 : LEAVE, delay, easing: EASE.inSoft, fill: 'both' })
                 .onfinish = () => old.el.remove();
         };
         if (!view.revealed) {
@@ -1025,8 +1128,8 @@ function createFrame({ section, layout, build, captions, label, wallFrom, probe 
             frame.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200 });
             return;
         }
-        frame.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 600, easing: EASE.outQuart });
-        frame.animate([{ transform: 'translateY(16px)' }, { transform: 'none' }], { duration: 900, easing: EASE.outExpo });
+        frame.animate([{ opacity: 0 }, { opacity: 1 }], { duration: REVEAL.fade, easing: EASE.outQuart });
+        frame.animate([{ transform: REVEAL.from }, { transform: 'none' }], { duration: REVEAL.rise, easing: EASE.outExpo });
         view.current.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, delay: 200, easing: EASE.outQuart, fill: 'backwards' });
     }
 
@@ -1082,7 +1185,7 @@ let yamlInView = false;
 function yamlOptions() {
     return {
         colors: state.colors === 'sky' ? 'sky' : 'theme', station: station.on,
-        engine: tune.settings, quiet: tune.quiet, paints: paint.colors, tone: noteSetup.voice,
+        engine: tune.mode === 'manual' ? tune.settings : {}, quiet: tune.quiet, paints: paint.colors, tone: noteSetup.voice,
     };
 }
 /** Draw the YAML; lines you haven't seen yet glow once, as soon as you can see them. */
@@ -1120,9 +1223,9 @@ copyButton($('#copy'), () => yamlText, yaml);
 
 // ── The dashboard: a sections view at 1:1, on the screen you pick ──────
 // Home Assistant's own layout (HA and dashboardLayout in scene.mjs) lays
-// three sections round the cards: the card full size in a section that
-// spans two columns, and as a compact strip over the compact sun tracker,
-// among tile cards. Each screen is a scene of its own, chrome and all,
+// four sections round the cards: the card full size in a section that
+// spans two columns, as a compact strip over the compact sun tracker, and
+// the same pair for Sydney, on its own sun and clock, among tile cards. Each screen is a scene of its own, chrome and all,
 // mounted at its width and hidden until every card has drawn; then the
 // outline morphs to the new width on --inset (the frame's CSS) while the
 // screens cross-fade. The desktop is the page's own width.
@@ -1186,7 +1289,7 @@ const dash = (() => {
         el.innerHTML = `${layout.sidebar ? sidebarHtml() : ''}<div class="ha-main">
             <div class="ha-toolbar" aria-hidden="true">${layout.sidebar ? '' : `<span class="ha-icon-button">${svgIcon('mdi:menu')}</span>`}<span class="ha-title">Overview</span>
                 <span class="ha-tools"><span class="ha-icon-button">${svgIcon('mdi:magnify')}</span><span class="ha-icon-button">${svgIcon('mdi:dots-vertical')}</span></span></div>
-            <div class="ha-view" style="--columns: ${layout.columns}">${DASHBOARD.map(s => sectionHtml(s, layout.columns)).join('')}</div>
+            <div class="ha-view" style="--columns: ${layout.columns}">${dashboardSections(layout.columns).map(s => sectionHtml(s, layout.columns)).join('')}</div>
         </div>`;
         const cards = [];
         const make = (tag, config) => {
@@ -1202,10 +1305,21 @@ const dash = (() => {
             type: 'custom:animated-sun-tracker-card', sun_entity: ENTITIES.sun, moon_entity: ENTITIES.moon,
             weather_entity: ENTITIES.weather, compact: true, color_palette: palette,
         });
+        // Another place: its own weather entity, and its sun and clock from its coordinates and time zone
+        const place = { latitude: AWAY.latitude, longitude: AWAY.longitude, time_zone: AWAY.time_zone };
+        const away = make('animated-weather-card', {
+            type: 'custom:animated-weather-card', entity: ENTITIES.awayWeather, name: AWAY.name, ...place,
+            compact: true, show_clock: true, show_sun: false, color_palette: palette,
+        });
+        const awayTracker = make('animated-sun-tracker-card', {
+            type: 'custom:animated-sun-tracker-card', ...place, weather_entity: ENTITIES.awayWeather, compact: true, color_palette: palette,
+        });
         el.querySelector('[data-card="weather"]').append(weather);
         el.querySelector('[data-card="compact"]').append(compact);
         el.querySelector('[data-card="tracker"]').append(tracker);
-        return { el, weather, tracker, cards, layout };
+        el.querySelector('[data-card="away"]').append(away);
+        el.querySelector('[data-card="awayTracker"]').append(awayTracker);
+        return { el, weather, tracker, away, cards, layout };
     }
 
     function announce() {
@@ -1218,10 +1332,12 @@ const dash = (() => {
         figure.dataset.layout = id;
         figure.style.setProperty('--device-w', id === 'desktop' ? 'var(--frame-w)' : `${deviceWidth(id)}px`);
         captionText(caption).textContent = captionFor(id, scene.layout);
+        // One column lists Sydney second, as the screen shows it
+        renderYaml();
         lightCard(light, scene.weather, stage);
     }
     function renderYaml() {
-        dashText = dashboardYaml({ colors: state.colors === 'sky' ? 'sky' : 'theme' });
+        dashText = dashboardYaml({ colors: state.colors === 'sky' ? 'sky' : 'theme', columns: view.current?.layout.columns ?? dashboardLayout(deviceWidth(view.device)).columns });
         renderDashYaml(dashText);
     }
 
@@ -1244,8 +1360,8 @@ const dash = (() => {
         scenesEl.append(scene.el);
         const job = { scene, cancelled: false };
         view.pending = job;
-        // Three cards draw their skies here: give them longer than one
-        whenReady(scene, () => job.cancelled, 1200).then(() => {
+        // Five cards draw their skies here, and Sydney's clock comes with the forecast's bundle: give them longer than one
+        whenReady(scene, () => job.cancelled, 2500, s => !!s.away.querySelector(':scope > style.awc-fc-css')).then(() => {
             view.pending = null;
             show(scene);
         });
@@ -1266,7 +1382,7 @@ const dash = (() => {
         const leave = (delay) => {
             const from = getComputedStyle(old.el).opacity;
             old.el.getAnimations().forEach(animation => animation.cancel());
-            old.el.animate([{ opacity: from }, { opacity: 0 }], { duration: reduceMotion ? 200 : 140, delay, easing: EASE.inSoft, fill: 'both' })
+            old.el.animate([{ opacity: from }, { opacity: 0 }], { duration: reduceMotion ? 200 : LEAVE, delay, easing: EASE.inSoft, fill: 'both' })
                 .onfinish = () => old.el.remove();
         };
         if (reduceMotion) {
@@ -1289,8 +1405,8 @@ const dash = (() => {
             frame.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200 });
             return;
         }
-        frame.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 600, easing: EASE.outQuart });
-        frame.animate([{ transform: 'translateY(16px)' }, { transform: 'none' }], { duration: 900, easing: EASE.outExpo });
+        frame.animate([{ opacity: 0 }, { opacity: 1 }], { duration: REVEAL.fade, easing: EASE.outQuart });
+        frame.animate([{ transform: REVEAL.from }, { transform: 'none' }], { duration: REVEAL.rise, easing: EASE.outExpo });
         view.current.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, delay: 200, easing: EASE.outQuart, fill: 'backwards' });
     }
 
@@ -1361,13 +1477,201 @@ const dash = (() => {
 // on the hero's weather and clock, each with its YAML: the weather card
 // with the forecast, the clock and the date, the forecast card, and the
 // compact card over the forecast's strip. Under the weather card, Big
-// value makes the time its hero (hero: clock): only that card is set up
-// again, and its YAML follows. They're set up afresh when the palette
+// value makes the time its hero (hero: clock) and The week puts the days
+// under its hours (show_days): only that card is set up again, and its
+// YAML follows. They're set up afresh when the palette
 // changes or your weather arrives or leaves: the new cards mount hidden,
 // wait until each has drawn its sky and its forecast (the forecast's
 // bundle loads with the first of them), then dissolve over the old ones.
 // Each card lights its own patch of wall, and the light follows its sky
 // as you drag it through the hours.
+// ── Start from a layout: the editor's presets ─────────────────────────
+// One card, set up as the chosen preset's YAML says, as wide as a sections
+// column (the wall two of them where the page has room, else what it is in
+// one column) and as tall as the rows the card itself asks for, as a
+// section's grid gives it.
+const layouts = (() => {
+    const section = $('#layouts');
+    const slotEl = section.querySelector('.layouts-slot');
+    const scenesEl = slotEl.querySelector('.layouts-scenes');
+    const light = slotEl.querySelector('.stage-light');
+    const caption = $('#layouts-caption');
+    const code = $('#layouts-yaml');
+    const render = snippetRenderer(code);
+    const view = { near: false, visible: false, revealed: false, stale: true, job: null, current: null, pick: 'forecast', text: '' };
+    copyButton($('#layouts-copy'), () => view.text, code);
+
+    $('#layout-chips').innerHTML = PRESETS.map(p => `
+        <label class="layout-chip"><input type="radio" name="layout-preset" value="${p.id}"${p.id === view.pick ? ' checked' : ''}><span>${p.label}</span></label>`).join('');
+
+    /** A sections column on this page: at most 500 px, and a phone's own width */
+    const column = () => Math.min(HA.columnMax, scenesEl.clientWidth || HA.columnMax);
+    /** Two columns and their gap, where the page has room for the wall */
+    const wallWidth = () => Math.min(2 * HA.columnMax + HA.columnGap, scenesEl.clientWidth || 0);
+    const wallFits = () => wallWidth() >= WALL_MIN.width;
+
+    function build() {
+        const preset = PRESETS.find(p => p.id === view.pick) ?? PRESETS[0];
+        const el = document.createElement('div');
+        el.className = 'scene layouts-scene';
+        el.innerHTML = '<div class="cards"></div>';
+        const box = document.createElement('div');
+        box.className = 'layouts-box';
+        const card = document.createElement('animated-weather-card');
+        card.setConfig({
+            type: 'custom:animated-weather-card', entity: ENTITIES.weather, sun_entity: ENTITIES.sun,
+            color_palette: state.colors === 'sky' ? 'default' : 'theme', ...preset.options,
+        });
+        box.append(card);
+        el.firstElementChild.append(box);
+        const wall = preset.id === 'wall' && wallFits();
+        return { el, box, card, wall, weather: card, cards: [card] };
+    }
+    /** The box the card is given: the size it asks for, the wall's at two columns */
+    function size(scene) {
+        const rows = scene.card.config?.grid_options?.rows ?? scene.card.getGridOptions?.().rows ?? 4;
+        scene.box.style.width = `${scene.wall ? wallWidth() : column()}px`;
+        scene.box.style.height = `${rowsHeight(rows)}px`;
+    }
+    function captionFor(scene) {
+        const preset = PRESETS.find(p => p.id === view.pick) ?? PRESETS[0];
+        if (preset.id !== 'wall') return `${preset.description}.`;
+        return scene.wall
+            ? `${preset.description}: in a section of Double width, ten rows tall, or a panel view.`
+            : `On a screen this narrow it's the forecast with the time and date. The wall needs ${WALL_MIN.width} × ${WALL_MIN.height} px: a section of Double width, or a panel view.`;
+    }
+    /**
+     * The caption, and under the bedside clock a button to the page's night and back: its red needs the dark, and
+     * its night is the page's (the Time of day at the top sets every card's sun).
+     */
+    function writeCaption(scene = view.current) {
+        if (!scene) return;
+        // Written again on every change of time: a button that had the focus keeps it
+        const focused = caption.contains(document.activeElement) && document.activeElement.matches('.caption-action');
+        caption.textContent = captionFor(scene);
+        if (view.pick !== 'bedside') return;
+        // The card's night is its bed time's, later than the sky's: only the Night stop's own time is surely in it
+        const night = state.minutes === minutesFor('night');
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'caption-action';
+        button.dataset.phase = night ? 'day' : 'night';
+        button.textContent = night ? 'Back to day' : 'See it at night';
+        caption.append(' ', button);
+        if (focused) button.focus({ preventScroll: true });
+    }
+    caption.addEventListener('click', (event) => {
+        const phase = event.target.closest('.caption-action')?.dataset.phase;
+        if (phase) setPhase(phase);
+    });
+    function renderYaml() {
+        view.text = presetYaml(view.pick, { colors: state.colors === 'sky' ? 'sky' : 'theme' });
+        render(view.text);
+    }
+    /** The forecast's bundle has drawn on a card that has its parts */
+    const drawn = (scene) => !(scene.card.config?.show_forecast || scene.card.config?.show_clock || scene.card.config?.layout === 'nightstand')
+        || !!scene.card.querySelector(':scope > style.awc-fc-css');
+
+    /** Set the card up again. Far from view it only notes that it's out of date. */
+    function mount() {
+        if (!view.near) {
+            view.stale = true;
+            return;
+        }
+        view.stale = false;
+        if (view.job) {
+            view.job.cancelled = true;
+            view.job.scene.el.remove();
+        }
+        const scene = build();
+        scene.el.style.opacity = '0';
+        scene.el.inert = true;
+        // Beside the one on show, not under it: its height is the stage's only once it's shown
+        if (view.current) scene.el.classList.add('is-out');
+        feed(scene, hass());
+        size(scene);
+        scenesEl.append(scene.el);
+        const job = { scene, cancelled: false };
+        view.job = job;
+        whenReady(scene, () => job.cancelled, 4000, drawn).then(() => {
+            view.job = null;
+            show(scene);
+        });
+    }
+    function show(scene) {
+        const old = view.current;
+        view.current = scene;
+        scene.el.inert = false;
+        if (old) old.el.inert = true;
+        writeCaption(scene);
+        if (!view.revealed) {
+            // Set up again before it was ever seen: it's the stage's one scene, in flow
+            scene.el.classList.remove('is-out');
+            old?.el.remove();
+            reveal();
+            return;
+        }
+        scene.el.style.opacity = '';
+        const remove = () => old?.el.remove();
+        const carried = swapSized(scenesEl, old, scene, remove);
+        lightCard(light, scene.el.querySelector('.cards'), slotEl);
+        watchSky();
+        if (carried) return;
+        if (reduceMotion) {
+            scene.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200 });
+            old?.el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, fill: 'forwards' }).finished.then(remove, remove);
+            return;
+        }
+        scene.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 320, easing: EASE.outQuart }).onfinish = () => {
+            old?.el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: LEAVE, easing: EASE.inSoft, fill: 'forwards' }).finished.then(remove, remove);
+        };
+    }
+    /** Once, when the card starts to come into view and has drawn: it rises in, and its light comes up */
+    function reveal() {
+        if (view.revealed || !view.visible || !view.current) return;
+        view.revealed = true;
+        const { el } = view.current;
+        lightCard(light, el.querySelector('.cards'), slotEl, true);
+        slotEl.classList.add('is-shown');
+        watchSky();
+        el.style.opacity = '';
+        if (reduceMotion) {
+            el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200 });
+            return;
+        }
+        el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: REVEAL.fade, easing: EASE.outQuart });
+        el.animate([{ transform: REVEAL.from }, { transform: 'none' }], { duration: REVEAL.rise, easing: EASE.outExpo });
+    }
+
+    section.querySelector('#layout-chips').addEventListener('change', (event) => {
+        view.pick = event.target.value;
+        renderYaml();
+        mount();
+    });
+    // The card mounts half a screen before you reach it, so it's drawn by then
+    new IntersectionObserver(([entry]) => {
+        view.near = entry.isIntersecting;
+        if (view.near && view.stale) mount();
+    }, { rootMargin: '0px 0px 50% 0px' }).observe(slotEl);
+    new IntersectionObserver(([entry]) => {
+        view.visible = entry.intersectionRatio >= 0.15;
+        reveal();
+    }, { threshold: [0, 0.15] }).observe(slotEl);
+    // A new width: the card takes a column's, and the wall shows where it fits
+    let lastWidth = 0;
+    new ResizeObserver(() => {
+        const width = scenesEl.clientWidth;
+        if (!view.current || Math.abs(width - lastWidth) < 1) return;
+        lastWidth = width;
+        if (view.current.wall !== (view.pick === 'wall' && wallFits())) mount();
+        else { size(view.current); lightCard(light, view.current.el.querySelector('.cards'), slotEl); }
+    }).observe(scenesEl);
+    addRoom({ stage: slotEl, sky: () => view.current?.card.querySelector('.animated-weather-card'), storm: () => !!view.current && state.conditionId === 'lightning-rainy' });
+
+    renderYaml();
+    return { stage: slotEl, mount, renderYaml, writeCaption };
+})();
+
 const ahead = (() => {
     const section = $('#ahead');
     const stage = section.querySelector('.ahead-stage');
@@ -1380,6 +1684,7 @@ const ahead = (() => {
     const view = { near: false, visible: false, revealed: false, stale: true, job: null };
     const lit = (scene) => scene.el.querySelector('.cards');
     let hero = false;
+    let days = false;
 
     /**
      * One slot's cards, set up as its YAML says, each in a box as tall as
@@ -1404,7 +1709,7 @@ const ahead = (() => {
             el.firstElementChild.append(box);
             return card;
         };
-        const cards = slot.id === 'hours' ? [make('animated-weather-card', AHEAD_ROWS.hours, { show_forecast: true, show_clock: true, show_date: true, ...(hero ? { hero: 'clock' } : {}) })]
+        const cards = slot.id === 'hours' ? [make('animated-weather-card', AHEAD_ROWS.hours + (days ? AHEAD_ROWS.days : 0), { show_forecast: true, show_clock: true, show_date: true, ...(hero ? { hero: 'clock' } : {}), ...(days ? { show_days: true } : {}) })]
             : slot.id === 'card' ? [make('animated-forecast-card', AHEAD_ROWS.card)]
                 : [make('animated-weather-card', AHEAD_ROWS.compact, { compact: true }), make('animated-forecast-card', AHEAD_ROWS.strip, { compact: true })];
         return { el, cards, drawn, weather: cards[0] };
@@ -1414,7 +1719,7 @@ const ahead = (() => {
 
     function renderYaml() {
         for (const slot of slots) {
-            slot.text = aheadYaml(slot.id, { colors: state.colors === 'sky' ? 'sky' : 'theme', hero });
+            slot.text = aheadYaml(slot.id, { colors: state.colors === 'sky' ? 'sky' : 'theme', hero, days });
             slot.render(slot.text);
         }
     }
@@ -1444,6 +1749,7 @@ const ahead = (() => {
             const scene = build(slot);
             scene.el.style.opacity = '0';
             scene.el.inert = true;
+            if (slot.current) scene.el.classList.add('is-out');
             feed(scene, data);
             slot.scenesEl.append(scene.el);
             return scene;
@@ -1464,18 +1770,21 @@ const ahead = (() => {
             scene.el.inert = false;
             if (old) old.el.inert = true;
             if (!view.revealed) {
+                scene.el.classList.remove('is-out');
                 old?.el.remove();
                 return;
             }
             scene.el.style.opacity = '';
             const remove = () => old?.el.remove();
+            // The week makes the card taller: the page below is carried there
+            if (swapSized(slot.scenesEl, old, scene, remove)) return;
             if (reduceMotion) {
                 scene.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200 });
                 old?.el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, fill: 'forwards' }).finished.then(remove, remove);
                 return;
             }
             scene.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 320, easing: EASE.outQuart }).onfinish = () => {
-                old?.el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 120, easing: EASE.inSoft, fill: 'forwards' }).finished.then(remove, remove);
+                old?.el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: LEAVE, easing: EASE.inSoft, fill: 'forwards' }).finished.then(remove, remove);
             };
         });
         if (view.revealed) {
@@ -1500,8 +1809,8 @@ const ahead = (() => {
                 return;
             }
             const delay = i * 90;
-            el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 700, delay, easing: EASE.outQuart, fill: 'backwards' });
-            el.animate([{ transform: 'translateY(16px)' }, { transform: 'none' }], { duration: 1000, delay, easing: EASE.outExpo, fill: 'backwards' });
+            el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: REVEAL.fade, delay, easing: EASE.outQuart, fill: 'backwards' });
+            el.animate([{ transform: REVEAL.from }, { transform: 'none' }], { duration: REVEAL.rise, delay, easing: EASE.outExpo, fill: 'backwards' });
         });
     }
 
@@ -1530,6 +1839,13 @@ const ahead = (() => {
     heroEl.addEventListener('change', (event) => {
         hero = event.target.value === 'clock';
         heroEl.querySelector('.segmented').style.setProperty('--index', hero ? 1 : 0);
+        renderYaml();
+        mount(['hours']);
+    });
+    // The week under the hours: the card asks for its rows, so its box grows by them
+    const daysEl = section.querySelector('#ahead-days');
+    daysEl.addEventListener('change', (event) => {
+        days = event.target.checked;
         renderYaml();
         mount(['hours']);
     });
@@ -1573,6 +1889,9 @@ function drawEvents() {
 }
 drawEvents();
 
+/** What the trackers in this section compare today's sun with: daylight_delta, yesterday as the card comes */
+let trackerCompare = 'day';
+
 /** Card and wall: the tracker on its own. Compact: under the weather card, sharing its sky, as it's built to sit. */
 function buildTrackerScene(layout) {
     const palette = state.colors === 'sky' ? 'default' : 'theme';
@@ -1602,6 +1921,9 @@ function buildTrackerScene(layout) {
         weather_entity: ENTITIES.weather,
         compact: layout === 'compact',
         color_palette: palette,
+        ...(trackerCompare === 'day' ? {} : { daylight_delta: trackerCompare }),
+        // The page's scrubber runs left to right, so the sun does too, wherever you are
+        direction: 'left_to_right',
     });
     cards.append(tracker);
     return { el, weather, tracker };
@@ -1616,9 +1938,9 @@ const sunFrame = createFrame({
     layout: 'regular',
     build: buildTrackerScene,
     captions: {
-        regular: 'On a phone, at its real width.',
-        compact: 'Under the weather card, sharing its sky.',
-        wide: 'In a section that spans two columns, or a panel view.',
+        regular: 'On a phone, at its real width. South of the equator the sun runs right to left, as it crosses your sky.',
+        compact: 'Under the weather card, sharing its sky. After the countdown, how much earlier or later than the day you compare with.',
+        wide: 'In a section that spans two columns, or a panel view. Drag a weather card through the hours and this sun goes there too.',
     },
     label: (name) => `Live preview of the sun tracker, ${name}`,
     // Narrower than this, a "wall" would be a phone held sideways
@@ -1787,6 +2109,7 @@ function syncTime() {
     placeKnob(knobX);
     const stop = document.querySelector(`input[name="phase"][value="${state.phase}"]`);
     if (stop) stop.checked = true;
+    layouts.writeCaption();
     nameWeatherOptions();
     nameForecastOptions();
 }
@@ -1834,6 +2157,10 @@ function setPhase(phase) {
     update();
     pushStation();
     moveKnob(STOPS[phase]);
+    // From the bedside caption's button the stop wasn't the one pressed
+    const stop = document.querySelector(`input[name="phase"][value="${phase}"]`);
+    if (stop) stop.checked = true;
+    layouts.writeCaption();
     nameWeatherOptions();
     nameForecastOptions();
     announce();
@@ -1849,12 +2176,22 @@ $('#phases').addEventListener('click', (event) => {
 let trackerText = '';
 function renderTrackerYaml() {
     const seen = trackerText ? trackerText.trimEnd().split('\n').map(line => line.trim()) : null;
-    trackerText = trackerYaml({ layout: sunFrame.view.layout, colors: state.colors === 'sky' ? 'sky' : 'theme' });
+    trackerText = trackerYaml({ layout: sunFrame.view.layout, colors: state.colors === 'sky' ? 'sky' : 'theme', compare: trackerCompare });
     trackerYamlEl.innerHTML = trackerText.trimEnd().split('\n')
         .map(line => `<span class="y-line${seen && !seen.includes(line.trim()) ? ' is-new' : ''}">${highlight(line)}</span>`).join('');
 }
 renderTrackerYaml();
 copyButton($('#tracker-copy'), () => trackerText, trackerYamlEl);
+
+// Compare with: a new card on the same size, as a new daylight_delta gives a dashboard; its YAML follows in onShow
+$('#tracker-compare').addEventListener('change', (event) => {
+    const input = event.target;
+    if (input.type !== 'radio' || !(input.value in TRACKER_COMPARE)) return;
+    trackerCompare = input.value;
+    const control = input.closest('.segmented');
+    control.style.setProperty('--index', [...control.querySelectorAll('input')].indexOf(input));
+    sunFrame.mount();
+});
 
 new ResizeObserver(placeScrubber).observe(sunFrame.stage);
 document.fonts?.ready.then(placeScrubber);
@@ -1882,7 +2219,7 @@ form.addEventListener('change', (event) => {
         // Between the two themes only the theme's variables change.
         const wasSky = state.colors === 'sky';
         state.colors = value;
-        for (const room of [stage, dash.stage, sunFrame.stage, tuneLab.stage, ...ahead.rooms]) {
+        for (const room of [stage, dash.stage, sunFrame.stage, tuneLab.stage, layouts.stage, ...ahead.rooms]) {
             room.dataset.colors = value === 'sky' ? 'sky' : 'theme';
             room.dataset.dashboard = value === 'light' ? 'light' : 'dark';
         }
@@ -1890,12 +2227,14 @@ form.addEventListener('change', (event) => {
             mountScene();
             dash.mount();
             ahead.mount();
+            layouts.mount();
             sunFrame.mount();
             tuneLab.mount();
         }
         renderYaml();
         dash.renderYaml();
         ahead.renderYaml();
+        layouts.renderYaml();
     }
 });
 
@@ -1943,7 +2282,7 @@ function createLab({ section, condition, phase = null, config = () => ({}), data
         phase: phase ?? state.phase,
         sun: phase ? sunAt(minutesFor(phase)) : sunNow(state.minutes),
         sunTimes: phase ? SUN_TIMES : sunTimes,
-        ...data(),
+        ...data(lab.condition),
     });
     const place = (instant = false) => { if (lab.current) lightCard(light, lab.current.weather, scenesEl, instant); };
 
@@ -1984,14 +2323,17 @@ function createLab({ section, condition, phase = null, config = () => ({}), data
         scene.el.style.opacity = '';
         place();
         watchSky();
-        const remove = () => old.el.remove();
+        // Two cards at most: one still on its way out when the next arrives goes at once
+        lab.leaving?.el.remove();
+        lab.leaving = old;
+        const remove = () => { old.el.remove(); if (lab.leaving === old) lab.leaving = null; };
         if (reduceMotion) {
             scene.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200 });
             old.el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, fill: 'forwards' }).onfinish = remove;
             return;
         }
         scene.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 320, easing: EASE.outQuart }).onfinish = () => {
-            old.el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 120, easing: EASE.inSoft, fill: 'forwards' }).onfinish = remove;
+            old.el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: LEAVE, easing: EASE.inSoft, fill: 'forwards' }).onfinish = remove;
         };
     }
     /** Once, when a quarter of the stage is in view and its card has drawn: the card rises in and its light comes up. */
@@ -2007,8 +2349,8 @@ function createLab({ section, condition, phase = null, config = () => ({}), data
             scene.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200 });
             return;
         }
-        scene.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 700, easing: EASE.outQuart });
-        scene.el.animate([{ transform: 'translateY(16px)' }, { transform: 'none' }], { duration: 1000, easing: EASE.outExpo });
+        scene.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: REVEAL.fade, easing: EASE.outQuart });
+        scene.el.animate([{ transform: REVEAL.from }, { transform: 'none' }], { duration: REVEAL.rise, easing: EASE.outExpo });
     }
     /** The clock moved, or the lab's weather changed: a live update, as on a dashboard. */
     function refresh() {
@@ -2033,7 +2375,7 @@ function createLab({ section, condition, phase = null, config = () => ({}), data
     }, { threshold: [0, 0.25] }).observe(stage);
     new ResizeObserver(() => place()).observe(scenesEl);
     addRoom({ stage, sky: () => lab.current?.weather.querySelector('.animated-weather-card'), storm: () => storm(lab.condition) });
-    const api = { stage, mount, refresh, showWeather };
+    const api = { stage, mount, refresh, showWeather, get condition() { return lab.condition; } };
     labs.push(api);
     return api;
 }
@@ -2047,30 +2389,52 @@ function settled(fn, ms) {
     };
 }
 
-// ── Tune the weather: the engine's sliders and the quiet switches ──────
+// ── Tune the weather: the weather's own amounts, or the engine's sliders, and the quiet switches ──
+// The weather (auto mode, the card's default): the card reads a station's rain rate and the weather entity's cloud
+// cover, visibility, wind and gusts, and its readings show them. A slider changes what Home Assistant reports, and the
+// card follows in place, as it would on a dashboard. By hand (manual): the engine's seven settings, and each change
+// sets the card up again once the hand pauses.
 const tune = {
+    mode: 'auto',
+    inputs: Object.fromEntries(WEATHER_INPUTS.map(row => [row.id, row.value])),
     settings: Object.fromEntries(ENGINE.map(row => [row.id, row.value])),
     quiet: Object.fromEntries(QUIET.map(row => [row.id, false])),
 };
 const tuneLab = createLab({
     section: $('#tune'),
     condition: 'rainy',
-    config: () => ({ engine_settings: engineSettings(tune.settings), ...quietOptions(tune.quiet) }),
+    // By hand, the sliders are manual mode's, at their defaults too, as the YAML says: in auto the sample's own rain
+    // and cloud would set the amounts, and a slider could move the weather the other way
+    config: () => {
+        if (tune.mode === 'auto') return { readings: WEATHER_READINGS, ...quietOptions(tune.quiet) };
+        const engine = engineSettings(tune.settings);
+        return { engine_mode: 'manual', ...(Object.keys(engine).length ? { engine_settings: engine } : {}), ...quietOptions(tune.quiet) };
+    },
+    data: (condition) => (tune.mode === 'auto' ? weatherInputs(tune.inputs, condition) : {}),
 });
 const slidersEl = $('#sliders');
 const tuneReset = $('#tune-reset');
+const tuneModeEl = $('#tune-mode');
 const renderTuneYaml = snippetRenderer($('#tune-yaml'));
 let tuneText = '';
 
-slidersEl.innerHTML = ENGINE.map(row => `
+/** The sliders the mode shows: the weather's values (each slider steps through its stops), or the engine's */
+const tuneRows = () => (tune.mode === 'auto' ? WEATHER_INPUTS : ENGINE);
+function drawSliders() {
+    slidersEl.innerHTML = tuneRows().map(row => {
+        const [min, max, step] = row.stops ? [0, row.stops.length - 1, 1] : [row.min, row.max, row.step];
+        return `
     <label class="slider" data-id="${row.id}">
         <span class="slider-head"><span class="slider-label">${row.label}</span><output class="slider-value"></output></span>
         <span class="slider-track">
             <span class="slider-fill" aria-hidden="true"></span>
             <span class="slider-thumb" aria-hidden="true"></span>
-            <input type="range" min="${row.min}" max="${row.max}" step="${row.step}" aria-label="${row.label}">
+            <input type="range" min="${min}" max="${max}" step="${step}" aria-label="${row.label}">
         </span>
-    </label>`).join('');
+    </label>`;
+    }).join('');
+    $('#sliders-title').textContent = tune.mode === 'auto' ? 'What your weather reports' : 'Your amounts';
+}
 $('#quiet-list').innerHTML = QUIET.map(row => `
     <label class="toggle quiet-switch">
         <input type="checkbox" role="switch" data-id="${row.id}">
@@ -2078,60 +2442,104 @@ $('#quiet-list').innerHTML = QUIET.map(row => `
         <span class="quiet-text"><span>${row.label}</span><span class="quiet-note">${row.note}</span></span>
     </label>`).join('');
 
-/** Draw a slider where its setting is: the rail, the thumb, the value as the editor shows it. */
+/** Draw a slider where its value is: the rail, the thumb, the value as the card or the editor shows it. */
 function drawSlider(row) {
     const slider = slidersEl.querySelector(`.slider[data-id="${row.id}"]`);
-    const value = tune.settings[row.id];
-    const text = formatEngineValue(row.id, value);
-    slider.style.setProperty('--p', ((value - row.min) / (row.max - row.min)).toFixed(4));
+    const input = slider.querySelector('input');
+    let value, p, text;
+    if (row.stops) {
+        value = tune.inputs[row.id];
+        const index = Math.max(0, row.stops.indexOf(value));
+        p = index / (row.stops.length - 1);
+        text = formatWeatherInput(row.id, value);
+        input.value = String(index);
+    } else {
+        value = tune.settings[row.id];
+        p = (value - row.min) / (row.max - row.min);
+        text = formatEngineValue(row.id, value);
+        input.value = String(value);
+    }
+    slider.style.setProperty('--p', p.toFixed(4));
     slider.classList.toggle('is-set', Math.abs(value - row.value) > 1e-9);
     slider.querySelector('.slider-value').textContent = text;
-    const input = slider.querySelector('input');
-    input.value = String(value);
     input.setAttribute('aria-valuetext', text);
 }
 function tuneYaml() {
     const quiet = Object.entries(quietOptions(tune.quiet)).map(([key, value]) => `${key}: ${value}`);
-    const engine = engineYaml(tune.settings).trimEnd();
-    const lines = [...quiet, ...(engine ? [engine] : [])];
-    return (lines.length ? lines.join('\n') : '# Every setting at its default') + '\n';
+    const engine = tune.mode === 'auto' ? weatherYaml().trimEnd()
+        : engineYaml(tune.settings).trimEnd() || '# Every amount at its default\nengine_mode: manual';
+    return [...quiet, engine].join('\n') + '\n';
 }
+const tuneChanged = () => (tune.mode === 'auto'
+    ? WEATHER_INPUTS.some(row => tune.inputs[row.id] !== row.value)
+    : Object.keys(engineSettings(tune.settings)).length > 0);
 function drawTune() {
-    ENGINE.forEach(drawSlider);
+    tuneRows().forEach(drawSlider);
     for (const input of $('#quiet-list').querySelectorAll('input')) input.checked = tune.quiet[input.dataset.id];
-    tuneReset.hidden = !Object.keys(engineSettings(tune.settings)).length && !Object.values(tune.quiet).some(Boolean);
+    tuneReset.hidden = !tuneChanged() && !Object.values(tune.quiet).some(Boolean);
     tuneText = tuneYaml();
     renderTuneYaml(tuneText);
     renderYaml();
 }
 const mountTune = settled(() => tuneLab.mount(), 220);
 
-// Taking hold of a slider shows the weather it changes; moving it sets
-// the engine up again once the hand pauses
-const sliderRow = (target) => ENGINE.find(row => row.id === target.closest('.slider')?.dataset.id);
+// The weather's own amounts, or by hand: a new card, with the sliders of its mode
+tuneModeEl.addEventListener('change', (event) => {
+    tune.mode = event.target.checked ? 'auto' : 'manual';
+    // Seven sliders for five, or back: what's under them is carried there, and the new rows fade in
+    carry(slidersEl, () => { drawSliders(); drawTune(); });
+    slidersEl.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, easing: EASE.outQuart });
+    tuneLab.mount();
+});
+
+// Taking hold of a slider shows the weather it changes. The weather's values reach the card at once, as Home
+// Assistant's updates do; the engine's set it up again once the hand pauses
+const sliderRow = (target) => tuneRows().find(row => row.id === target.closest('.slider')?.dataset.id);
 slidersEl.addEventListener('pointerdown', (event) => { const row = sliderRow(event.target); if (row) tuneLab.showWeather(row.shows); });
 slidersEl.addEventListener('focusin', (event) => { const row = sliderRow(event.target); if (row) tuneLab.showWeather(row.shows); });
 slidersEl.addEventListener('input', (event) => {
     const row = sliderRow(event.target);
     if (!row) return;
+    if (row.stops) {
+        tune.inputs[row.id] = row.stops[Number(event.target.value)] ?? row.value;
+        drawTune();
+        if (row.shows !== tuneLab.condition) tuneLab.showWeather(row.shows); else tuneLab.refresh();
+        return;
+    }
     tune.settings[row.id] = Number(event.target.value);
     tuneLab.showWeather(row.shows);
     drawTune();
-    mountTune();
+    // Under a hand, the card waits for it to let go: a new card at every pause restarts the weather each time
+    if (tuneHeld) tuneDue = true; else mountTune();
 });
+let tuneHeld = false;
+let tuneDue = false;
+slidersEl.addEventListener('pointerdown', () => { tuneHeld = true; });
+for (const type of ['pointerup', 'pointercancel']) {
+    addEventListener(type, () => {
+        if (!tuneHeld) return;
+        tuneHeld = false;
+        if (tuneDue) { tuneDue = false; tuneLab.mount(); }
+    });
+}
 $('#quiet-list').addEventListener('change', (event) => {
     const id = event.target.dataset.id;
     if (!id) return;
     tune.quiet[id] = event.target.checked;
     drawTune();
-    mountTune();
+    // A switch is one decision: no pause to wait out
+    tuneLab.mount();
 });
 tuneReset.addEventListener('click', () => {
-    for (const row of ENGINE) tune.settings[row.id] = row.value;
+    // The weather's values reach the card as an update; the engine's settings and the switches set it up again
+    const quietWas = Object.values(tune.quiet).some(Boolean);
+    if (tune.mode === 'auto') for (const row of WEATHER_INPUTS) tune.inputs[row.id] = row.value;
+    else for (const row of ENGINE) tune.settings[row.id] = row.value;
     for (const row of QUIET) tune.quiet[row.id] = false;
     drawTune();
-    mountTune();
+    if (tune.mode === 'auto' && !quietWas) tuneLab.refresh(); else mountTune();
 });
+drawSliders();
 copyButton($('#tune-copy'), () => tuneText, $('#tune-yaml'));
 
 // ── Paint your own sky: the palettes and the paints ────────────────────
@@ -2207,7 +2615,8 @@ palettesEl.addEventListener('change', (event) => {
     if (!palette) return;
     paint.colors = { ...palette.colors };
     drawPaint();
-    mountPaint();
+    // A palette is one decision: no pause to wait out, as a colour picker's drag has
+    paintLab.mount();
 });
 copyButton($('#paint-copy'), () => paintText, $('#paint-yaml'));
 
@@ -2275,9 +2684,13 @@ let lastCondition = state.conditionId;
 let liveRequest = 0;
 let liveTimer = 0;
 
+/** The line under the weather keys. It comes and goes with the page carried around it, never in one jump. */
 function note(text) {
-    liveNote.textContent = text;
-    liveNote.hidden = !text;
+    if (liveNote.textContent === text) return;
+    carry(liveNote, () => {
+        liveNote.textContent = text;
+        liveNote.hidden = !text;
+    });
 }
 function checkCondition(id) {
     const input = form.querySelector(`input[name="condition"][value="${id}"]`);
@@ -2359,6 +2772,7 @@ function remountFollowers() {
     mountScene();
     dash.mount();
     ahead.mount();
+    layouts.mount();
     sunFrame.mount();
 }
 async function goLive() {

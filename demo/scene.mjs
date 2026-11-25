@@ -290,7 +290,7 @@ const SWING = { clear: 6, partlycloudy: 5, windy: 4, cloudy: 3, fog: 2.5, rainy:
 const CLOUD = { clear: 4, partlycloudy: 45, windy: 30, cloudy: 90, fog: 100, rainy: 95, pouring: 100, 'lightning-rainy': 100, snowy: 95, 'snowy-rainy': 95, hail: 95 };
 const VISIBILITY = { clear: 24, partlycloudy: 22, windy: 20, cloudy: 16, fog: 0.4, rainy: 8, pouring: 3, 'lightning-rainy': 4, snowy: 2, 'snowy-rainy': 4, hail: 5 };
 /** Millimetres an hour at the height of each kind of wet weather. */
-const RATE = { rainy: 1.4, pouring: 4.5, 'lightning-rainy': 6, snowy: 0.8, 'snowy-rainy': 1.2, hail: 2.5 };
+const RATE = { rainy: 1.4, pouring: 10, 'lightning-rainy': 4, snowy: 0.8, 'snowy-rainy': 1.2, hail: 1.2 };
 /** The wet weather that names a day with several, most serious first. */
 const SEVERITY = ['lightning-rainy', 'hail', 'pouring', 'snowy-rainy', 'snowy', 'rainy'];
 
@@ -573,7 +573,15 @@ export const ENTITIES = {
     sun: 'sun.sun',
     moon: 'sensor.moon_phase',
     flights: 'sensor.flightradar24_current_in_area',
+    // Another place's weather: family in Sydney, on the dashboard
+    awayWeather: 'weather.sydney',
+    // A weather station's rain: how hard it's raining, which the tune lab's card follows, and today's
+    rainRate: 'sensor.garden_rain_rate',
+    rainToday: 'sensor.garden_rain_today',
 };
+
+/** The dashboard's other place: its coordinates and time zone give its cards Sydney's own sun and clock */
+export const AWAY = { name: 'Sydney', latitude: -33.87, longitude: 151.21, time_zone: 'Australia/Sydney' };
 
 /**
  * The note under the conditions. On a dashboard Home Assistant's AI writes
@@ -712,17 +720,45 @@ export function noteFor(conditionId, phase, tone = 'snarky') {
  * fast the weather moves. Pressure and the wind start where the clear-sky
  * forecast has them, so wiring the sensors in doesn't show as a change.
  * The wind's direction wraps round the compass instead of stopping.
+ * The rain is one reading from two sensors: the rate while it's above 0
+ * ("Rain now"), else today's total.
  */
 export const STATION = [
     { id: 'temperature', group: 'Outside', label: 'Temperature', option: 'outdoor_sensor_entity', entity: 'sensor.garden_temperature', value: 18.4, unit: '°C', decimals: 1, step: 1, deviceClass: 'temperature' },
-    { id: 'feelsLike', group: 'Outside', label: 'Feels like', option: 'feels_like_entity', entity: 'sensor.garden_feels_like', value: 17.6, unit: '°C', decimals: 1, deviceClass: 'temperature' },
-    { id: 'humidity', group: 'Outside', label: 'Humidity', option: 'humidity_sensor_entity', entity: 'sensor.garden_humidity', value: 61, unit: '%', decimals: 0, deviceClass: 'humidity' },
-    { id: 'windSpeed', group: 'Outside', label: 'Wind speed', option: 'wind_speed_sensor_entity', entity: 'sensor.garden_wind_speed', value: 11, unit: 'km/h', decimals: 0, step: 5, deviceClass: 'wind_speed' },
-    { id: 'windDirection', group: 'Outside', label: 'Wind direction', option: 'wind_direction_sensor_entity', entity: 'sensor.garden_wind_direction', value: 300, unit: '°', decimals: 0, step: 45, wrap: 360, deviceClass: 'wind_direction' },
-    { id: 'pressure', group: 'Outside', label: 'Pressure', option: 'pressure_sensor_entity', entity: 'sensor.garden_pressure', value: 1019.0, unit: 'hPa', decimals: 1, step: 0.5, deviceClass: 'pressure' },
-    { id: 'indoorTemperature', group: 'Indoors', label: 'Temperature', option: 'indoor_temperature_entity', entity: 'sensor.living_room_temperature', value: 21.8, unit: '°C', decimals: 1, deviceClass: 'temperature' },
-    { id: 'indoorHumidity', group: 'Indoors', label: 'Humidity', option: 'indoor_humidity_entity', entity: 'sensor.living_room_humidity', value: 46, unit: '%', decimals: 0, deviceClass: 'humidity' },
+    { id: 'feelsLike', group: 'Outside', label: 'Feels like', option: 'feels_like_entity', entity: 'sensor.garden_feels_like', value: 17.6, unit: '°C', decimals: 1, step: 1, deviceClass: 'temperature' },
+    { id: 'humidity', group: 'Outside', label: 'Humidity', reading: 'humidity', entity: 'sensor.garden_humidity', value: 61, unit: '%', decimals: 0, step: 5, deviceClass: 'humidity' },
+    { id: 'windSpeed', group: 'Outside', label: 'Wind speed', reading: 'wind', entity: 'sensor.garden_wind_speed', value: 11, unit: 'km/h', decimals: 0, step: 5, deviceClass: 'wind_speed' },
+    { id: 'windDirection', group: 'Outside', label: 'Wind direction', reading: 'wind', entity: 'sensor.garden_wind_direction', value: 300, unit: '°', decimals: 0, step: 45, wrap: 360, deviceClass: 'wind_direction' },
+    { id: 'pressure', group: 'Outside', label: 'Pressure', reading: 'pressure', entity: 'sensor.garden_pressure', value: 1019, unit: 'hPa', decimals: 0, step: 1, deviceClass: 'pressure' },
+    { id: 'rainToday', group: 'Outside', label: 'Rain today', reading: 'rain', entity: ENTITIES.rainToday, value: 2.4, unit: 'mm', decimals: 1, step: 0.5, deviceClass: 'precipitation' },
+    { id: 'rainRate', group: 'Outside', label: 'Rain rate', reading: 'rain', entity: ENTITIES.rainRate, value: 0, unit: 'mm/h', decimals: 1, step: 0.5, deviceClass: 'precipitation_intensity' },
+    { id: 'uv', group: 'Outside', label: 'UV index', reading: 'uv', entity: 'sensor.garden_uv_index', value: 3, unit: 'UV index', shown: '', decimals: 0, step: 1 },
+    { id: 'airQuality', group: 'Outside', label: 'Air quality', reading: 'aqi', entity: 'sensor.garden_air_quality', value: 38, unit: 'AQI', decimals: 0, step: 10, deviceClass: 'aqi' },
+    { id: 'indoorTemperature', group: 'Indoors', label: 'Temperature', option: 'indoor_temperature_entity', entity: 'sensor.living_room_temperature', value: 21.8, unit: '°C', decimals: 1, step: 1, deviceClass: 'temperature' },
+    { id: 'indoorHumidity', group: 'Indoors', label: 'Humidity', option: 'indoor_humidity_entity', entity: 'sensor.living_room_humidity', value: 46, unit: '%', decimals: 0, step: 5, deviceClass: 'humidity' },
+    { id: 'co2', group: 'Indoors', label: 'CO₂', reading: 'sensor', name: 'CO₂', entity: 'sensor.living_room_co2', value: 640, unit: 'ppm', decimals: 0, step: 50, deviceClass: 'carbon_dioxide' },
 ];
+
+/**
+ * The station card's readings: humidity, wind and pressure from their sensors (the weather entity's own while a sensor
+ * isn't there) and the next sunset, as the card shows by default; then the rain, the UV index, air quality and CO₂,
+ * each once its sensor is on (`linked`), since they have nothing to fall back to: eight, so the card's rows are even. All of them for the YAML.
+ */
+export function stationReadings(linked = new Set(STATION.map(row => row.id))) {
+    const row = (id) => STATION.find(r => r.id === id);
+    const reading = (id) => ({ type: row(id).reading, entity: row(id).entity, ...(row(id).name ? { name: row(id).name } : {}) });
+    return [
+        reading('humidity'),
+        { ...reading('windSpeed'), direction_entity: row('windDirection').entity },
+        reading('pressure'),
+        'sun',
+        ...(linked.has('rainToday') ? [{ ...reading('rainToday'), rate_entity: row('rainRate').entity }] : []),
+        ...['uv', 'airQuality', 'co2'].filter(id => linked.has(id)).map(reading),
+    ];
+}
+
+/** The station's options besides its readings: the temperatures and the indoor line */
+export const STATION_OPTIONS = STATION.filter(row => row.option);
 
 /**
  * The weather engine's settings, with the editor's ranges and defaults
@@ -755,6 +791,64 @@ export function engineSettings(settings) {
         if (Number.isFinite(value) && Math.abs(value - row.value) > 1e-9) changed[row.id] = Number(value.toFixed(1));
     }
     return changed;
+}
+
+/**
+ * The weather's own values, which the tune lab's card follows in auto mode (engine_mode, the default): each one's
+ * stops (a rain rate spans orders of magnitude, so its slider steps through them), where it starts, its unit and the
+ * weather it shows. The rain rate comes from a station's sensor while it rains, the rest from the weather entity.
+ * Cloud cover starts at half: a cloudy sky keeps its four clouds below that.
+ */
+export const WEATHER_INPUTS = [
+    { id: 'rate', label: 'Rain rate', stops: [0.1, 0.2, 0.3, 0.5, 0.8, 1, 1.5, 2, 3, 4, 6, 8, 10, 15, 20, 30], value: 1.5, unit: 'mm/h', shows: 'rainy' },
+    { id: 'cloud', label: 'Cloud cover', stops: [50, 60, 70, 80, 90, 100], value: 70, unit: '%', shows: 'cloudy' },
+    { id: 'visibility', label: 'Visibility', stops: [0.1, 0.2, 0.5, 1, 2, 3, 5, 8, 10], value: 0.5, unit: 'km', shows: 'fog' },
+    { id: 'wind', label: 'Wind', stops: [5, 10, 15, 20, 25, 30, 40, 50, 60, 70, 80], value: 30, unit: 'km/h', shows: 'windy' },
+    { id: 'gust', label: 'Gusts', stops: [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120], value: 40, unit: 'km/h', shows: 'windy' },
+];
+
+/** A value of the weather's as the card's readings write it: "1.5 mm/h", "70%", "0.5 km", "30 km/h" */
+export function formatWeatherInput(id, value) {
+    const row = WEATHER_INPUTS.find(r => r.id === id);
+    return row?.unit === '%' ? `${value}%` : `${value} ${row?.unit ?? ''}`.trim();
+}
+
+/**
+ * What the tune lab's card reads in auto mode, as its readings show them: the station's rain (the rate while it rains,
+ * else today's), the cloud cover, the visibility and the wind, so the number on the card explains the sky.
+ */
+export const WEATHER_READINGS = [
+    { type: 'rain', entity: ENTITIES.rainToday, rate_entity: ENTITIES.rainRate },
+    'cloud_cover', 'visibility', 'wind',
+];
+
+/**
+ * The tune lab's Home Assistant in auto mode: the weather entity reports the cloud cover, visibility, wind and gusts
+ * set, and the station's rain rate is the one set while the lab shows rain (else it's dry, and its reading is today's).
+ */
+export function weatherInputs(inputs, conditionId) {
+    return {
+        weatherAttributes: { cloud_coverage: inputs.cloud, visibility: inputs.visibility, visibility_unit: 'km', wind_speed: inputs.wind, wind_gust_speed: inputs.gust },
+        sensors: {
+            [ENTITIES.rainRate]: entity(ENTITIES.rainRate, conditionId === 'rainy' ? inputs.rate : 0, { unit_of_measurement: 'mm/h', device_class: 'precipitation_intensity', friendly_name: 'Rain rate' }),
+            [ENTITIES.rainToday]: entity(ENTITIES.rainToday, 4.2, { unit_of_measurement: 'mm', device_class: 'precipitation', friendly_name: 'Rain today' }),
+        },
+    };
+}
+
+/** The tune lab's YAML in auto mode: the readings it follows (engine_mode: auto is the default, so it says nothing) */
+export function weatherYaml() {
+    return [
+        '# As much weather as yours reports (engine_mode: auto, the default)',
+        'readings:',
+        '  - type: rain',
+        `    entity: ${ENTITIES.rainToday}`,
+        '    # How hard it\'s raining',
+        `    rate_entity: ${ENTITIES.rainRate}`,
+        '  - cloud_cover',
+        '  - visibility',
+        '  - wind',
+    ].join('\n') + '\n';
 }
 
 /** The switches that quiet the card, and the options each one sets. */
@@ -823,14 +917,21 @@ const block = (name, entries, quote = false) => (entries.length
     ? [`${name}:`, ...entries.map(([key, value]) => `  ${key}: ${quote ? `"${value}"` : value}`)]
     : []);
 
-/** `engine_settings:` for the settings that differ from the defaults, or nothing. */
+/**
+ * `engine_settings:` for the settings that differ from the defaults, or nothing. They're manual mode's: a card that
+ * sets them is manual unless it says otherwise, and the YAML says so.
+ */
+const engineLines = (settings) => {
+    const entries = Object.entries(engineSettings(settings));
+    return entries.length ? ['engine_mode: manual', ...block('engine_settings', entries)] : [];
+};
 export function engineYaml(settings) {
-    return block('engine_settings', Object.entries(engineSettings(settings))).join('\n') + '\n';
+    return engineLines(settings).join('\n') + '\n';
 }
 
 /** The note lab's options: the note, in the voice picked. */
 export function noteYaml(tone = 'snarky') {
-    return `show_note: true\nnote_tone: ${tone}  # snarky, calm, friendly or dry\n`;
+    return `show_note: true\n# snarky, calm, friendly or dry\nnote_tone: ${tone}\n`;
 }
 
 /** `custom_colors:` for the colours that are set, or nothing. */
@@ -867,12 +968,13 @@ export function dashboardLayout(width) {
 }
 
 /** How many rows each card takes in a section, as the cards declare (getGridOptions). */
-export const CARD_ROWS = { weather: 5, compact: 2, tracker: 2 };
+export const CARD_ROWS = { weather: 5, compact: 2, tracker: 2, away: 2, awayTracker: 2 };
 
 /**
- * The dashboard round the card: three sections, as a sections view lays
+ * The dashboard round the card: four sections, as a sections view lays
  * them out. Home spans two columns, so the card there is wide; Today has
- * the compact strip over the compact sun tracker; the rest is tile cards.
+ * the compact strip over the compact sun tracker; Sydney has the same pair
+ * for another place, on its own sun and clock; the rest is tile cards.
  */
 export const DASHBOARD = [
     { id: 'home', heading: 'Home', span: 2, cards: [
@@ -886,6 +988,10 @@ export const DASHBOARD = [
         { tile: 'sensor.garden_temperature', name: 'Garden', state: '18.4 °C', icon: 'mdi:thermometer', color: null },
         { tile: 'sensor.energy_today', name: 'Energy today', state: '6.2 kWh', icon: 'mdi:lightning-bolt', color: '#ffc107' },
     ] },
+    { id: 'away', heading: 'Sydney', cards: [
+        { card: 'away' },
+        { card: 'awayTracker' },
+    ] },
     { id: 'house', heading: 'Around the house', cards: [
         { tile: 'light.kitchen', name: 'Kitchen', state: 'Off', icon: 'mdi:ceiling-light', color: null },
         { tile: 'lock.front_door', name: 'Front door', state: 'Locked', icon: 'mdi:lock', color: '#4caf50' },
@@ -894,8 +1000,19 @@ export const DASHBOARD = [
     ] },
 ];
 
+/**
+ * The sections in the order a screen shows them. In one column (a phone) the frame holds two sections and a start of
+ * the third, so Sydney comes straight after Home: another place is the one thing only this dashboard shows, and
+ * Today's strip over its tracker is the same pair.
+ */
+export function dashboardSections(columns) {
+    if (columns > 1) return DASHBOARD;
+    const away = DASHBOARD.find(s => s.id === 'away');
+    return [DASHBOARD[0], away, ...DASHBOARD.slice(1).filter(s => s !== away)];
+}
+
 /** The dashboard as a sections view, with the cards it shows and a tile for the rest. */
-export function dashboardYaml({ colors = 'sky' } = {}) {
+export function dashboardYaml({ colors = 'sky', columns = 2 } = {}) {
     const theme = colors === 'theme' ? ['color_palette: theme'] : [];
     const list = (items, indent) => items.flatMap(lines => lines.map((line, i) => indent + (line.startsWith('#') ? '' : i === 0 ? '- ' : '  ') + line));
     const section = (heading, extra, cards) => [
@@ -911,7 +1028,15 @@ export function dashboardYaml({ colors = 'sky' } = {}) {
         ['type: custom:animated-weather-card', 'entity: weather.forecast_home', 'sun_entity: sun.sun', 'compact: true', 'show_sun: false', ...theme],
         ['type: custom:animated-sun-tracker-card', 'sun_entity: sun.sun', 'weather_entity: weather.forecast_home', 'compact: true', ...theme],
     ]);
-    return ['views:', ...list([['type: sections', 'sections:', ...list([home, today], '  ')]], '  ')].join('\n') + '\n';
+    // Another place: its weather entity, and its coordinates and time zone for its sun and clock
+    const place = [`latitude: ${AWAY.latitude}`, `longitude: ${AWAY.longitude}`, `time_zone: ${AWAY.time_zone}`];
+    const away = section(AWAY.name, [], [
+        ['type: custom:animated-weather-card', 'entity: weather.sydney', `name: ${AWAY.name}`, ...place, 'compact: true', 'show_clock: true', 'show_sun: false', ...theme],
+        ['type: custom:animated-sun-tracker-card', ...place, 'weather_entity: weather.sydney', 'compact: true', ...theme],
+    ]);
+    // In the order the screen shows them: one column lays the sections out as they're listed
+    const sections = { home, today, away };
+    return ['views:', ...list([['type: sections', 'sections:', ...list(dashboardSections(columns).map(s => sections[s.id]).filter(Boolean), '  ')]], '  ')].join('\n') + '\n';
 }
 
 /** The height a sections view gives a card of so many rows: the rows and the gaps between them. */
@@ -920,20 +1045,55 @@ export const rowsHeight = (rows) => rows * HA.rowHeight + (rows - 1) * HA.gridGa
 /**
  * The forecast section's cards, at the rows each asks for (getGridOptions),
  * so each sits at a phone's size: the weather card with the forecast and
- * the clock, the forecast card, and the compact card over the strip.
+ * the clock, the forecast card, and the compact card over the strip. The week under the hours (show_days) adds its rows
+ * to the first.
  */
-export const AHEAD_ROWS = { hours: 8, card: 7, compact: 2, strip: 2 };
+export const AHEAD_ROWS = { hours: 8, days: 4, card: 7, compact: 2, strip: 2 };
+
+/**
+ * The weather card's presets, as the editor offers them (src/presets.ts, which a test holds this copy to): each a
+ * name, what it gives you, and the options it writes. Only the Wall sets a size: it needs two sections columns.
+ */
+export const PRESETS = [
+    { id: 'standard', label: 'Standard', description: 'The sky, the temperature and four readings', options: {} },
+    { id: 'simple', label: 'Simple', description: 'The sky, the temperature and the condition, nothing else', options: { show_attributes: false } },
+    { id: 'forecast', label: 'Forecast', description: 'The next hours under the readings; drag through them', options: { show_forecast: true } },
+    {
+        id: 'full', label: 'Full info', description: 'The time and date, the hours and the week',
+        options: { show_forecast: true, show_days: true, show_clock: true, show_date: true },
+    },
+    { id: 'strip', label: 'Strip', description: 'One line, to sit under other cards', options: { compact: true } },
+    { id: 'bedside', label: 'Bedside', description: 'A clock that goes red on black at night', options: { layout: 'nightstand' } },
+    {
+        id: 'wall', label: 'Wall', description: 'A panel to read across the room',
+        options: { show_forecast: true, show_clock: true, show_date: true, grid_options: { columns: 'full', rows: 10 } },
+    },
+];
+/** The wall's frame, below which the card is the forecast with the time and date */
+export const WALL_MIN = { width: 640, height: 540 };
+
+/** A preset's card as YAML, with the theme's line when the page follows the theme */
+export function presetYaml(id, { colors = 'sky' } = {}) {
+    const preset = PRESETS.find(p => p.id === id) ?? PRESETS[0];
+    const lines = ['type: custom:animated-weather-card', 'entity: weather.forecast_home', 'sun_entity: sun.sun'];
+    for (const [key, value] of Object.entries(preset.options)) {
+        if (value && typeof value === 'object') lines.push(`${key}:`, ...Object.entries(value).map(([k, v]) => `  ${k}: ${v}`));
+        else lines.push(`${key}: ${value}`);
+    }
+    if (colors === 'theme') lines.push('# Follows your Home Assistant theme', 'color_palette: theme');
+    return lines.join('\n') + '\n';
+}
 
 /** Each of the forecast section's cards as YAML, with the theme's line when the page follows the theme. */
-export function aheadYaml(slot, { colors = 'sky', hero = false } = {}) {
-    const theme = colors === 'theme' ? ['color_palette: theme  # follows your Home Assistant theme'] : [];
+export function aheadYaml(slot, { colors = 'sky', hero = false, days = false } = {}) {
+    const theme = colors === 'theme' ? ['# Follows your Home Assistant theme', 'color_palette: theme'] : [];
     const base = ['entity: weather.forecast_home', 'sun_entity: sun.sun'];
     // The time as the big value needs no small clock; the date then leads the place's line
     const clock = hero
         ? ['# The time as the big value, the temperature before the condition', 'hero: clock', '# The date, before the place\'s name', 'show_date: true']
         : ['# The time and the date, before the place\'s name', 'show_clock: true', 'show_date: true'];
     const card = {
-        hours: ['type: custom:animated-weather-card', ...base, '# The high and low, the rain\'s times, and the hours', 'show_forecast: true', ...clock, ...theme],
+        hours: ['type: custom:animated-weather-card', ...base, '# The high and low, the rain\'s times, and the hours', 'show_forecast: true', ...(days ? ['# The week, under the hours', 'show_days: true'] : []), ...clock, ...theme],
         card: ['type: custom:animated-forecast-card', ...base, ...theme],
     }[slot];
     if (card) return card.join('\n') + '\n';
@@ -952,8 +1112,8 @@ export function stationStates(readings) {
     for (const row of STATION) {
         if (!(row.id in readings)) continue;
         states[row.entity] = entity(row.entity, Number(readings[row.id]).toFixed(row.decimals), {
-            unit_of_measurement: row.unit, device_class: row.deviceClass, state_class: 'measurement',
-            friendly_name: `${row.group === 'Indoors' ? 'Living room' : 'Garden'} ${row.label.toLowerCase()}`,
+            unit_of_measurement: row.unit, ...(row.deviceClass ? { device_class: row.deviceClass } : {}), state_class: 'measurement',
+            friendly_name: `${row.group === 'Indoors' ? 'Living room' : 'Garden'} ${row.name ?? row.label.toLowerCase()}`,
         });
     }
     return states;
@@ -1025,7 +1185,7 @@ function liveWorld(live, state, now) {
  */
 export function buildHass({
     conditionId, phase, sun: sunNow, flights = [], sensors = {}, now = new Date(), live = null, sunTimes = SUN_TIMES,
-    weatherEntity = ENTITIES.weather, tone = 'snarky', noteDelays = null,
+    weatherEntity = ENTITIES.weather, tone = 'snarky', noteDelays = null, weatherAttributes = {},
 }) {
     const condition = CONDITIONS.find(c => c.id === conditionId) ?? CONDITIONS[0];
     const cooling = PHASE_COOLING[phase] ?? 0;
@@ -1059,7 +1219,22 @@ export function buildHass({
             friendly_name: reading.name,
             // Daily and hourly forecasts, as most integrations have
             supported_features: 3,
+            // What a lab sets of the weather's own values (the tune lab's in auto mode)
+            ...weatherAttributes,
         })),
+        // Another place's weather, on the dashboard: a clear day there, in your units
+        [ENTITIES.awayWeather]: entity(ENTITIES.awayWeather, 'sunny', {
+            temperature: reading.units.temperature === '°F' ? 75 : 24,
+            apparent_temperature: reading.units.temperature === '°F' ? 77 : 25,
+            humidity: 58,
+            pressure: reading.units.pressure === 'inHg' ? 29.97 : 1015,
+            // Open-Meteo writes mph as mp/h
+            wind_speed: /^mp/.test(reading.units.wind) ? 9 : 14,
+            wind_bearing: 120,
+            temperature_unit: reading.units.temperature, pressure_unit: reading.units.pressure, wind_speed_unit: reading.units.wind,
+            friendly_name: AWAY.name,
+            supported_features: 0,
+        }),
         [ENTITIES.sun]: entity(ENTITIES.sun, sun.elevation >= 0 ? 'above_horizon' : 'below_horizon', sun),
         [ENTITIES.moon]: entity(ENTITIES.moon, moonPhase(now), { friendly_name: 'Moon phase' }),
         [ENTITIES.flights]: entity(ENTITIES.flights, flights.length, { flights }),
@@ -1199,7 +1374,13 @@ export function configYaml({ layout = 'regular', colors = 'sky', station = false
         'type: custom:animated-weather-card',
         'entity: weather.forecast_home',
         'sun_entity: sun.sun',
-        ...(station ? STATION.map(row => `${row.option}: ${row.entity}`) : []),
+        ...(station ? [
+            ...STATION_OPTIONS.map(row => `${row.option}: ${row.entity}`),
+            '# The readings under the temperature, in order: your sensors, the next sunset, and any sensor you like',
+            'readings:',
+            ...stationReadings().flatMap(r => (typeof r === 'string' ? [`  - ${r}`]
+                : Object.entries(r).map(([key, value], i) => `${i ? '    ' : '  - '}${key}: ${value}`))),
+        ] : []),
         '# Planes fly over from the Flightradar24 integration, tagged with where they\'re going',
         'flights_entity: sensor.flightradar24_current_in_area',
         'flight_label: route',
@@ -1208,9 +1389,9 @@ export function configYaml({ layout = 'regular', colors = 'sky', station = false
             'show_note: true',
             ...(tone === 'snarky' ? [] : [`note_tone: ${tone}`]),
         ]),
-        ...(colors === 'theme' ? ['color_palette: theme  # follows your Home Assistant theme'] : []),
+        ...(colors === 'theme' ? ['# Follows your Home Assistant theme', 'color_palette: theme'] : []),
         ...Object.entries(quietOptions(quiet)).map(([key, value]) => `${key}: ${value}`),
-        ...block('engine_settings', Object.entries(engineSettings(engine))),
+        ...engineLines(engine),
         // Custom skies paint the sky palette only
         ...(colors === 'theme' ? [] : block('custom_colors', Object.entries(customColors(paints)), true)),
     ];
@@ -1223,8 +1404,26 @@ export function configYaml({ layout = 'regular', colors = 'sky', station = false
  * wide), or compact under the weather card, as the README pairs them, the
  * weather card leaving the next sunset to the tracker.
  */
-export function trackerYaml({ layout = 'regular', colors = 'sky' } = {}) {
-    const theme = colors === 'theme' ? ['color_palette: theme  # follows your Home Assistant theme'] : [];
+/**
+ * Where the sample world's trackers compare today's sun with yesterday's: the sample has a day of its own (SUN_TIMES),
+ * but the comparisons need a real place's, so they take Amsterdam's. Yours, while your weather is live.
+ */
+export const SAMPLE_PLACE = { latitude: 52.37, longitude: 4.9 };
+
+/**
+ * Home Assistant as a tracker sees it: with a place's coordinates, which it compares the sun with yesterday's from.
+ * Only the trackers get them: a weather card would work out the forecast's sun at each hour from them, and in the
+ * sample world that sun has to stay the sample's.
+ */
+export function trackerHass(data, where = SAMPLE_PLACE) {
+    return { ...data, config: { ...data.config, latitude: where.latitude, longitude: where.longitude } };
+}
+
+/** What the tracker compares today's sun with (daylight_delta), yesterday unless the page picks another */
+export const TRACKER_COMPARE = { day: 'yesterday', week: 'last week', month: 'last month', none: null };
+
+export function trackerYaml({ layout = 'regular', colors = 'sky', compare = 'day' } = {}) {
+    const theme = colors === 'theme' ? ['# Follows your Home Assistant theme', 'color_palette: theme'] : [];
     const tracker = [
         'type: custom:animated-sun-tracker-card',
         'sun_entity: sun.sun',
@@ -1232,6 +1431,7 @@ export function trackerYaml({ layout = 'regular', colors = 'sky' } = {}) {
         'moon_entity: sensor.moon_phase',
         'weather_entity: weather.forecast_home',
         ...(layout === 'compact' ? ['compact: true'] : []),
+        ...(compare === 'none' ? ['# No comparison', 'daylight_delta: none'] : compare !== 'day' && TRACKER_COMPARE[compare] ? [`# Against ${TRACKER_COMPARE[compare]}`, `daylight_delta: ${compare}`] : []),
         ...theme,
     ];
     if (layout === 'wide') tracker.unshift('# Wall: a panel view gives the card the whole screen');

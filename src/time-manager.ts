@@ -1,5 +1,6 @@
 import { TimeOfDayConfig, TimeOfDayState, DayNightColors } from './types';
 import { TIME_THRESHOLDS } from './constants';
+import { cardDate } from './clock';
 
 /**
  * TimeOfDayManager - Centralized time-based logic for day/night animations
@@ -10,7 +11,6 @@ export class TimeOfDayManager {
     private listeners: Set<(state: TimeOfDayState) => void> = new Set();
     private updateInterval?: number;
     private currentState?: TimeOfDayState;
-    private devTimePhaseOverride?: 'dawn' | 'day' | 'dusk' | 'night';
 
     constructor(config: TimeOfDayConfig = {}) {
         this.config = {
@@ -100,22 +100,6 @@ export class TimeOfDayManager {
     }
 
     /**
-     * Set dev time override for testing (used by dev panel)
-     */
-    setDevOverride(timePhase: 'dawn' | 'day' | 'dusk' | 'night'): void {
-        this.devTimePhaseOverride = timePhase;
-        this.updateState(); // Force immediate update with override
-    }
-
-    /**
-     * Clear dev time override
-     */
-    clearDevOverride(): void {
-        this.devTimePhaseOverride = undefined;
-        this.updateState(); // Force immediate update back to real time
-    }
-
-    /**
      * Cleanup resources
      */
     destroy(): void {
@@ -130,7 +114,7 @@ export class TimeOfDayManager {
      * Update current time state
      */
     private updateState(): void {
-        const now = new Date();
+        const now = cardDate();
         let currentHour: number;
         let currentMinutes: number;
 
@@ -152,32 +136,27 @@ export class TimeOfDayManager {
 
         let timePhase: 'dawn' | 'day' | 'dusk' | 'night';
         
-        // Check if dev override is active
-        if (this.devTimePhaseOverride) {
-            timePhase = this.devTimePhaseOverride;
+        const sunriseHour = this.config.sunriseHour!;
+        const sunsetHour = this.config.sunsetHour!;
+        
+        // Define time phases with transition periods (wrap around midnight)
+        const dawnStart = (sunriseHour - 1 + 24) % 24; // 1 hour before sunrise
+        const dayStart = (sunriseHour + 0.5) % 24; // 30 minutes after sunrise
+        const duskStart = (sunsetHour - 0.5 + 24) % 24; // 30 minutes before sunset
+        const nightStart = (sunsetHour + 1) % 24; // 1 hour after sunset
+
+        // Range check that handles wrap-around (e.g. start=23, end=0.5)
+        const inRange = (h: number, start: number, end: number): boolean =>
+            start <= end ? (h >= start && h < end) : (h >= start || h < end);
+
+        if (inRange(hourWithMinutes, dawnStart, dayStart)) {
+            timePhase = 'dawn';
+        } else if (inRange(hourWithMinutes, dayStart, duskStart)) {
+            timePhase = 'day';
+        } else if (inRange(hourWithMinutes, duskStart, nightStart)) {
+            timePhase = 'dusk';
         } else {
-            const sunriseHour = this.config.sunriseHour!;
-            const sunsetHour = this.config.sunsetHour!;
-            
-            // Define time phases with transition periods (wrap around midnight)
-            const dawnStart = (sunriseHour - 1 + 24) % 24; // 1 hour before sunrise
-            const dayStart = (sunriseHour + 0.5) % 24; // 30 minutes after sunrise
-            const duskStart = (sunsetHour - 0.5 + 24) % 24; // 30 minutes before sunset
-            const nightStart = (sunsetHour + 1) % 24; // 1 hour after sunset
-
-            // Range check that handles wrap-around (e.g. start=23, end=0.5)
-            const inRange = (h: number, start: number, end: number): boolean =>
-                start <= end ? (h >= start && h < end) : (h >= start || h < end);
-
-            if (inRange(hourWithMinutes, dawnStart, dayStart)) {
-                timePhase = 'dawn';
-            } else if (inRange(hourWithMinutes, dayStart, duskStart)) {
-                timePhase = 'day';
-            } else if (inRange(hourWithMinutes, duskStart, nightStart)) {
-                timePhase = 'dusk';
-            } else {
-                timePhase = 'night';
-            }
+            timePhase = 'night';
         }
 
         const newState: TimeOfDayState = {

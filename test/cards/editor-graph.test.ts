@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import '../../src/animated-weather-card-editor';
 
 // Home Assistant's ha-select, as the editors use it: options and value as properties
@@ -55,43 +55,56 @@ describe('the forecast card\'s days in its editor (forecast_days)', () => {
     });
 });
 
-describe('the big value and the date in the weather card\'s editor (hero, show_date)', () => {
+describe('the big number and the time and date in the weather card\'s editor (hero, show_clock, show_date)', () => {
     let editor: Editor;
-    afterEach(() => editor?.remove());
+    beforeEach(() => localStorage.setItem('animated-weather-card:editor-all', '1'));
+    afterEach(() => { editor?.remove(); localStorage.removeItem('animated-weather-card:editor-all'); });
 
-    it('picks the temperature or the time, writing only the time; the small clock dims while the time is the hero', async () => {
+    const radio = (key: string, value: string) => {
+        const input = editor.querySelector(`[id="${key}"] input[value="${value}"]`) as HTMLInputElement;
+        input.checked = true;
+        input.dispatchEvent(new Event('change'));
+    };
+
+    it('picks the temperature or the time, writing only the time; with the time as the big number, the line before the place offers the date alone', async () => {
         editor = document.createElement('animated-weather-card-editor') as Editor;
         editor.setConfig({ type: 'custom:animated-weather-card', entity: 'weather.home' });
         document.body.appendChild(editor);
         await flush();
-        const select = editor.querySelector('#hero') as Select;
-        expect(select.options.map(o => o.value)).toEqual(['temperature', 'clock']);
-        expect(select.value).toBe('temperature');
+        expect((editor.querySelector('#hero input:checked') as HTMLInputElement).value).toBe('temperature');
         let config: Record<string, unknown> | undefined;
         editor.addEventListener('config-changed', (e) => { config = (e as CustomEvent).detail.config; });
-        const small = (editor.querySelector('#show_clock') as HTMLElement).closest('.option') as HTMLElement;
-        expect(small.style.opacity).toBe('');
-        select.dispatchEvent(new CustomEvent('selected', { detail: { value: 'clock' } }));
-        expect(config).toMatchObject({ hero: 'clock' });
-        expect(small.style.opacity).toBe('0.5');
-        select.dispatchEvent(new CustomEvent('selected', { detail: { value: 'temperature' } }));
-        expect(config).not.toHaveProperty('hero');
-
-        const date = editor.querySelector('#show_date') as HTMLInputElement;
-        date.checked = true;
-        date.dispatchEvent(new Event('change'));
+        const timeDate = editor.querySelector('#time_date') as Select;
+        expect(timeDate.options.map(o => o.value)).toEqual(['off', 'time', 'date', 'both']);
+        timeDate.dispatchEvent(new CustomEvent('selected', { detail: { value: 'both' } }));
+        expect(config).toMatchObject({ show_clock: true, show_date: true });
+        timeDate.dispatchEvent(new CustomEvent('selected', { detail: { value: 'date' } }));
         expect(config).toMatchObject({ show_date: true });
-        date.checked = false;
-        date.dispatchEvent(new Event('change'));
+        expect(config).not.toHaveProperty('show_clock');
+        radio('hero', 'clock');
+        expect(config).toMatchObject({ hero: 'clock' });
+        expect(timeDate.options.map(o => o.value)).toEqual(['off', 'date']);
+        expect(timeDate.value).toBe('date');
+        timeDate.dispatchEvent(new CustomEvent('selected', { detail: { value: 'off' } }));
         expect(config).not.toHaveProperty('show_date');
+        radio('hero', 'temperature');
+        expect(config).not.toHaveProperty('hero');
     });
 
-    it('hides them on a nightstand, where the time is always the hero and the date its own', async () => {
+    it('says on a nightstand that it draws its own time, date and forecast, and keeps those rows out of the basics', async () => {
+        localStorage.removeItem('animated-weather-card:editor-all');
         editor = document.createElement('animated-weather-card-editor') as Editor;
         editor.setConfig({ type: 'custom:animated-weather-card', entity: 'weather.home', layout: 'nightstand' });
         document.body.appendChild(editor);
         await flush();
-        for (const id of ['#hero', '#show_clock', '#show_date']) expect((editor.querySelector(id)!.closest('.option') as HTMLElement).hidden, id).toBe(true);
+        const shown = (id: string) => editor.querySelector(`[data-row="${id}"]`)!.hasAttribute('data-open');
+        expect(editor.querySelector('[data-sec="forecast"]')!.hasAttribute('data-open')).toBe(false);
+        expect(shown('alarm_entity')).toBe(true);
+        expect(shown('wake_time')).toBe(true);
+        // With all settings, every row is there, with the reason above them
+        (editor.querySelector('#all_settings') as HTMLInputElement).checked = true;
+        editor.querySelector('#all_settings')!.dispatchEvent(new Event('change'));
+        for (const id of ['why_forecast_nightstand', 'show_forecast', 'time_date', 'hero']) expect(shown(id), id).toBe(true);
     });
 });
 

@@ -45,6 +45,16 @@ export interface FcWords {
     name_amount_rain: string;
     name_amount_snow: string;
     name_amount_sleet: string;
+    /** The other chips, full and short: the UV index, wind, gusts, humidity, dew point, cloud cover, pressure */
+    chip_uv: [string, string];
+    chip_wind: [string, string];
+    chip_gust: [string, string];
+    chip_humidity: [string, string];
+    chip_dew: [string, string];
+    chip_cloud: [string, string];
+    chip_pressure: [string, string];
+    /** The gusts chip's spoken name (the others are the readings' labels) */
+    name_gust: string;
     /** A chip's spoken values: "{v} degrees", "{v} percent" */
     degrees: string;
     percent: string;
@@ -106,6 +116,10 @@ export interface FcWords {
     humidity: string;
     dew_point: string;
     uv: string;
+    /** Today's highest UV index (uv_max_entity), in the view */
+    uv_max: string;
+    /** A station's rain totals, in the view: this rain event, this week, month and year */
+    rain_event: string; rain_week: string; rain_month: string; rain_year: string;
     cloud_cover: string;
     precipitation: string;
     visibility: string;
@@ -130,6 +144,7 @@ const EN: FcWords = {
     name_temp: 'Temperature', name_feels: 'Feels like',
     name_chance_rain: 'Chance of rain', name_chance_snow: 'Chance of snow', name_chance_sleet: 'Chance of sleet',
     name_amount_rain: 'Rain amount', name_amount_snow: 'Snow amount', name_amount_sleet: 'Sleet amount',
+    chip_uv: ['UV index', 'UV'], chip_wind: ['Wind', 'Wind'], chip_gust: ['Gusts', 'Gusts'], chip_humidity: ['Humidity', 'Humidity'], chip_dew: ['Dew point', 'Dew'], chip_cloud: ['Cloud cover', 'Clouds'], chip_pressure: ['Pressure', 'Pressure'], name_gust: 'Wind gusts',
     degrees: '{v} degrees', percent: '{v} percent',
     day_row: '{day}: {cond}, low {lo}, high {hi}', day_now: ', {v} now',
     h: 'H', l: 'L', high_low: 'High {h}, low {l}',
@@ -143,7 +158,7 @@ const EN: FcWords = {
     lightning: 'Thunder', 'lightning-rainy': 'Thunderstorm', snowy: 'Snow', 'snowy-rainy': 'Sleet', hail: 'Hail', windy: 'Windy',
     'windy-variant': 'Windy', exceptional: 'Exceptional',
     view: 'Weather at {place}', close: 'Close', more: 'History and settings', now_head: 'Now', at_head: 'At {t}',
-    wind: 'Wind', gusts: 'Gusts {v}', humidity: 'Humidity', dew_point: 'Dew point', uv: 'UV index', cloud_cover: 'Cloud cover',
+    wind: 'Wind', gusts: 'Gusts {v}', humidity: 'Humidity', dew_point: 'Dew point', uv: 'UV index', uv_max: 'Max UV today', rain_event: 'Rain event', rain_week: 'Rain this week', rain_month: 'Rain this month', rain_year: 'Rain this year', cloud_cover: 'Cloud cover',
     precipitation: 'Precipitation', visibility: 'Visibility', pressure: 'Pressure', feels_like: 'Feels like',
     clock: 'Clock and weather', alarm: 'Alarm', gusts_to: 'Gusts to {v} at {t}', freezing: '{v} at {t}',
     no_forecast: 'This weather entity has no forecast',
@@ -159,6 +174,7 @@ const DE: FcWords = {
     name_temp: 'Temperatur', name_feels: 'Gefühlte Temperatur',
     name_chance_rain: 'Regenwahrscheinlichkeit', name_chance_snow: 'Schneewahrscheinlichkeit', name_chance_sleet: 'Schneeregenwahrscheinlichkeit',
     name_amount_rain: 'Regenmenge', name_amount_snow: 'Schneemenge', name_amount_sleet: 'Schneeregenmenge',
+    chip_uv: ['UV-Index', 'UV'], chip_wind: ['Wind', 'Wind'], chip_gust: ['Böen', 'Böen'], chip_humidity: ['Luftfeuchte', 'Feuchte'], chip_dew: ['Taupunkt', 'Taupunkt'], chip_cloud: ['Bewölkung', 'Wolken'], chip_pressure: ['Luftdruck', 'Druck'], name_gust: 'Windböen',
     degrees: '{v} Grad', percent: '{v} Prozent',
     day_row: '{day}: {cond}, Tiefstwert {lo}, Höchstwert {hi}', day_now: ', jetzt {v}',
     h: 'H', l: 'T', high_low: 'Höchstwert {h}, Tiefstwert {l}',
@@ -172,7 +188,7 @@ const DE: FcWords = {
     lightning: 'Gewitter', 'lightning-rainy': 'Gewitter', snowy: 'Schnee', 'snowy-rainy': 'Schneeregen', hail: 'Hagel', windy: 'Windig',
     'windy-variant': 'Windig', exceptional: 'Unwetter',
     view: 'Wetter, {place}', close: 'Schließen', more: 'Verlauf und Einstellungen', now_head: 'Jetzt', at_head: 'Um {t}',
-    wind: 'Wind', gusts: 'Böen {v}', humidity: 'Luftfeuchte', dew_point: 'Taupunkt', uv: 'UV-Index', cloud_cover: 'Bewölkung',
+    wind: 'Wind', gusts: 'Böen {v}', humidity: 'Luftfeuchte', dew_point: 'Taupunkt', uv: 'UV-Index', uv_max: 'UV-Maximum heute', rain_event: 'Regenereignis', rain_week: 'Regen diese Woche', rain_month: 'Regen diesen Monat', rain_year: 'Regen dieses Jahr', cloud_cover: 'Bewölkung',
     precipitation: 'Niederschlag', visibility: 'Sichtweite', pressure: 'Luftdruck', feels_like: 'Gefühlt',
     clock: 'Uhr und Wetter', alarm: 'Wecker', gusts_to: 'Böen bis {v} um {t}', freezing: '{v} um {t}',
     no_forecast: 'Diese Wetter-Entität hat keine Vorhersage',
@@ -190,6 +206,11 @@ export function fcWords(hass?: LocaleSource): FcWords {
 export function hasFcWords(hass?: LocaleSource): boolean {
     const lang = cardLanguage(hass).toLowerCase();
     return Object.prototype.hasOwnProperty.call(FC_WORDS, lang) || Object.prototype.hasOwnProperty.call(FC_WORDS, lang.split('-')[0]);
+}
+
+/** The language the words are in: the profile's when it's one of the forecast's own, else English (for lang, so a word breaks by its own language's rules) */
+export function fcWordsLang(hass?: LocaleSource): string {
+    return hasFcWords(hass) ? cardLanguage(hass) : 'en';
 }
 
 /** Fill a template's {names}; a time after a word is bound to it with a no-break space */

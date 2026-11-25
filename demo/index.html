@@ -32,9 +32,11 @@
             <span>Animated Weather Card</span>
         </a>
         <nav class="topnav" aria-label="Project">
+            <a class="nav-wide" href="#layouts">Layouts</a>
+            <a class="nav-wide" href="#ahead">Forecast</a>
+            <a class="nav-wide" href="#station">Sensors</a>
+            <a class="nav-wide" href="#tracker">Sun tracker</a>
             <a href="./setup/">Set up</a>
-            <a href="https://github.com/alexsto1an/ha-ani-weather-card#examples">Examples</a>
-            <a href="https://github.com/alexsto1an/ha-ani-weather-card#options">Options</a>
             <a href="https://github.com/alexsto1an/ha-ani-weather-card">GitHub</a>
         </nav>
     </header>
@@ -84,6 +86,7 @@
                             </svg>
                             <div class="dial-stops" id="phases"></div>
                         </div>
+                        <p class="field-note">At night, the moon is in tonight's real phase.</p>
                     </fieldset>
 
                     <fieldset class="field">
@@ -108,13 +111,45 @@
             </div>
         </section>
 
+        <section class="layouts" id="layouts" aria-labelledby="layouts-title">
+            <h2 class="section-title layouts-title" id="layouts-title">
+                <span>Start from a layout.</span>
+                <span class="title-quiet">Seven looks, one tap each in the card's editor.</span>
+            </h2>
+            <div class="layouts-copy">
+                <p class="section-lede">The editor opens on seven layouts to start from, each a few ordinary options you can keep changing. Pick one here and the card is the one you'd get, at the size it asks for on a dashboard.</p>
+            </div>
+            <fieldset class="layouts-picker" id="layout-picker">
+                <legend class="visually-hidden">Layout</legend>
+                <div class="layout-chips" id="layout-chips"></div>
+            </fieldset>
+            <figure class="layouts-slot room" id="layouts-slot" data-dashboard="dark" role="region" aria-label="Live preview of the layout">
+                <div class="stage-light" aria-hidden="true"></div>
+                <div class="layouts-scenes"></div>
+                <figcaption class="layouts-caption"><span class="caption-text" id="layouts-caption"></span> <button type="button" class="code-toggle" aria-expanded="false" aria-controls="layouts-code"><span class="code-toggle-label">View code</span><span class="code-toggle-icon" aria-hidden="true"></span></button></figcaption>
+                <div class="snippet-slot" id="layouts-code">
+                    <div class="code-fold">
+                        <div class="code-fold-inner">
+                        <div class="snippet">
+                            <div class="snippet-bar">
+                                <span class="code-name">card.yaml</span>
+                                <button type="button" class="copy" id="layouts-copy"><span class="copy-icon" aria-hidden="true"></span><span class="copy-label">Copy</span></button>
+                            </div>
+                            <pre><code id="layouts-yaml"></code></pre>
+                        </div>
+                        </div>
+                    </div>
+                </div>
+            </figure>
+        </section>
+
         <section class="dash" id="dash" aria-labelledby="dash-title">
             <h2 class="section-title dash-title" id="dash-title">
                 <span>At home on your dashboard.</span>
                 <span class="title-quiet">Full size, a compact strip, and the sun tracker to match.</span>
             </h2>
             <div class="dash-copy">
-                <p class="section-lede">A sections dashboard at its real size, the card among tile cards: full size in a section that spans two columns, and as a strip over the sun tracker. Each card measures the room it's given and lays itself out for it, on any screen.</p>
+                <p class="section-lede">A sections dashboard at its real size, the card among tile cards: full size in a section that spans two columns, as a strip over the sun tracker, and the same pair for family in Sydney, on Sydney's own sun and clock. Each card measures the room it's given and lays itself out for it, on any screen.</p>
                 <fieldset class="field device-picker" id="device-picker">
                     <legend class="visually-hidden">Screen</legend>
                     <div class="segmented" style="--count: 3; --index: 2">
@@ -164,22 +199,27 @@
                 <span class="title-quiet">The forecast and the clock, on the card's own sky.</span>
             </h2>
             <div class="ahead-copy">
-                <p class="section-lede">Turn on the forecast and the card adds today's high and low, when the rain starts and stops, and the hours ahead in a row. Drag it sideways and its sky, its weather and its numbers go to that hour, and the other cards on the same weather go with it. The forecast card holds the hours and the week, and its strip sits under the compact card. A tap opens the whole forecast, and the same card can be a bedside clock, red on black at night, or a panel you read across the room.</p>
+                <p class="section-lede">Turn on the forecast and the card adds today's high and low, when the rain starts and stops, and the hours ahead in a row. Drag it sideways and its sky, its weather and its numbers go to that hour, and the other cards on the same weather go with it. A tap opens the whole forecast.</p>
+                <div class="ahead-hero" id="ahead-hero" role="radiogroup" aria-labelledby="ahead-hero-label">
+                    <span class="ahead-hero-label" id="ahead-hero-label">Big value</span>
+                    <div class="segmented" style="--count: 2; --index: 0">
+                        <span class="segmented-thumb" aria-hidden="true"></span>
+                        <label><input type="radio" name="ahead-hero" value="temperature" checked><span>Temperature</span></label>
+                        <label><input type="radio" name="ahead-hero" value="clock"><span>Time</span></label>
+                    </div>
+                </div>
+                <label class="toggle ahead-days" id="ahead-days">
+                    <input type="checkbox" role="switch">
+                    <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb"></span></span>
+                    <span>Days under the hours</span>
+                </label>
             </div>
 
             <div class="ahead-stage" id="ahead-stage" role="region" aria-label="Live preview of the forecast">
                 <figure class="ahead-slot room" id="ahead-hours" data-slot="hours" data-dashboard="dark">
                     <div class="stage-light" aria-hidden="true"></div>
                     <div class="ahead-scenes"></div>
-                    <div class="ahead-hero" id="ahead-hero" role="radiogroup" aria-labelledby="ahead-hero-label">
-                        <span class="ahead-hero-label" id="ahead-hero-label">Big value</span>
-                        <div class="segmented" style="--count: 2; --index: 0">
-                            <span class="segmented-thumb" aria-hidden="true"></span>
-                            <label><input type="radio" name="ahead-hero" value="temperature" checked><span>Temperature</span></label>
-                            <label><input type="radio" name="ahead-hero" value="clock"><span>Time</span></label>
-                        </div>
-                    </div>
-                    <figcaption class="frame-caption ahead-caption"><span class="caption-text">Drag it through the hours. It stays where you leave it, and Now brings it home.</span> <button type="button" class="code-toggle" aria-expanded="false" aria-controls="ahead-hours-code"><span class="code-toggle-label">View code</span><span class="code-toggle-icon" aria-hidden="true"></span></button></figcaption>
+                    <figcaption class="frame-caption ahead-caption"><span class="caption-text">Drag it through the hours. It stays where you leave it, and Now brings it home. The week can sit under the hours too.</span> <button type="button" class="code-toggle" aria-expanded="false" aria-controls="ahead-hours-code"><span class="code-toggle-label">View code</span><span class="code-toggle-icon" aria-hidden="true"></span></button></figcaption>
                     <div class="snippet-slot" id="ahead-hours-code">
                         <div class="code-fold">
                             <div class="code-fold-inner">
@@ -197,7 +237,7 @@
                 <figure class="ahead-slot room" id="ahead-card" data-slot="card" data-dashboard="dark">
                     <div class="stage-light" aria-hidden="true"></div>
                     <div class="ahead-scenes"></div>
-                    <figcaption class="frame-caption ahead-caption"><span class="caption-text">The forecast card: the hours and the week, on the same sky.</span> <button type="button" class="code-toggle" aria-expanded="false" aria-controls="ahead-card-code"><span class="code-toggle-label">View code</span><span class="code-toggle-icon" aria-hidden="true"></span></button></figcaption>
+                    <figcaption class="frame-caption ahead-caption"><span class="caption-text">The forecast card: the hours and the week, on the same sky. Its chips switch what both show: the rain, the UV index, the wind and more. For one value per card, <a href="./setup/#forecast-card">leave them out</a>.</span> <button type="button" class="code-toggle" aria-expanded="false" aria-controls="ahead-card-code"><span class="code-toggle-label">View code</span><span class="code-toggle-icon" aria-hidden="true"></span></button></figcaption>
                     <div class="snippet-slot" id="ahead-card-code">
                         <div class="code-fold">
                             <div class="code-fold-inner">
@@ -215,7 +255,7 @@
                 <figure class="ahead-slot room" id="ahead-strip" data-slot="strip" data-dashboard="dark">
                     <div class="stage-light" aria-hidden="true"></div>
                     <div class="ahead-scenes"></div>
-                    <figcaption class="frame-caption ahead-caption"><span class="caption-text">Its strip, under the compact card.</span> <button type="button" class="code-toggle" aria-expanded="false" aria-controls="ahead-strip-code"><span class="code-toggle-label">View code</span><span class="code-toggle-icon" aria-hidden="true"></span></button></figcaption>
+                    <figcaption class="frame-caption ahead-caption"><span class="caption-text">Its strip, under the compact card. The same card can be a bedside clock or a wall panel: see the layouts above.</span> <button type="button" class="code-toggle" aria-expanded="false" aria-controls="ahead-strip-code"><span class="code-toggle-label">View code</span><span class="code-toggle-icon" aria-hidden="true"></span></button></figcaption>
                     <div class="snippet-slot" id="ahead-strip-code">
                         <div class="code-fold">
                             <div class="code-fold-inner">
@@ -282,7 +322,7 @@
                 <span class="title-quiet">The forecast still paints the sky.</span>
             </h2>
             <div class="station-copy">
-                <p class="section-lede">Point the card at your own sensors and it shows what they measure: temperature, feels like, humidity, wind and pressure, indoors and out. Your wind also sets how fast the weather moves; the sky still comes from your weather entity.</p>
+                <p class="section-lede">Point the card at your own sensors and it shows what they measure, indoors and out: the usual four, your station's rain, the UV index, air quality, and any sensor you add, such as CO₂. Your wind also sets how fast the weather moves. The sky still comes from your weather entity.</p>
                 <label class="toggle station-switch">
                     <input type="checkbox" id="use-sensors" role="switch">
                     <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb"></span></span>
@@ -302,10 +342,10 @@
         <section class="lab tune" id="tune" aria-labelledby="tune-title">
             <h2 class="section-title lab-title" id="tune-title">
                 <span>Tune the weather.</span>
-                <span class="title-quiet">More rain, bigger clouds, a higher splash.</span>
+                <span class="title-quiet">As much as yours reports, or as much as you like.</span>
             </h2>
             <div class="lab-copy">
-                <p class="section-lede">Seven settings scale the engine. Take hold of one and the card shows the weather it changes; let go, and the new weather settles in. The editor's sliders cover the useful range, and YAML takes more.</p>
+                <p class="section-lede">The card shows as much rain, cloud, fog and wind as your weather reports, and follows it as it changes without starting over. Move a reading and watch. Or turn that off and set the amounts yourself.</p>
             </div>
             <div class="lab-stage room" id="tune-stage" data-dashboard="dark" role="region" aria-label="Live preview of the weather engine">
                 <div class="window">
@@ -314,8 +354,13 @@
                 </div>
             </div>
             <div class="lab-controls">
+                <label class="toggle tune-mode" id="tune-mode">
+                    <input type="checkbox" role="switch" checked>
+                    <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb"></span></span>
+                    <span>Amounts follow the weather</span>
+                </label>
                 <div class="sliders-head">
-                    <h3 id="sliders-title">Engine</h3>
+                    <h3 id="sliders-title">What your weather reports</h3>
                     <button type="button" class="reset" id="tune-reset" hidden>Reset</button>
                 </div>
                 <div class="sliders" id="sliders" role="group" aria-labelledby="sliders-title"></div>
@@ -380,7 +425,7 @@
                 <span class="title-quiet">Now, and the next sunrise or sunset.</span>
             </h2>
             <div class="tracker-copy">
-                <p class="section-lede">The sun tracker comes in the same download. It draws the sun's path through your day, counts down to the next sunrise or sunset, and, with Home Assistant's <a href="https://www.home-assistant.io/integrations/moon/">Moon integration</a>, names the moon's phase. South of the equator it runs right to left, as the sun crosses your sky, and when you drag a weather card through the hours, its sun goes there too.</p>
+                <p class="section-lede">The sun tracker comes in the same download. It draws the sun's path through your day, counts down to the next sunrise or sunset, and says how much earlier or later that is than yesterday, and how much longer or shorter the day. With Home Assistant's <a href="https://www.home-assistant.io/integrations/moon/">Moon integration</a> it names the moon's phase.</p>
                 <fieldset class="field layout-picker" id="tracker-picker">
                     <legend class="visually-hidden">Sun tracker size</legend>
                     <div class="segmented" style="--count: 3; --index: 0">
@@ -388,6 +433,16 @@
                         <label><input type="radio" name="tracker-layout" value="regular" checked><span>Card</span></label>
                         <label><input type="radio" name="tracker-layout" value="compact"><span>Compact</span></label>
                         <label><input type="radio" name="tracker-layout" value="wide"><span>Wide</span></label>
+                    </div>
+                </fieldset>
+                <fieldset class="field compare-picker" id="tracker-compare">
+                    <legend>Compare with</legend>
+                    <div class="segmented" style="--count: 4; --index: 0">
+                        <span class="segmented-thumb" aria-hidden="true"></span>
+                        <label><input type="radio" name="tracker-compare" value="day" checked><span>Yesterday</span></label>
+                        <label><input type="radio" name="tracker-compare" value="week"><span>Last week</span></label>
+                        <label><input type="radio" name="tracker-compare" value="month"><span>Last month</span></label>
+                        <label><input type="radio" name="tracker-compare" value="none"><span>Off</span></label>
                     </div>
                 </fieldset>
             </div>
@@ -419,7 +474,7 @@
                                 <input type="range" id="scrub" min="0" max="1435" step="5">
                             </div>
                         </div>
-                        <p class="frame-caption"><span class="caption-text">On a phone, at its real width.</span> <button type="button" class="code-toggle" aria-expanded="false" aria-controls="tracker-code"><span class="code-toggle-label">View code</span><span class="code-toggle-icon" aria-hidden="true"></span></button></p>
+                        <p class="frame-caption"><span class="caption-text">On a phone, at its real width. South of the equator the sun runs right to left, as it crosses your sky.</span> <button type="button" class="code-toggle" aria-expanded="false" aria-controls="tracker-code"><span class="code-toggle-label">View code</span><span class="code-toggle-icon" aria-hidden="true"></span></button></p>
                         <div class="snippet-slot" id="tracker-code">
                             <div class="code-fold">
                                 <div class="code-fold-inner">
@@ -460,7 +515,7 @@
             <div class="needs-group">
                 <h3>Needs an integration added</h3>
                 <dl>
-                    <div><dt>Planes</dt><dd>The <a href="https://github.com/AlexandrErohin/home-assistant-flightradar24">Flightradar24 integration</a>, a community integration you install from the Marketplace.</dd></div>
+                    <div><dt>Planes</dt><dd>The <a href="https://github.com/AlexandrErohin/home-assistant-flightradar24">Flightradar24 integration</a>, a community integration you install from the Marketplace. Set its scan interval to 20 to 60 seconds, as <a href="https://github.com/AlexandrErohin/home-assistant-flightradar24#notes">its README</a> advises: asked more often, Flightradar24 can pause it for up to 15 minutes.</dd></div>
                     <div><dt>Moon phase</dt><dd>Home Assistant's <a href="https://www.home-assistant.io/integrations/moon/">Moon integration</a>. Add it in Settings, under Devices and services.</dd></div>
                     <div><dt>Weather note</dt><dd>An AI integration with an AI Task, such as <a href="https://www.home-assistant.io/integrations/openai_conversation/">OpenAI</a> or <a href="https://www.home-assistant.io/integrations/anthropic/">Anthropic</a>, on Home Assistant 2025.8 or later. The notes on this page are samples, written by hand.</dd></div>
                 </dl>

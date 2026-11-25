@@ -141,12 +141,6 @@ describe('the weather card\'s gestures', () => {
         expect(info.style.userSelect).toBe('none');
     });
 
-    it('does nothing in dev mode, which has no real entity', async () => {
-        const info = await mount({ dev_mode: true });
-        tap(info);
-        expect(fired).toEqual([]);
-    });
-
     it('takes up new actions without drawing the card again', async () => {
         const info = await mount();
         card.setConfig({ type: 'custom:animated-weather-card', entity: 'weather.home', tap_action: { action: 'none' } });

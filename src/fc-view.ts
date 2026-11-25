@@ -19,7 +19,7 @@ import type { ForecastExtras, ForecastHost } from './forecast-host';
 import { CURVE, HOUR, Slot, css, ease, esc, mixHex, num, reducedMotion, whole } from './fc-core';
 import { conditionNoun, timeText, week } from './fc-data';
 import { layoutLeft, minuteTicker } from './fc-clock';
-import { FcWords, fcWords, fill } from './fc-words';
+import { FcWords, fcWords, fcWordsLang, fill } from './fc-words';
 import { Chips, Daily, Hourly, createChips, createDaily, createHourly, graphOf } from './fc-row';
 import { litTints } from './fc-glyphs';
 import { Slide, attachSlide } from './fc-slide';
@@ -30,11 +30,16 @@ import type { Metric } from './fc-data';
 import { cloudFloor } from './cloud-band';
 import { precipitationUnit } from './units';
 import type { AnimatedWeatherCardConfig, HomeAssistant } from './types';
+import { cardNow, cardDate } from './clock';
 
 export const VIEW = { grow: 420, shrink: 300, restFrom: 160, restStep: 28, restDur: 220, restRise: 6, restOut: 100, closeVelocity: 0.5, closeShare: 0.3 };
 const IN = css(CURVE.in), OUT = css(CURVE.out);
 
-export interface ViewState { model: Model; metric: Metric; slots: number; chipsLevel: number; small: HTMLElement }
+export interface ViewState {
+    model: Model; metric: Metric; slots: number; chipsLevel: number; small: HTMLElement;
+    /** px: how far the card's chips are scrolled, so the view's start there */
+    chipsScroll?: number;
+}
 
 /** What the grown card's view hands the opener */
 interface ViewApi {
@@ -54,6 +59,12 @@ interface ViewApi {
 type ViewElement = HTMLElement & { awcView?: ViewApi; surface?: string; setConfig?(c: AnimatedWeatherCardConfig): void; hass?: HomeAssistant };
 
 // ── The readings, at now or at an hour ─────────────────────────────────────
+/** Away from now, a block keeps the height it had at now (call before its content changes); back at now, its own */
+export function holdNowHeight(el: HTMLElement, away: boolean): void {
+    if (!away) el.style.minHeight = '';
+    else if (!el.style.minHeight && el.offsetHeight) el.style.minHeight = `${el.offsetHeight}px`;
+}
+
 function readingsHtml(host: ForecastHost, W: FcWords, slot: Slot | null): string {
     const hass = host.hass();
     const lang = hass?.locale?.language || hass?.language || 'en';
@@ -65,20 +76,44 @@ function readingsHtml(host: ForecastHost, W: FcWords, slot: Slot | null): string
     if (feels !== null) out.push({ label: W.feels_like, value: `${host.temperature(feels)}°` });
     const ws = n(pick('wind_speed')), gust = n(pick('wind_gust_speed'));
     const wu = String(a.wind_speed_unit ?? 'km/h');
-    if (ws !== null) out.push({ label: W.wind, value: `${num(Math.round(ws), lang)} ${wu}`, sub: gust !== null ? fill(W.gusts, { v: `${num(Math.round(gust), lang)} ${wu}` }) : '' });
+    if (ws !== null) out.push({ label: W.wind, value: `${num(Math.round(ws), lang)} ${wu}`, sub: gust !== null ? fill(W.gusts, { v: `${num(Math.round(gust), lang)} ${wu}` }) : '' });
     const hum = n(pick('humidity'));
     if (hum !== null) out.push({ label: W.humidity, value: `${num(Math.round(hum), lang)}%` });
     const dew = n(pick('dew_point'));
     if (dew !== null) out.push({ label: W.dew_point, value: `${host.temperature(dew)}°` });
+    // The UV index: at now, uv_entity's when there is one; its level under it, in the card's words
     const uv = n(pick('uv_index'));
-    if (uv !== null) out.push({ label: W.uv, value: num(Math.round(uv), lang) });
+    const uvr = slot ? (uv !== null ? host.reading?.('uv', uv) ?? null : null) : host.reading?.('uv') ?? null;
+    if (uvr) out.push({ label: W.uv, value: uvr.value, sub: uvr.word });
+    else if (uv !== null) out.push({ label: W.uv, value: num(Math.round(uv), lang) });
+    // Today's highest, from uv_max_entity, at now
+    const maxId = host.config().uv_max_entity;
+    const max = !slot && maxId ? parseFloat(String(hass?.states[maxId]?.state)) : NaN;
+    const maxr = isFinite(max) ? host.reading?.('uv', max) : null;
+    if (maxr) out.push({ label: W.uv_max, value: maxr.value, sub: maxr.word });
     const cloud = n(pick('cloud_coverage'));
     if (cloud !== null) out.push({ label: W.cloud_cover, value: `${num(Math.round(cloud), lang)}%` });
     const amt = slot ? n(slot.precipitation) : n(a.precipitation);
     const ch = slot ? n(slot.precipitation_probability) : null;
     if (amt !== null || ch !== null) out.push({ label: W.precipitation, value: `${num(amt ?? 0, lang, 1)} ${precipitationUnit(a, hass?.config?.unit_system)}`, sub: ch !== null && ch >= 20 ? fill(W.chance_of, { v: num(Math.round(ch), lang) }) : '' });
+    // A station's rain at now: today's, the rate while it rains, and its totals, each in its sensor's unit
+    if (!slot) {
+        const today = host.reading?.('rain_today'), rate = host.reading?.('rain_now');
+        if (today) out.push({ label: today.label, value: today.value });
+        if (rate) out.push({ label: rate.label, value: rate.value });
+        const cfg = host.config();
+        for (const [id, label] of [[cfg.rain_event_entity, W.rain_event], [cfg.rain_week_entity, W.rain_week], [cfg.rain_month_entity, W.rain_month], [cfg.rain_year_entity, W.rain_year]] as const) {
+            const e = id ? hass?.states[id] : undefined;
+            const v = e ? parseFloat(String(e.state)) : NaN;
+            if (!isFinite(v)) continue;
+            const unit = typeof e?.attributes?.unit_of_measurement === 'string' ? e.attributes.unit_of_measurement : 'mm';
+            out.push({ label, value: `${num(Math.max(0, v), lang, /\bin\b|inch/i.test(unit) ? 2 : 1)} ${unit}`.trim() });
+        }
+    }
     const vis = n(a.visibility);
     if (vis !== null && !slot) out.push({ label: W.visibility, value: `${num(vis, lang)} ${a.visibility_unit ?? 'km'}` });
+    // The card's own readings at now: air quality and any sensor
+    if (!slot) for (const r of host.readings?.() ?? []) out.push({ label: r.label, value: r.value, sub: r.word });
     const pr = n(pick('pressure'));
     if (pr !== null) out.push({ label: W.pressure, value: `${num(Math.round(pr), lang)} ${a.pressure_unit ?? 'hPa'}` });
     return out.map(r => `<div class="fv-rd"><span class="fv-rd-l">${esc(r.label)}</span><strong>${esc(r.value)}</strong><em${r.sub ? '' : ' aria-hidden="true"'}>${esc(r.sub || ' ')}</em></div>`).join('');
@@ -117,7 +152,7 @@ export function attachView(host: ForecastHost): ForecastExtras {
         const pitch = tablet() ? w / 10 : spec?.pitch ?? w / 6;
         hourly = createHourly({
             hass: host.hass(), W, lang: model.lang, hours: model.hours, current: host.current(), metric, has: model.has, noun: model.noun,
-            pitch, plot: 44, glyphSize: 22, unit: model.unit, fahrenheit: model.fahrenheit,
+            pitch, plot: 44, glyphSize: 22, unit: model.unit, units: model.units, fahrenheit: model.fahrenheit,
             graph: graphOf(host.config().forecast_graph),
             tints: iconTints(host, model, { y0: 0.3, y1: 0.45, glow: tablet() ? SKY_GLOW_WIDE : SKY_GLOW, reach: 8 }),
             conditionName: c => conditionNoun(c, host.hass(), s => host.conditionName(s)),
@@ -131,18 +166,34 @@ export function attachView(host: ForecastHost): ForecastExtras {
     let lum = 0;
     const st = host.hass()?.states[host.config().entity ?? '']?.state ?? 'sunny';
     for (const x of [0.12, 0.5, 0.88]) for (const y of [0.5, 0.7, 0.9]) lum = Math.max(lum, relativeLuminance(sampleSkyAt(classOf(st) as SkyCondition, host.phase(), x, y, SKY_GLOW)));
-    const wk = week(f.daily, f.dailyType === 'twice_daily' ? 'twice_daily' : 'daily', Date.now(), host.hass(), { count: tablet() ? 8 : 7, current: host.current() });
-    daily = createDaily({ hass: host.hass(), W, week: wk, current: host.current(), theme, fahrenheit: model.fahrenheit, tints: theme ? null : litTints(45, false, lum), hours: model.hours, currentFeels: feelsNow(host), noun: model.noun, unit: model.unit, lang: model.lang, conditionName: c => conditionNoun(c, host.hass(), s => host.conditionName(s)) });
+    const wk = week(f.daily, f.dailyType === 'twice_daily' ? 'twice_daily' : 'daily', cardNow(), host.hass(), { count: tablet() ? 8 : 7, current: host.current() });
+    daily = createDaily({ hass: host.hass(), W, week: wk, current: host.current(), theme, fahrenheit: model.fahrenheit, tints: theme ? null : litTints(45, false, lum), hours: model.hours, currentFeels: feelsNow(host), noun: model.noun, unit: model.unit, units: model.units, lang: model.lang, conditionName: c => conditionNoun(c, host.hass(), s => host.conditionName(s)) });
     if (metric !== 'temp') daily.setMetric(metric, { animate: false });
     list.append(daily.el);
-    list.insertAdjacentHTML('beforeend', `<section class="fv-now"><h3 class="fv-head"></h3><div class="fv-readings"></div></section>`
+    list.insertAdjacentHTML('beforeend', `<section class="fv-now" lang="${esc(fcWordsLang(host.hass()))}"><h3 class="fv-head"></h3><div class="fv-readings"></div></section>`
         + `<button class="fv-more awc-noclaim" type="button"><span>${esc(W.more)}</span><i aria-hidden="true"></i></button>`);
     root.insertAdjacentHTML('beforeend', `<div class="fv-grab" aria-hidden="true"></div><button class="fv-close awc-noclaim" type="button" aria-label="${esc(W.close)}"><i></i></button>`);
     const readings = list.querySelector('.fv-readings') as HTMLElement;
     const head = list.querySelector('.fv-head') as HTMLElement;
+    // On a tablet the right column fits as a rule. A station's readings can make it taller than the panel: then it
+    // scrolls, from the week down, rather than spilling past the panel's top. Its 6 px top padding may run into the
+    // panel's margin, as it always could. The scrolling column's own bottom padding doesn't count, so it lets go once
+    // the readings fit again
+    const scrollFit = () => {
+        const over = list.scrollHeight - list.clientHeight - (parseFloat(getComputedStyle(list).paddingBottom) || 0);
+        list.toggleAttribute('data-scrolls', tablet() && over > 6);
+    };
+    // At an hour there are fewer readings than at now (a station's are now's alone). Their block keeps now's height while
+    // the hours are browsed, so nothing beside or above it moves: on a tablet the column stands at the foot of its area,
+    // and a shorter block would drop the week
     const render = (slot: Slot | null) => {
+        if (slot) holdNowHeight(readings, true);
         readings.innerHTML = readingsHtml(host, W, slot);
         head.textContent = slot ? fill(W.at_head, { t: timeText(slot.at, host.hass()) }) : W.now_head;
+        if (!slot) {
+            holdNowHeight(readings, false);
+            scrollFit();
+        }
     };
     render(null);
     // The turning line, on the line under the condition (the card's own place for it)
@@ -177,7 +228,7 @@ export function attachView(host: ForecastHost): ForecastExtras {
     // The clock leads the location line, or it's the hero (hero: clock), and the date follows it (show_date)
     const clock = cardClock(host, root);
     let browsing = false;
-    const tick = () => { clock.date(); if (!(clock.big && browsing)) clock.show(new Date(), false); };
+    const tick = () => { clock.date(); if (!(clock.big && browsing)) clock.show(cardDate(), false); };
     tick();
     const ticker = minuteTicker(tick);
     if (hourly && model.tl) {
@@ -190,7 +241,7 @@ export function attachView(host: ForecastHost): ForecastExtras {
                 render(s);
                 // A hero clock goes to the hour, and back to now with the row
                 browsing = !!s && model.tl?.unit === 'hour';
-                if (clock.big) clock.show(browsing && s ? s.at : new Date(), false);
+                if (clock.big) clock.show(browsing && s ? s.at : cardDate(), false);
                 if (!s) { if (temp) temp.innerHTML = home.temp; if (desc) desc.innerHTML = home.desc; if (line) line.innerHTML = home.line; return; }
                 if (temp && typeof s.temperature === 'number') temp.textContent = host.temperature(s.temperature);
                 if (desc) desc.textContent = conditionNoun(s.condition ?? '', host.hass(), x => host.conditionName(x));
@@ -228,6 +279,7 @@ export function attachView(host: ForecastHost): ForecastExtras {
             }
             hourly?.remeasure();
             chips?.fit();
+            scrollFit();
             // Clouds roam the whole sky above the hours, behind the hero's text, as on the card; on a tablet the week
             // stands at the right from the top, so they keep to the upper third there, as its first rows allow
             if (!fc.getClientRects().length) return;
@@ -356,12 +408,14 @@ async function grow(host: ForecastHost, o: Overlay, state: ViewState): Promise<v
     const v: ViewApi = view;
     const small = state.small;
     const smallEl = host.element;
-    const { T, phone, radius } = target();
+    // The panel, from the window; it follows the window while the view is open (refit, below)
+    let { T, phone, radius } = target();
     const W = fcWords(host.hass());
     const groot = o.card.querySelector('.animated-weather-card') as HTMLElement;
     o.sheet.setAttribute('aria-label', fill(W.view, { place: host.hass()?.states[host.config().entity ?? '']?.attributes?.friendly_name ?? '' }));
     // Carry the card's state: the metric and the hour it's left at
     v.setMetric(state.metric);
+    if (state.chipsScroll) v.chips?.scrollTo(state.chipsScroll);
     if (state.slots) v.park(state.slots);
     // Reduced motion, animate: false, or a browser without Web Animations: the view is simply there
     const still = reducedMotion() || host.still() || typeof o.sheet.animate !== 'function';
@@ -369,8 +423,8 @@ async function grow(host: ForecastHost, o: Overlay, state: ViewState): Promise<v
     const keyboard = !!lastFocus?.matches?.(':focus-visible');
     // The words and parts that fly from the card
     const NAMES: Array<[string, string]> = [['place', '.location'], ['temp', '.temperature'], ['cond', '.awc-desc-row, .weather-desc'], ['line', '.awc-line'], ['row', '.fc-hourly'], ['chips', '.fc-chips']];
-    const S = rectOf(small);
-    const pairs: Array<{ a: Rect | null; b: Rect; el: HTMLElement; k: number }> = [];
+    let S = rectOf(small);
+    const pairs: Array<{ a: Rect | null; b: Rect; el: HTMLElement; src: HTMLElement | null; k: number }> = [];
     const mid = getComputedStyle(small).getPropertyValue('--awc-sky-mid').trim() || '#33475f';
     const theme = groot.classList.contains('theme-colors');
     o.scrim.style.background = theme ? 'rgba(0, 0, 0, 0.45)' : `${mixHex('#05070c', mid, 0.32)}a6`;
@@ -382,7 +436,7 @@ async function grow(host: ForecastHost, o: Overlay, state: ViewState): Promise<v
     // A modal dialog in the top layer; without one (an old WebView), a plain open dialog over the page
     if (typeof o.dialog.showModal === 'function') o.dialog.showModal(); else o.dialog.setAttribute('open', '');
     // The sheet is the window: the clip is measured from its edges
-    const V = { w: o.sheet.clientWidth || window.innerWidth, h: o.sheet.clientHeight || window.innerHeight };
+    let V = { w: o.sheet.clientWidth || window.innerWidth, h: o.sheet.clientHeight || window.innerHeight };
     const inset = (R: Rect, rad: number[]) => `inset(${R.y.toFixed(2)}px ${(V.w - R.x - R.w).toFixed(2)}px ${(V.h - R.y - R.h).toFixed(2)}px ${R.x.toFixed(2)}px round ${rad.map(r => `${r.toFixed(1)}px`).join(' ')})`;
     const pausable = o.card as unknown as { wasManuallyPaused: boolean; setAnimationsPaused(p: boolean): void };
     if (pausable.wasManuallyPaused) { pausable.wasManuallyPaused = false; pausable.setAnimationsPaused(false); }
@@ -404,19 +458,19 @@ async function grow(host: ForecastHost, o: Overlay, state: ViewState): Promise<v
     const cloudClone = theme || still ? null : clone('.clouds-container', 'fv-clouds');
     const carry = still ? null : clone('.weather-attributes', 'fv-carry');
     if (gClouds && cloudClone) { gClouds.getAnimations?.().forEach(a => a.cancel()); gClouds.style.opacity = '0'; }
+    const shown = (e: HTMLElement | null): e is HTMLElement => !!e && !!e.getClientRects().length && getComputedStyle(e).display !== 'none';
+    const fs = (e: HTMLElement) => parseFloat(getComputedStyle(e.querySelector('.temperature-value, .weather-desc, .awc-line, .fc-val') ?? e).fontSize) || 1;
     for (const [, sel] of NAMES) {
         const a = small.querySelector(sel) as HTMLElement | null, b = groot.querySelector(sel) as HTMLElement | null;
         if (!b || !b.getClientRects().length) continue;
         b.style.transform = '';
-        const ar = a && a.getClientRects().length && getComputedStyle(a).display !== 'none' ? rectOf(a) : null;
-        const fs = (e: HTMLElement) => parseFloat(getComputedStyle(e.querySelector('.temperature-value, .weather-desc, .awc-line, .fc-val') ?? e).fontSize) || 1;
-        pairs.push({ a: ar, b: rectOf(b), el: b, k: a ? fs(a) / fs(b) : 1 });
+        pairs.push({ a: shown(a) ? rectOf(a) : null, b: rectOf(b), el: b, src: a, k: a ? fs(a) / fs(b) : 1 });
     }
     const sky = groot.querySelector('.sky') as HTMLElement | null;
     const track = groot.querySelector('.sun-track') as HTMLElement | null;
     const sunA = small.querySelector('.sun'), sunB = groot.querySelector('.sun');
     const centre = (e: Element) => { const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; };
-    const sunFrom = sunA ? centre(sunA) : null, sunTo = sunB ? centre(sunB) : null;
+    let sunFrom = sunA ? centre(sunA) : null, sunTo = sunB ? centre(sunB) : null;
     const rest = [...v.groups, ...v.chrome];
     const apply = (p: number, dy: number, closing: boolean) => {
         const R = { x: lerp(S.x, T.x, p), y: lerp(S.y, T.y + dy, p), w: lerp(S.w, T.w, p), h: lerp(S.h, T.h, p) };
@@ -468,11 +522,45 @@ async function grow(host: ForecastHost, o: Overlay, state: ViewState): Promise<v
     o.sheet.focus({ preventScroll: true });
     // The card behind is hidden a frame later, once the sheet has painted over it
     void frame().then(() => { if (phase !== 'closing') small.style.visibility = 'hidden'; });
+    // ── The window changes while it's open (a resize, a tablet turned): the panel follows it, and the grown card fits
+    // itself to its new size as it does to any. The words' places and the card's are measured again once it has, so
+    // the close shrinks from where things are to where the card now is. The next open builds the view afresh for the
+    // new size (prepareView keys it by the panel's) ──
+    let resized = false, refitting = 0;
+    const refit = () => {
+        resized = true;
+        if (phase !== 'open' || dragY || refitting) return;
+        resized = false;
+        const next = target();
+        const nv = { w: o.sheet.clientWidth || window.innerWidth, h: o.sheet.clientHeight || window.innerHeight };
+        if (next.T.x === T.x && next.T.y === T.y && next.T.w === T.w && next.T.h === T.h && nv.w === V.w && nv.h === V.h) return;
+        ({ T, phone, radius } = next);
+        V = nv;
+        o.card.style.cssText = `left:${T.x}px;top:${T.y}px;width:${T.w}px;height:${T.h}px`;
+        o.sheet.style.clipPath = inset(T, radius);
+        // Its own fit runs on its resize, before the next paint; measure after it
+        refitting = requestAnimationFrame(() => {
+            refitting = requestAnimationFrame(() => {
+                refitting = 0;
+                if (phase !== 'open') return;
+                S = rectOf(small);
+                for (const q of pairs) {
+                    q.a = shown(q.src) ? rectOf(q.src) : null;
+                    if (q.el.getClientRects().length) q.b = rectOf(q.el);
+                    q.k = q.src ? fs(q.src) / fs(q.el) : 1;
+                }
+                sunFrom = sunA ? centre(sunA) : null; sunTo = sunB ? centre(sunB) : null;
+                if (resized) refit();
+            });
+        });
+    };
+    window.addEventListener('resize', refit);
     const finishOpen = () => {
         phase = 'open'; p = 1; dragY = 0;
         apply(1, 0, false);
         o.sheet.style.clipPath = inset(T, radius);
         delete o.sheet.dataset.moving;
+        if (resized) refit();
     };
     if (still) {
         apply(1, 0, false); setRest(true, false); finishOpen(); if (gClouds) gClouds.style.opacity = '';
@@ -508,6 +596,8 @@ async function grow(host: ForecastHost, o: Overlay, state: ViewState): Promise<v
         if (closed) return;
         closed = true;
         window.removeEventListener('popstate', onPop);
+        window.removeEventListener('resize', refit);
+        cancelAnimationFrame(refitting); refitting = 0;
         o.dialog.removeEventListener('cancel', onCancel);
         v.close.removeEventListener('click', onClose);
         o.scrim.removeEventListener('click', onClose);

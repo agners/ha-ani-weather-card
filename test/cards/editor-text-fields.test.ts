@@ -33,10 +33,10 @@ describe('the editors\' text fields', () => {
         });
         expect(editor.querySelector('ha-textfield')).toBeNull();
         expect([...editor.querySelectorAll('ha-input')].map(field => field.id))
-            .toEqual(['name', 'wake_time', 'bed_time', 'night_lux', 'note_attribute', 'note_max_age', 'sunrise_hour', 'sunset_hour']);
+            .toEqual(['name', 'latitude', 'longitude', 'time_zone', 'wake_time', 'night_lux', 'bed_time', 'note_attribute', 'note_max_age', 'uv_levels', 'aqi_levels', 'sunrise_hour', 'sunset_hour']);
         const attribute = editor.querySelector('#note_attribute')!;
         expect(attribute.getAttribute('value')).toBe('summary');
-        expect(attribute.getAttribute('hint')).toBe('Shown where there\'s room for two lines');
+        expect(attribute.getAttribute('hint')).toBe('The attribute shown where there\'s room for two lines');
 
         const tracker = await mount('animated-sun-tracker-editor', {
             type: 'custom:animated-sun-tracker-card', sun_entity: 'sun.sun', title: 'The sun',
@@ -47,7 +47,9 @@ describe('the editors\' text fields', () => {
 
     it('give the entity pickers their help text as helper', async () => {
         const editor = await mount('animated-weather-card-editor', { type: 'custom:animated-weather-card', entity: 'weather.home' });
-        expect(editor.querySelector('#entity')?.getAttribute('helper')).toBe('Required unless developer mode is on');
+        expect(editor.querySelector('#outdoor_sensor_entity')?.getAttribute('helper')).toBe('A sensor of yours, shown instead of the weather entity\'s');
+        // The weather entity needs none: a status says so only while it's empty
+        expect(editor.querySelector('#entity')?.hasAttribute('helper')).toBe(false);
         expect(editor.querySelector('[helper-text]')).toBeNull();
     });
 

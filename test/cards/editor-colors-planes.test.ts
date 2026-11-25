@@ -9,7 +9,7 @@ describe('the editor\'s colours and planes', () => {
     let editor: Editor;
     let config: Record<string, unknown> | undefined;
 
-    afterEach(() => editor?.remove());
+    afterEach(() => { editor?.remove(); localStorage.removeItem('animated-weather-card:editor-all'); });
 
     const open = async (extra: object) => {
         editor = document.createElement('animated-weather-card-editor') as Editor;
@@ -19,26 +19,33 @@ describe('the editor\'s colours and planes', () => {
         editor.addEventListener('config-changed', (e) => { config = (e as CustomEvent).detail.config; });
     };
 
+    const shown = (id: string) => editor.querySelector(`[data-row="${id}"]`)!.hasAttribute('data-open');
+
     it('offers the temperature, text, sun, rain and snow on the theme palette too, and the skies only on the colorized one (#20)', async () => {
+        localStorage.setItem('animated-weather-card:editor-all', '1');
         await open({ color_palette: 'theme' });
-        const skies = editor.querySelector('#color-grid') as HTMLElement;
         const inks = editor.querySelector('#ink-grid') as HTMLElement;
-        expect(skies.style.display).toBe('none');
-        expect(inks.style.display).not.toBe('none');
+        expect(shown('sky_colors')).toBe(false);
+        expect(shown('why_sky_colors_theme')).toBe(true);
+        expect(shown('ink_colors')).toBe(true);
         expect(['temperature_color', 'text_color', 'sun_color', 'rain_color', 'snow_color'].every(id => inks.querySelector(`#${id}`))).toBe(true);
-        expect(skies.querySelector('#temperature_color')).toBeNull();
+        expect(editor.querySelector('#color-grid #temperature_color')).toBeNull();
         const temp = editor.querySelector('#temperature_color') as HTMLInputElement;
         temp.value = '#ffffff';
         temp.dispatchEvent(new Event('input'));
         temp.dispatchEvent(new Event('change'));
         expect(config).toMatchObject({ custom_colors: { temperature_color: '#ffffff' } });
+        // Each reset is named for its colour, and the drawer says how many are set
+        expect(editor.querySelector('[data-target="temperature_color"]')!.getAttribute('aria-label')).toBe('Reset Temperature');
+        expect(editor.querySelector('[data-summary="colors"]')!.textContent).toBe('1 color set');
     });
 
     it('offers the fog\'s colour with the skies, on the colorized palette, writing custom_colors.fog_color', async () => {
+        localStorage.setItem('animated-weather-card:editor-all', '1');
         await open({});
         const skies = editor.querySelector('#color-grid') as HTMLElement;
         const fog = skies.querySelector('#fog_color') as HTMLInputElement;
-        expect(skies.style.display).toBe('grid');
+        expect(shown('sky_colors')).toBe(true);
         expect(fog.value).toBe('#e0e0e0');
         fog.value = '#c8d0e0';
         fog.dispatchEvent(new Event('change'));

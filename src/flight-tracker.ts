@@ -118,6 +118,11 @@ export function readFlights(hass: HomeAssistant | undefined, entityId: string | 
 export class FlightTracker {
     private known: Set<string> | null = null;
 
+    /** Whether the first look has been taken */
+    public get seeded(): boolean {
+        return this.known !== null;
+    }
+
     /** Feed the latest flight list; returns flights that newly appeared (with `onLoad`, the first time, those already up) */
     public update(flights: FlightInfo[] | null, onLoad = false): FlightInfo[] {
         if (!flights) return [];

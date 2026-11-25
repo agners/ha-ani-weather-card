@@ -1,5 +1,5 @@
 // Card / animation CSS for Animated Weather Card.
-// Dev panel styles live in ./dev-panel.ts, editor styles in ./editor.ts.
+// The dev card's styles live in ./dev-card.ts, editor styles in ./editor.ts.
 //
 // Layering inside .animated-weather-card (one stacking context; the sky and
 // sky-borne layers are clipped to the rounded frame, precipitation may spill
@@ -10,7 +10,10 @@
 // Weather always moves behind the words.
 
 import { iconBoxCss } from './icon-box';
-import { generateSkyCss, oklchToSrgb, toHex, SKY_TEXT, SKY_TEXT_SECONDARY_ALPHA, SKY_MID_STOP, SKY_SCRIM_START, SKY_GLOW, SKY_GLOW_WIDE, SKY_GLOW_COMPACT, skyGlowGradient, dissolveTransition, SKY_DISSOLVE_SEC, SKY_DISSOLVE_EASE } from '../sky';
+import { generateSkyCss, oklchToSrgb, toHex, SKY_TEXT, SKY_TEXT_SECONDARY_ALPHA, SKY_MID_STOP, SKY_SCRIM_START, SKY_GLOW, SKY_GLOW_WIDE, SKY_GLOW_COMPACT, SKY_LIGHT_MAX_PX, skyGlowGradient, dissolveTransition, SKY_DISSOLVE_SEC, SKY_DISSOLVE_EASE } from '../sky';
+
+/** The dev_mode marker: light text on a dark pill that holds 4.5:1 over any sky or theme, white included */
+export const DEV_MARKER = { text: '#f4f6fa', fill: 'rgba(12, 16, 24, 0.62)', alpha: 0.62, ink: [12, 16, 24] as const };
 
 const SKY_CSS = generateSkyCss();
 const SKY_TEXT_HEX = toHex(oklchToSrgb(SKY_TEXT));
@@ -24,6 +27,27 @@ const GRAIN = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'
  * stay solid for the first half and fade out over the second.
  */
 export const CLOUD_OVERHANG_PX = 48;
+
+/**
+ * The sun sits this far down its track, and the moon as far down the sky, as fractions of the card's height, up to a
+ * card SKY_LIGHT_MAX_PX tall (sky.ts): a five-row card. A taller card (the forecast with its days) keeps them where that
+ * card has them, beside the temperature, instead of carrying them down beside the readings.
+ */
+export const SUN_TOP = 0.2;
+
+/**
+ * The UV reading's icon, by level, on the sky palette: the WHO's green, yellow, orange, red and violet, each as light as
+ * it must be to hold 3.2:1 through the label's quiet tint wherever the readings' icons sit, as measured in Chrome from
+ * a phone's four rows to a wide card's eight, the forecast on and off (the contrast test holds it). The level's word
+ * says it too: the colour only repeats it. On a theme, the icon keeps the theme's one colour
+ */
+export const UV_TINTS = { low: '#84ef8a', moderate: '#f2db49', high: '#ffd1a9', very_high: '#ffcdc8', extreme: '#e5d0ff' } as const;
+/**
+ * Air quality's icon by its level on the sky palette, the US EPA's colours (green, yellow, orange, red, purple, maroon)
+ * each as light as it must be to hold 3.2:1 through the label's quiet tint where the readings sit, as UV_TINTS are.
+ * The level's word says it too
+ */
+export const AQI_TINTS = { good: '#84ef8a', moderate: '#f2db49', sensitive: '#ffd1a9', unhealthy: '#ffcdc8', very_unhealthy: '#e5d0ff', hazardous: '#fcd5e3' } as const;
 
 export const getMainCardStyles = () => `
 ${iconBoxCss('animated-weather-card')}
@@ -136,7 +160,7 @@ ${iconBoxCss('animated-weather-card')}
           pointer-events: none;
           --awc-sky-glow-layer: ${skyGlowGradient(SKY_GLOW, 'var(--awc-sky-glow)')};
           --awc-sky-layers:
-            var(--awc-sky-glow-layer),
+            var(--awc-sky-glow-layer) 0 0 / var(--awc-sky-glow-box, 100% 100%) no-repeat,
             linear-gradient(180deg, transparent ${pct(SKY_SCRIM_START)}, var(--awc-sky-scrim) 100%),
             linear-gradient(180deg, var(--awc-sky-top) 0%, var(--awc-sky-mid) ${pct(SKY_MID_STOP)}, var(--awc-sky-bottom) 100%);
           background: var(--awc-sky-override, var(--awc-sky-layers));
@@ -145,6 +169,20 @@ ${iconBoxCss('animated-weather-card')}
         @container awc (min-width: 640px) {
           .sky { --awc-sky-glow-layer: ${skyGlowGradient(SKY_GLOW_WIDE, 'var(--awc-sky-glow)')}; }
         }
+        /* A card taller than five rows keeps a five-row card's glow, around the
+           sun beside the temperature, rather than a long streak down its side:
+           the light is painted in a box no taller than that card, from the top
+           (it fades out well inside it). Behind @supports, since a browser that
+           can't read min() there would drop the whole sky. The compact strip,
+           the wall, the view and the forecast card light the whole card. */
+        @supports (background-size: 100% min(100%, 1px)) {
+          .sky { --awc-sky-glow-box: 100% min(100%, ${SKY_LIGHT_MAX_PX}px); }
+        }
+        .animated-weather-card[data-variant="compact"] .sky,
+        .animated-weather-card[data-wall-frame] .sky,
+        .animated-weather-card[data-fw] .sky,
+        .animated-weather-card[data-fc-view] .sky,
+        .animated-weather-card[data-fc-card] .sky { --awc-sky-glow-box: 100% 100%; }
 
         /* Edge falloff: the frame darkens slightly, like a lens */
         .sky::before {
@@ -259,6 +297,23 @@ ${iconBoxCss('animated-weather-card')}
         }
         .animated-weather-card.theme-colors .temperature {
           color: var(--awc-hero-color);
+        }
+
+        /* dev_mode with no dev card on the page: a marker says the weather is simulated, on any sky or theme */
+        animated-weather-card[data-awc-dev] .animated-weather-card::after,
+        animated-forecast-card[data-awc-dev] .animated-weather-card::after {
+          content: 'Simulated';
+          position: absolute;
+          top: 8px;
+          right: 8px;
+          z-index: 40;
+          padding: 0 8px;
+          border-radius: 9px;
+          font: 600 11px/18px var(--awc-font);
+          letter-spacing: 0.01em;
+          color: ${DEV_MARKER.text};
+          background: ${DEV_MARKER.fill};
+          pointer-events: none;
         }
 
         /* ── Loading ─────────────────────────────────────────────────────── */
@@ -607,6 +662,8 @@ ${iconBoxCss('animated-weather-card')}
         .weather-attributes.values-only .attribute-value { font-size: 18px; }
         .weather-attributes.values-only .attribute { flex-direction: row; align-items: center; gap: 6px; }
         .weather-attributes.values-only .attribute-icon { --mdc-icon-size: 16px; opacity: var(--awc-secondary); }
+        ${Object.entries(UV_TINTS).map(([level, tint]) => `.animated-weather-card:not(.theme-colors) .attribute[data-kind="uv"][data-level="${level}"] .attribute-icon { color: ${tint}; }`).join('\n        ')}
+        ${Object.entries(AQI_TINTS).map(([level, tint]) => `.animated-weather-card:not(.theme-colors) .attribute[data-kind="aqi"][data-level="${level}"] .attribute-icon { color: ${tint}; }`).join('\n        ')}
 
         /* ── Adaptive layout: width ──────────────────────────────────────── */
         @container awc (max-width: 319px) {
@@ -854,6 +911,8 @@ ${iconBoxCss('animated-weather-card')}
           overflow: hidden;
           overflow: clip;
         }
+        /* How thick the fog is (auto mode's amounts), apart from the container's fades */
+        .fog-amount { position: absolute; inset: 0; pointer-events: none; }
         /* Spill: precipitation escapes the sides and bottom, never the top;
            wind carries leaves out to the right */
         .animated-weather-card[data-spill] .rain-container,
@@ -929,7 +988,7 @@ ${iconBoxCss('animated-weather-card')}
         /* ── Sun: a light source, not a disc ─────────────────────────────── */
         .sun {
           position: absolute;
-          top: 20%;
+          top: ${pct(SUN_TOP)};
           left: 84%;
           width: 40px;
           height: 40px;
@@ -952,15 +1011,27 @@ ${iconBoxCss('animated-weather-card')}
           opacity: 0.55;
           animation: awcSunCorona 7s ease-in-out infinite alternate;
         }
-        /* The sun's height follows the time of day on a full-card track (a
-           transform, so .sun keeps its breathing): low at dawn and dusk and
-           below the horizon at night, so it sets downward and rises upward. */
+        /* The sun's height follows the time of day on a track as tall as the
+           card, up to a five-row card's height (a transform, so .sun keeps its
+           breathing): low at dawn and dusk and below the horizon at night, so
+           it sets downward and rises upward. A taller card keeps the sun and
+           its setting where a five-row card has them; the slide's drop is a
+           share of the same track. The compact strip, the wall (from the first
+           paint: data-wall-frame) and the view place the sun on the whole card. */
         .sun-track {
           position: absolute;
-          inset: 0;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 100%;
+          max-height: ${SKY_LIGHT_MAX_PX}px;
           pointer-events: none;
           transition: transform ${SKY_DISSOLVE_SEC}s ${SKY_DISSOLVE_EASE};
         }
+        .animated-weather-card[data-variant="compact"] .sun-track,
+        .animated-weather-card[data-wall-frame] .sun-track,
+        .animated-weather-card[data-fw] .sun-track,
+        .animated-weather-card[data-fc-view] .sun-track { max-height: none; }
         .animated-weather-card[data-phase="dusk"] .sun-track,
         .animated-weather-card[data-phase="dawn"] .sun-track { transform: translateY(14%); }
         .animated-weather-card[data-phase="night"] .sun-track { transform: translateY(26%); }
@@ -1019,7 +1090,7 @@ ${iconBoxCss('animated-weather-card')}
         }
 
         /* ── Stars and moon ──────────────────────────────────────────────── */
-        .stars-field { position: absolute; inset: 0; pointer-events: none; }
+        .stars-field, .stars-band { position: absolute; inset: 0; pointer-events: none; }
         .star-gsap {
           position: absolute;
           border-radius: 50%;
@@ -1034,29 +1105,45 @@ ${iconBoxCss('animated-weather-card')}
           to { opacity: var(--star-dim); }
         }
         /* The moon takes the sun's place in the top-right, clear of the
-           temperature: soft maria, a steady disc and a slowly breathing halo. */
+           temperature: soft maria, a steady disc and a slowly breathing halo,
+           in its real phase (moon.ts). Like the sun, no lower than on a
+           five-row card; the wall places it on the whole card. */
         .moon-gsap {
           position: absolute;
           left: 84%;
-          top: 20%;
+          top: ${pct(SUN_TOP)};
+          top: min(${pct(SUN_TOP)}, ${+(SUN_TOP * SKY_LIGHT_MAX_PX).toFixed(1)}px);
           width: 34px;
           height: 34px;
           border-radius: 50%;
           transform: translate(-50%, -50%);
           background:
+            radial-gradient(circle at 38% 40%, rgba(120, 132, 160, 0.08) 0 12%, transparent 13%),
+            radial-gradient(circle at 34% 30%, rgba(196, 206, 230, 0.15) 0%, rgba(170, 182, 210, 0.09) 100%);
+          opacity: 0;
+          pointer-events: none;
+        }
+        .animated-weather-card[data-wall-frame] .moon-gsap,
+        .animated-weather-card[data-fw] .moon-gsap { top: ${pct(SUN_TOP)}; }
+        .moon-gsap::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          border-radius: 50%;
+          background:
             radial-gradient(circle at 38% 40%, rgba(160, 166, 180, 0.28) 0 12%, transparent 13%),
             radial-gradient(circle at 62% 62%, rgba(160, 166, 180, 0.22) 0 9%, transparent 10%),
             radial-gradient(circle at 58% 32%, rgba(160, 166, 180, 0.16) 0 6%, transparent 7%),
             radial-gradient(circle at 34% 30%, #fbfaf4 0%, #ece8dc 55%, #cfcabc 100%);
-          opacity: 0;
-          pointer-events: none;
+          -webkit-mask: var(--awc-moon-mask, none) center / 100% 100% no-repeat;
+          mask: var(--awc-moon-mask, none) center / 100% 100% no-repeat;
         }
         .moon-gsap::before {
           content: '';
           position: absolute;
           inset: 0;
           border-radius: 50%;
-          box-shadow: 0 0 16px 2px rgba(226, 232, 255, 0.28), 0 0 56px 12px rgba(190, 206, 255, 0.12);
+          box-shadow: var(--awc-moon-halo, 0 0 16px 2px rgba(226, 232, 255, 0.28), 0 0 56px 12px rgba(190, 206, 255, 0.12));
           animation: awcMoonHalo 6s ease-in-out infinite alternate;
         }
         @keyframes awcMoonHalo {

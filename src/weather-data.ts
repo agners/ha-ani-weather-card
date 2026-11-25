@@ -1,8 +1,13 @@
 // Weather data processing for Animated Weather Card
 
 import { HomeAssistant, HassEntity, AnimatedWeatherCardConfig } from './types';
-import { DEV_MODE_TEMPERATURES, DEV_MODE_CONDITION_NAMES, DEV_MODE_SAMPLE_DATA } from './constants';
 import { convertWindSpeedToKmh, formatLocalizedNumber, lookup } from './utils';
+import { CardString, localizeString } from './localize';
+import { UvLevel, uvLevel, uvLevels } from './metrics';
+import { cardNow, cardDate } from './clock';
+
+export { DEFAULT_METRICS, METRIC_KINDS, metricKinds, UV_LEVELS, UV_LEVEL_NAMES, uvLevel, uvLevels } from './metrics';
+export type { MetricKind, UvLevel } from './metrics';
 
 /** Home Assistant's English names for weather states, used when HA can't translate. */
 export const HA_CONDITION_NAMES: Record<string, string> = {
@@ -35,6 +40,57 @@ export function conditionName(hass: HomeAssistant, entity: HassEntity): string {
     return lookup(HA_CONDITION_NAMES, entity.state) || entity.state;
 }
 
+const toNumber = (raw: unknown): number | null => {
+    if (raw === null || raw === undefined || raw === '') return null;
+    const n = typeof raw === 'number' ? raw : parseFloat(String(raw));
+    return isFinite(n) ? n : null;
+};
+
+/** The UV index now: uv_entity's state, else the weather entity's uv_index. Null when neither is a number */
+export function readUv(hass: HomeAssistant | undefined, config: AnimatedWeatherCardConfig): number | null {
+    const sensor = config.uv_entity ? toNumber(hass?.states[config.uv_entity]?.state) : null;
+    return sensor ?? toNumber(config.entity ? hass?.states[config.entity]?.attributes?.uv_index : undefined);
+}
+
+/** A UV index as the card shows it, the number and its level's word ("6 High"), and the level, for its colour */
+export function uvReading(hass: HomeAssistant | undefined, config: AnimatedWeatherCardConfig, value: number | null): { text: string; level: UvLevel | null } {
+    if (value === null || !isFinite(value)) return { text: '--', level: null };
+    const level = uvLevel(value, uvLevels(config));
+    return { text: `${formatLocalizedNumber(Math.max(0, Math.round(value)), hass)} ${uvWord(hass, level)}`, level };
+}
+
+/** A UV level's word, in the card's language ("High") */
+export function uvWord(hass: HomeAssistant | undefined, level: UvLevel): string {
+    return localizeString(hass, `uv_${level}` as CardString);
+}
+
+/** A rain amount or rate as the card shows it: in its sensor's unit, to a tenth (a hundredth in inches) */
+export function formatRain(value: number, unit: string, hass?: HomeAssistant): string {
+    const decimals = /\bin\b|inch/i.test(unit) ? 2 : 1;
+    return `${formatLocalizedNumber(Math.max(0, value), hass, decimals)} ${unit}`.trim();
+}
+
+/** One rain sensor's value and unit; null when its state isn't a number */
+export function rainSensor(hass: HomeAssistant | undefined, entityId: string | undefined, unit: string): { value: number; unit: string } | null {
+    const e = entityId ? hass?.states[entityId] : undefined;
+    const value = toNumber(e?.state);
+    return value === null ? null : { value, unit: typeof e?.attributes?.unit_of_measurement === 'string' ? e.attributes.unit_of_measurement : unit };
+}
+
+/**
+ * The rain reading: while it rains, the rate (rain_rate_entity above 0, "Rain now"); else today's rain (rain_entity,
+ * "Rain today"). Null when neither sensor has a number
+ */
+export function readRain(hass: HomeAssistant | undefined, config: AnimatedWeatherCardConfig): { now: boolean; text: string } | null {
+    const rate = rainSensor(hass, config.rain_rate_entity, 'mm/h');
+    if (rate && rate.value > 0) return { now: true, text: formatRain(rate.value, rate.unit, hass) };
+    const today = rainSensor(hass, config.rain_entity, 'mm');
+    return today ? { now: false, text: formatRain(today.value, today.unit, hass) } : null;
+}
+
+/** The rain reading's label: "Rain now" with the rate, else "Rain today" */
+export const rainLabel = (hass: HomeAssistant | undefined, now: boolean): string => localizeString(hass, now ? 'rain_now' : 'rain_today');
+
 export interface SunData {
     sunrise: string | null;
     sunset: string | null;
@@ -64,6 +120,8 @@ export interface WeatherData {
     feelsLike: string | null;
     indoorTemperature: string;
     indoorHumidity: string;
+    /** The UV index now (uv_entity, else the weather entity's), or null */
+    uv: number | null;
     sun?: SunData;
 }
 
@@ -107,32 +165,12 @@ export function noteExpiresAt(note: WeatherNote, config: AnimatedWeatherCardConf
 }
 
 /**
- * Process weather data from either dev mode or Home Assistant entities
+ * The card's readings from Home Assistant: the weather entity and the sensors the card names
  */
 export function processWeatherData(
     hass: HomeAssistant | undefined,
-    config: AnimatedWeatherCardConfig,
-    currentDevCondition?: string
+    config: AnimatedWeatherCardConfig
 ): WeatherData {
-    if (config.dev_mode) {
-        const devData = processDevModeData(config, currentDevCondition);
-        // In dev mode, override sample sun data with real entity data if available
-        if (hass && config.sun_entity) {
-            const sunEntity = hass.states[config.sun_entity];
-            if (sunEntity) {
-                devData.sun = {
-                    sunrise: sunEntity.attributes.next_rising || null,
-                    sunset: sunEntity.attributes.next_setting || null,
-                    dawn: sunEntity.attributes.next_dawn || null,
-                    dusk: sunEntity.attributes.next_dusk || null,
-                    noon: sunEntity.attributes.next_noon || null,
-                    elevation: sunEntity.attributes.elevation ?? null,
-                    aboveHorizon: sunEntity.state === 'above_horizon'
-                };
-            }
-        }
-        return devData;
-    }
     if (!hass) {
         return {
             temperature: "--",
@@ -146,71 +184,11 @@ export function processWeatherData(
             windSpeedValue: 0,
             windBearing: null,
             indoorTemperature: "--",
-            indoorHumidity: "--"
+            indoorHumidity: "--",
+            uv: null
         };
     }
     return processHomeAssistantData(hass, config);
-}
-
-/**
- * Process dev mode weather data
- */
-function processDevModeData(config: AnimatedWeatherCardConfig, currentDevCondition?: string): WeatherData {
-    const currentCondition = currentDevCondition || "sunny";
-    const temperatures = DEV_MODE_TEMPERATURES;
-    const sample = (temperatures as Record<string, string>)[currentCondition] || "22";
-    // The samples are whole degrees; with a decimal they show the format chosen
-    const temperature = temperatureDecimals(config) ? formatLocalizedNumber(parseFloat(sample), undefined, 1) : sample;
-    const location = config.name || "";  // Only show if name is provided
-
-    // Dev mode attribute values
-    const humidity = DEV_MODE_SAMPLE_DATA.humidity;
-    const windSpeed = DEV_MODE_SAMPLE_DATA.windSpeed;
-    // Extract numeric value from windSpeed string (e.g., "100 km/h" -> 100)
-    const windSpeedValue = parseFloat(windSpeed.split(' ')[0]) || 15;
-    const pressure = DEV_MODE_SAMPLE_DATA.pressure;
-
-    // Map condition to proper display name
-    const conditionNames = DEV_MODE_CONDITION_NAMES as Record<string, string>;
-    const weatherCondition = conditionNames[currentDevCondition || "sunny"] || currentDevCondition || "sunny";
-
-    // Dev mode sample indoor data
-    const indoorTemperature = DEV_MODE_SAMPLE_DATA.indoorTemperature;
-    const indoorHumidity = DEV_MODE_SAMPLE_DATA.indoorHumidity;
-
-    // Dev mode sample sun data — simulate today's sunrise/sunset
-    const today = new Date();
-    const sunriseDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 6, 14);
-    const sunsetDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 18, 32);
-    const dawnDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 5, 45);
-    const duskDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 19, 1);
-    const noonDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12, 23);
-    const nowMs = Date.now();
-    const sun: SunData = {
-        sunrise: sunriseDate.toISOString(),
-        sunset: sunsetDate.toISOString(),
-        dawn: dawnDate.toISOString(),
-        dusk: duskDate.toISOString(),
-        noon: noonDate.toISOString(),
-        elevation: 42.5,
-        aboveHorizon: nowMs >= sunriseDate.getTime() && nowMs <= sunsetDate.getTime()
-    };
-
-    return {
-        temperature,
-        weatherCondition,
-        location,
-        humidity,
-        windSpeed,
-        windSpeedValue,
-        windBearing: null,
-        pressure,
-        pressureValue: null,
-        feelsLike: null,
-        indoorTemperature,
-        indoorHumidity,
-        sun
-    };
 }
 
 const CARDINAL_BEARINGS: Record<string, number> = {
@@ -413,6 +391,7 @@ function processHomeAssistantData(hass: HomeAssistant, config: AnimatedWeatherCa
         feelsLike,
         indoorTemperature,
         indoorHumidity,
+        uv: readUv(hass, config),
         sun
     };
 }

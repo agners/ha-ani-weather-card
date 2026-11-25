@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import '../../src/animated-weather-card';
-import '../../src/animated-weather-card-dev';
+import { theWorld } from '../../src/dev-card';
 
 /** Stand-in IntersectionObserver the test drives by hand. */
 class FakeIntersectionObserver {
@@ -29,7 +29,7 @@ describe('auto-pause', () => {
 
     function mount(config: Record<string, unknown> = {}): void {
         card = document.createElement('animated-weather-card') as Card;
-        card.setConfig({ type: 'custom:animated-weather-card', dev_mode: true, ...config });
+        card.setConfig({ type: 'custom:animated-weather-card', entity: 'weather.home', ...config });
         document.body.appendChild(card);
     }
 
@@ -88,13 +88,13 @@ describe('auto-pause', () => {
 
     it('lets a manual pause win', () => {
         mount();
-        // Pause from the developer panel
-        (card.querySelector('#dev-toggle-btn') as HTMLButtonElement).click();
-        (card.querySelector('#dev-pause-btn') as HTMLButtonElement).click();
+        // Pause all, from the dev card
+        theWorld().pause(true);
         expect(paused()).toBe(true);
         FakeIntersectionObserver.latest!.report(true);
         setHidden(false);
         expect(paused()).toBe(true);
+        theWorld().pause(false);
     });
 
     it('stops observing when the card leaves the page', () => {
@@ -138,8 +138,11 @@ describe('auto-pause', () => {
     it('starts its weather once a card that loaded in a background tab is shown', async () => {
         setHidden(true);
         card = document.createElement('animated-weather-card') as Card;
-        card.setConfig({ type: 'custom:animated-weather-card', dev_mode: true });
-        (card as unknown as { currentDevCondition: string }).currentDevCondition = 'rainy';
+        card.setConfig({ type: 'custom:animated-weather-card', entity: 'weather.home' });
+        (card as unknown as { hass: unknown }).hass = {
+            states: { 'weather.home': { entity_id: 'weather.home', state: 'rainy', attributes: { temperature: 14, humidity: 88 } } },
+            config: { time_zone: 'UTC' }, language: 'en', localize: () => '',
+        };
         document.body.appendChild(card);
         await vi.advanceTimersByTimeAsync(1000);
         expect(paused()).toBe(true);

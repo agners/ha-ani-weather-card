@@ -46,13 +46,15 @@ For a quick look without Home Assistant, run `npm run demo` and serve the `_site
 
 1. **Copy the bundles.** Copy the six `animated-weather-card*.js` files to your `config/www/` folder. They must sit together: the card loads the other five from its own folder.
 2. **Add the resource.** Add `/local/animated-weather-card.js?v=1` as a JavaScript module resource. Raise the `?v=` after each copy so the browser fetches the new build.
-3. **Turn on developer mode.** Add `dev_mode: true` to a card. You get sample data, so no real weather entity is needed, and a developer panel with:
+3. **Add the dev card.** Add a card with `type: custom:animated-weather-dev-card` to the dashboard (YAML only; it isn't in the card picker). It drives every Animated Weather card on the page: they read its simulated weather instead of yours, and do what they would do with it. It has:
    - every condition
-   - every time of day
-   - presets and individual layers
-   - pause
-   - performance figures
+   - the time of day, and the day
+   - the readings, in your units
+   - the forecast's shape, and who writes the notes
    - a **Fly a plane** button
+   - pause, and frames per second
+
+   A card with `dev_mode: true` runs on that simulated weather with no `entity` of its own, and says **Simulated** in its corner.
 
 If you also have the card installed from the Marketplace (or HACS), remove one of the two resources. Two copies can't register at once.
 
@@ -66,8 +68,8 @@ The card ships as six bundles:
 | `animated-weather-card-editor.js` | The first time someone opens a card's settings |
 | `animated-weather-card-forecast.js` | Only for cards with `show_forecast`, `show_clock`, `show_date`, `hero: clock` or `layout: nightstand`, and for the forecast card. It draws the forecast, the clock, the slide, the forecast card, the view that opens on tap, the nightstand and the wall |
 | `animated-weather-card-note.js` | Only for cards that write their own note (`show_note`) |
-| `animated-weather-card-planes.js` | Only for cards with a flights sensor (`flights_entity`), or `dev_mode` |
-| `animated-weather-card-dev.js` | Only for cards with `dev_mode: true` |
+| `animated-weather-card-planes.js` | Only for cards with a flights sensor (`flights_entity`), or a card the dev card flies a plane over |
+| `animated-weather-card-dev.js` | Only with a dev card on the page, or a card with `dev_mode: true` |
 
 The forecast bundle reaches the card only through `ForecastHost` and gives back `ForecastExtras`, both in `src/forecast-host.ts`, with plain names on both sides. The page keeps one forecast subscription per weather entity and kind, hourly, daily or twice daily (`src/forecast-data.ts`), which the weather card, the forecast card, the view and the note writer share.
 
@@ -86,7 +88,13 @@ src/
 ├── forecast-data.ts                # The page's forecast subscriptions
 ├── fc-*.ts                         # The forecast, the slide, the clock, the icons, the forecast card,
 │                                   # the view on tap, the nightstand and the wall
-├── dev-panel.ts                    # Developer panel (dev_mode)
+├── editor-rows.ts, editor-kit.ts   # The three editors' rows, and the parts they share
+├── presets.ts                      # The weather card's presets
+├── readings.ts, reading-values.ts  # The readings as one list, and what each says
+├── engine.ts                       # How much rain, snow, cloud, fog and wind, from the weather's own values
+├── solar.ts, place.ts              # The sun from coordinates, and a card for another place
+├── clock.ts                        # The cards' clock: ask it what time it is
+├── dev-card.ts, dev-world.ts       # The dev card, and the simulated world it gives the cards
 ├── note-generator.ts               # Writes the note with Home Assistant's AI Task
 ├── planes-animation.ts, aircraft.ts # Plane fly-overs, each flight drawn as its aircraft
 ├── animation-controller.ts         # Starts and stops animations per condition
@@ -96,7 +104,7 @@ src/
 ├── weather-data.ts                 # Reads the weather entity and sensors
 ├── localize.ts                     # The cards' own strings, times and durations
 ├── …
-└── styles/                         # CSS for the card, editor and developer panel
+└── styles/                         # CSS for the card, the editors and the dev card
 ```
 
 [CLAUDE.md](CLAUDE.md) has the full map:
@@ -106,7 +114,7 @@ src/
 - how the card fits its frame
 - how the forecast bundle draws on the card, and the slide
 - the editor's quirks
-- why the developer panel's interface avoids `_` names
+- why what the bundles share avoids `_` names
 
 ## Make a change
 
@@ -139,7 +147,7 @@ src/
 - **Readability.** Text must stay readable on every sky. `test/styles/sky.test.ts` checks WCAG AA contrast for every condition at every time of day, and `test/styles/forecast-contrast.test.ts` does the same for everything the forecast and the clock add, where it sits. Both have to keep passing.
 - **Motion and accessibility.** Respect reduced motion: no moving weather when it's on. Keep decorative layers hidden from screen readers.
 - **Dependencies.** Add no new runtime dependencies. GSAP, bundled into the main file, is the only one.
-- **Bundle size.** Keep the main bundle lean. Code that only the editor, the forecast, the note writer, the planes or the developer panel needs belongs in its own bundle. Keep names the bundles share plain, without a leading `_`. The build doesn't rename properties, because the bundled GSAP relies on its own names.
+- **Bundle size.** Keep the main bundle lean. Code that only the editor, the forecast, the note writer, the planes or the dev card needs belongs in its own bundle. Keep names the bundles share plain, without a leading `_`. The build doesn't rename properties, because the bundled GSAP relies on its own names.
 - **Safety.** Escape text that comes from entities, and validate colours before they reach CSS.
 - **Writing.** In comments, the CHANGELOG and the docs, say plainly what the code does and why.
 

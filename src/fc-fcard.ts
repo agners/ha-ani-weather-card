@@ -31,6 +31,7 @@ import { dropView, openView, prepareView } from './fc-view';
 import { relativeLuminance, sampleSkyAt, type SkyCondition } from './sky';
 import { CONTAINER, LAYER_NAMES, classOf } from './fc-core';
 import { onHour } from './hour-link';
+import { cardNow, cardDate } from './clock';
 
 /** The corner light, as the forecast card paints it (fc-css.ts): its contrast is measured against this */
 export const FORECAST_GLOW = { rx: 0.30, ry: 0.34, cx: 0.94, cy: -0.12, fade: 0.70 };
@@ -56,7 +57,7 @@ export function attachForecastCard(host: ForecastHost): ForecastExtras {
         const line = model.lineAt(k);
         const hass = host.hass();
         const when = slot ? (model.tl?.unit === 'hour'
-            ? (new Date(slot.at).toDateString() === new Date().toDateString() ? timeHtml(slot.at, hass) : `${esc(dayName(slot.at, hass))} ${timeHtml(slot.at, hass)}`)
+            ? (new Date(slot.at).toDateString() === cardDate().toDateString() ? timeHtml(slot.at, hass) : `${esc(dayName(slot.at, hass))} ${timeHtml(slot.at, hass)}`)
             : esc(dayName(slot.at, hass, 'long'))) : '';
         const prefix = when ? `<span class="fc-at">${when}</span>` : '';
         // Full strength holds to 0.75 of the width under the corner light, and the Now control takes its own room
@@ -73,6 +74,10 @@ export function attachForecastCard(host: ForecastHost): ForecastExtras {
         model = buildModel(host, host.current());
         const m = model;
         card.dataset.variant = strip ? 'strip' : wide() ? 'wide' : 'regular';
+        const led = !strip && cfg().show_summary !== false;
+        // Without the lead the hours keep its room, or they'd sit in the corner's light; with no hours there's nothing to keep it for
+        const rowDrawn = !!m.tl && cfg().show_hours !== false && m.hours.length > 0;
+        if (strip || led || !rowDrawn) delete card.dataset.nolead; else card.dataset.nolead = '';
         if (!m.tl && host.forecast().settled) {
             card.innerHTML = `<p class="fc-empty">${esc(W.no_forecast)}</p>`;
             return;
@@ -80,7 +85,9 @@ export function attachForecastCard(host: ForecastHost): ForecastExtras {
         if (!m.tl) return;
         const left = wide() ? Object.assign(document.createElement('div'), { className: 'fc-left' }) : card;
         if (wide()) card.append(left);
-        if (!strip) {
+        // show_summary: false leaves the lead out, and the Now control with it: the row's capsule names the hour, and
+        // the card comes home dragged back, on Escape, or after its idle half minute
+        if (led) {
             lead = document.createElement('div');
             lead.className = 'fc-lead';
             lead.innerHTML = `<span class="fc-sentence" aria-live="polite"></span><button type="button" class="awc-now fc-now awc-noclaim" tabindex="-1" aria-label="${esc(W.back)}"><i aria-hidden="true"></i>${esc(W.now)}</button>`;
@@ -100,13 +107,14 @@ export function attachForecastCard(host: ForecastHost): ForecastExtras {
             metric = m.metrics.includes(metric) ? metric : (m.metrics[0] ?? 'temp');
             hourly = createHourly({
                 hass: host.hass(), W, lang: m.lang, hours: m.hours, current: host.current(), metric, has: m.has, noun: m.noun,
-                pitch, plot: strip ? 42 : wide() ? 60 : 44, glyphSize: 22, tints, unit: m.unit, fahrenheit: m.fahrenheit,
+                pitch, plot: strip ? 42 : wide() ? 60 : 44, glyphSize: 22, tints, unit: m.unit, units: m.units, fahrenheit: m.fahrenheit,
                 graph: graphOf(host.config().forecast_graph),
                 conditionName: c => conditionNoun(c, host.hass(), s => host.conditionName(s)),
             });
             if (strip) hourly.el.style.marginLeft = `${13 - pitch / 2}px`;
             left.append(hourly.el);
-            if (!strip) {
+            // show_chips: false leaves the row, and the days, on forecast_metric
+            if (!strip && cfg().show_chips !== false) {
                 chips = createChips({ W, metrics: m.metrics, value: metric, noun: m.noun, onChange: (k, { keys }) => { metric = k; hourly?.setMetric(k, { animate: !keys }); daily?.setMetric(k, { animate: !keys }); } });
                 left.append(chips.el);
             }
@@ -114,12 +122,12 @@ export function attachForecastCard(host: ForecastHost): ForecastExtras {
         const days = Math.max(0, Math.min(10, cfg().forecast_days ?? 7));
         if (!strip && days) {
             const f = host.forecast();
-            const wk = week(f.daily, f.dailyType === 'twice_daily' ? 'twice_daily' : 'daily', Date.now(), host.hass(), { count: days, current: host.current() });
+            const wk = week(f.daily, f.dailyType === 'twice_daily' ? 'twice_daily' : 'daily', cardNow(), host.hass(), { count: days, current: host.current() });
             const theme = cfg().color_palette === 'theme';
             let lum = 0;
             const st = host.hass()?.states[cfg().entity ?? '']?.state ?? 'sunny';
             for (const x of [0.12, 0.5, 0.88]) for (const y of [0.45, 0.7, 0.95]) lum = Math.max(lum, relativeLuminance(sampleSkyAt(classOf(st) as SkyCondition, host.phase(), x, y, FORECAST_GLOW)));
-            daily = createDaily({ hass: host.hass(), W, week: wk, current: host.current(), theme, fahrenheit: m.fahrenheit, tints: theme ? null : litTints(45, false, lum), hours: m.hours, currentFeels: feelsNow(host), noun: m.noun, unit: m.unit, lang: m.lang, conditionName: c => conditionNoun(c, host.hass(), s => host.conditionName(s)) });
+            daily = createDaily({ hass: host.hass(), W, week: wk, current: host.current(), theme, fahrenheit: m.fahrenheit, tints: theme ? null : litTints(45, false, lum), hours: m.hours, currentFeels: feelsNow(host), noun: m.noun, unit: m.unit, units: m.units, lang: m.lang, conditionName: c => conditionNoun(c, host.hass(), s => host.conditionName(s)) });
             card.append(daily.el);
             // The days show what the chips do (not shared between cards)
             if (metric !== 'temp') daily.setMetric(metric, { animate: false });
@@ -170,9 +178,9 @@ export function attachForecastCard(host: ForecastHost): ForecastExtras {
         return `${f.settled}|${f.hourly?.length}|${f.hourly?.[0]?.datetime}|${f.hourly?.map(e => `${e.temperature}${e.condition}${e.precipitation_probability}`).join()}|${f.daily?.map(e => `${e.temperature}${e.templow}${e.condition}`).join()}|${host.current()}|${wide()}`;
     }
     // The hour passing: the row steps one column, the new hour becomes "Now"
-    let hour = Math.floor(Date.now() / HOUR);
+    let hour = Math.floor(cardNow() / HOUR);
     const ticker = minuteTicker(() => {
-        const h = Math.floor(Date.now() / HOUR);
+        const h = Math.floor(cardNow() / HOUR);
         if (h === hour) return;
         hour = h;
         if (slide?.active()) { pending = true; slide.home(); return; }
@@ -235,12 +243,18 @@ export function attachForecastCard(host: ForecastHost): ForecastExtras {
         clearTimeout(stopTimer);
         stopTimer = window.setTimeout(stopFollowed, SLIDE.prewarmStop);
     }
+    /** And the hour's amounts (auto mode, this card's too): how much rain, cloud and wind; null brings its own back */
+    function followAmounts(amounts: import('./types').EngineAmounts | null | undefined) {
+        const layers = host.layers();
+        if (layers?.amountsAt && layers.showAmounts && !host.still()) layers.showAmounts(amounts ?? null);
+    }
     const unlink = onHour(l => {
         if (l.source === el || l.entity !== cfg().entity || (slide && model?.tl?.unit === 'hour')) return;
-        if (l.at === null || slide?.active()) { daily?.follow(null); followSky(null); followWeather(null); return; }
+        if (l.at === null || slide?.active()) { daily?.follow(null); followSky(null); followWeather(null); followAmounts(null); return; }
         daily?.follow({ at: l.at, temperature: l.temperature });
         followSky(cfg().color_palette === 'theme' ? null : l.sky);
         followWeather(l.weather);
+        followAmounts(l.weather ? l.amounts : null);
     });
     let roRaf = 0, lastWide = wide();
     const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => {
@@ -266,8 +280,8 @@ export function attachForecastCard(host: ForecastHost): ForecastExtras {
         conditionText: () => null,
         open() {
             if (!model?.tl) { host.moreInfo(); return; }
-            openView(host, { model, metric, slots: slide?.slots() ?? 0, chipsLevel: chips?.level() ?? 0, small: root });
+            openView(host, { model, metric, slots: slide?.slots() ?? 0, chipsLevel: chips?.level() ?? 0, chipsScroll: chips?.scroll() ?? 0, small: root });
         },
-        destroy() { unlink(); followWeather(null); stopFollowed(); root.classList.remove('awc-warm'); info.removeEventListener('pointerdown', prepare); dropView(el); ticker.stop(); ro?.disconnect(); cancelAnimationFrame(roRaf); teardown(); card.remove(); delete root.dataset.fcCard; },
+        destroy() { unlink(); followWeather(null); followAmounts(null); stopFollowed(); root.classList.remove('awc-warm'); info.removeEventListener('pointerdown', prepare); dropView(el); ticker.stop(); ro?.disconnect(); cancelAnimationFrame(roRaf); teardown(); card.remove(); delete root.dataset.fcCard; },
     };
 }

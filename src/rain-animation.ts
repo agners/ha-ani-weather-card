@@ -1,13 +1,14 @@
 // RainAnimation - rain as a fixed field of recycled drops
 
 import { BaseAnimation, BaseAnimationConfig } from './base-animation';
-import { AnimatedWeatherCardConfig, AnimatedWeatherCardElement } from './types';
+import { AnimatedWeatherCardConfig, AnimatedWeatherCardElement, EngineAmounts } from './types';
 import { getWeatherSettings, getTimeAwareAnimationColor, devLog } from './utils';
 import { DEFAULT_ENGINE_SETTINGS } from './constants';
 import { ParticlePool, prewarm, between, areaFactor } from './particle-pool';
 import type { GSAPTimeline } from './types';
 
-export type RainKind = 'light' | 'rain' | 'storm' | 'pouring';
+import type { RainKind } from './types';
+export type { RainKind };
 
 /** Drops alive at once on a 420×230 card at the default rain amount. */
 export const RAIN_POOL_SIZE: Record<RainKind, number> = { light: 10, rain: 18, storm: 24, pouring: 32 };
@@ -64,6 +65,9 @@ export interface RainAnimationConfig extends BaseAnimationConfig {
  * Implements modular rain animation with physics, time-awareness, and performance monitoring
  */
 export class RainAnimation extends BaseAnimation {
+    /** The rain's kind now: how fast it falls and how long its drops are; each fall reads it */
+    private kind: RainKind = 'rain';
+    private card?: HTMLElement;
     public readonly animationType = 'rain';
     public readonly layerSelector = '.rain-layer';
     public readonly containerSelector = '.rain-container';
@@ -117,12 +121,12 @@ export class RainAnimation extends BaseAnimation {
 
         const settings = getWeatherSettings(this.cardConfig, this.realWindSpeed);
         const card = this.element.querySelector('.animated-weather-card') as HTMLElement;
-        const kind = this.rainKind();
-        const count = rainPoolSize(kind, settings.rainCount, card.offsetWidth, card.offsetHeight);
+        this.card = card;
+        // In auto mode the amounts say the rain's kind and how much; in manual, the condition and rainCount
+        this.kind = this.amounts?.rain.kind ?? this.rainKind();
+        const count = this.dropCount();
         const color = this.getRainColor((this.element as AnimatedWeatherCardElement).timeOfDayManager);
         const spill = this.cardConfig.spill_particles !== false;
-        const length = RAIN_DROP_LENGTH[kind];
-        const maxWidth = kind === 'pouring' ? 3 : 2.4;
 
         this.splashLayer = rainLayer as HTMLElement;
         this.splashColor = color;
@@ -131,9 +135,11 @@ export class RainAnimation extends BaseAnimation {
         this.pool = new ParticlePool(
             rainLayer,
             () => {
-                const width = between(1, maxWidth);
+                const width = between(1, this.kind === 'pouring' ? 3 : 2.4);
+                const length = RAIN_DROP_LENGTH[this.kind];
                 const drop = document.createElement('div');
                 drop.className = 'raindrop';
+                drop.dataset.kind = this.kind;
                 drop.style.cssText = `
                     width: ${width.toFixed(2)}px;
                     height: ${length}px;
@@ -147,11 +153,31 @@ export class RainAnimation extends BaseAnimation {
                 drop.dataset.width = width.toFixed(2);
                 return drop;
             },
-            (drop, next, warm) => this.fall(drop, card, kind, length, spill, next, warm),
+            (drop, next, warm) => this.fall(drop, card, spill, next, warm),
+            drop => this.removeParticle(drop),
         );
         this.pool.start(count).forEach(drop => this.addParticle(drop));
 
-        devLog(this.config.devMode, `Rain animation started - ${count} drops (${kind})`);
+        devLog(this.config.devMode, `Rain animation started - ${count} drops (${this.kind})`);
+    }
+
+    /** Drops in the air: the amounts' in auto mode, the condition's pool times rainCount in manual; more on a bigger card */
+    private dropCount(): number {
+        const card = this.card;
+        if (!card) return 0;
+        if (this.amounts) return Math.max(4, Math.round(this.amounts.rain.drops * areaFactor(card.offsetWidth, card.offsetHeight)));
+        const settings = getWeatherSettings(this.cardConfig, this.realWindSpeed);
+        return rainPoolSize(this.kind, settings.rainCount, card.offsetWidth, card.offsetHeight);
+    }
+
+    /**
+     * New amounts while it rains: the kind changes at each drop's next fall (its speed and length), and drops join from
+     * above the card or leave at the end of their fall, so the rain thickens or thins and never jumps.
+     */
+    protected onAmountsChange(_previous: EngineAmounts | null, _quick: boolean): void {
+        if (!this.pool) return;
+        this.kind = this.amounts?.rain.kind ?? this.rainKind();
+        this.pool.resize(this.dropCount(), 0.8).forEach(drop => this.addParticle(drop));
     }
 
     /**
@@ -160,10 +186,16 @@ export class RainAnimation extends BaseAnimation {
      * its streak runs into the splash; every other drop falls out of the
      * frame: past the edge, fading, with spill on, or behind it without.
      */
-    private fall(drop: HTMLElement, card: HTMLElement, kind: RainKind, length: number,
-                 spill: boolean, next: () => void, warm: boolean): GSAPTimeline {
+    private fall(drop: HTMLElement, card: HTMLElement, spill: boolean, next: () => void, warm: boolean): GSAPTimeline {
         const width = card.offsetWidth;
         const height = card.offsetHeight;
+        // The rain's kind now: a drop takes a new kind's length as it starts its next fall
+        const kind = this.kind;
+        const length = RAIN_DROP_LENGTH[kind];
+        if (drop.dataset.kind !== kind) {
+            drop.style.height = `${length}px`;
+            drop.dataset.kind = kind;
+        }
         const [minSpeed, maxSpeed] = RAIN_SPEED[kind];
         const speed = between(minSpeed, maxSpeed);
         const x = between(6, Math.max(7, width - 6));

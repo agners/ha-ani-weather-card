@@ -10,7 +10,12 @@
 // the forecast is drawn, and a slide that only follows takes the card's sky,
 // weather and words to that hour, naming it on the location line.
 //
+// With show_days, the days come under the row and its chips (in the hero's
+// column on a wide card), and follow the needle and the chips as the
+// forecast card's do.
+//
 // The fit gives way in this order, before the temperature ever shrinks:
+// the days, one at a time from the end down to three and then all of them,
 // the chips, then the icons, then the row (it folds back to the turning
 // line and the rail), then the turning line's own line. A level is kept
 // only while the card stays at its regular or compact step and the row's
@@ -20,9 +25,9 @@
 import type { ForecastExtras, ForecastHost } from './forecast-host';
 import { SKY_GLOW, SKY_GLOW_WIDE, sampleSkyAt, relativeLuminance, type SkyCondition, type SkyPhase } from './sky';
 import { HOUR, Slot, Timeline, classOf, clamp, esc, num, ownControl, sunModel, wetNoun, phaseWeights } from './fc-core';
-import { HourRow, METRICS, Metric, TurningLine, available, conditionNoun, dateText, highLow, hours, relative, timeHtml, timeParts, timeText, turningLine, dayName } from './fc-data';
+import { HourRow, METRICS, Metric, TurningLine, available, conditionNoun, dateText, highLow, hours, relative, timeHtml, timeParts, timeText, turningLine, dayName, week } from './fc-data';
 import { FcWords, fcWords, fill } from './fc-words';
-import { Chips, Hourly, Noun, createChips, createHourly, hourCols, graphOf } from './fc-row';
+import { Chips, Daily, Hourly, Noun, Units, createChips, createDaily, createHourly, hourCols, graphOf } from './fc-row';
 import { Tints, litTints } from './fc-glyphs';
 import { Slide, attachSlide } from './fc-slide';
 import { TimeText, fitHeroTime, layoutLeft, minuteTicker } from './fc-clock';
@@ -30,10 +35,15 @@ import { dropView, openView, prepareView } from './fc-view';
 import { cloudFloor } from './cloud-band';
 import { shortDate } from './localize';
 import { precipitationUnit } from './units';
+import { cardNow, cardDate } from './clock';
 
 /** The share of a narrow card's height above which the row's first line can't sit (the light law) */
 const ROW_TOP_MIN = 0.43;
 const LEVELS = ['full', 'glyphs', 'row', 'none', 'bare'];
+/** The levels where the row shows; 'days' is full with the days under it */
+const ROW_LEVELS = ['days', 'full', 'glyphs', 'row'];
+/** The fewest days that are still a week's look: under that, the days go whole */
+const MIN_DAYS = 3;
 
 /** What the forecast says, worked out once per forecast and hour */
 export interface Model {
@@ -47,6 +57,8 @@ export interface Model {
     noun: Noun;
     fahrenheit: boolean;
     unit: string;
+    /** The wind's and the pressure's units, the weather entity's */
+    units: Units;
     lineAt(k: number): TurningLine | null;
     hl: [number, number] | null;
     current?: number;
@@ -58,7 +70,7 @@ export function buildModel(host: ForecastHost, current?: number): Model {
     const W = fcWords(hass);
     const lang = (hass?.locale?.language || hass?.language || 'en');
     const entity = hass?.states[host.config().entity ?? ''];
-    const now = Date.now();
+    const now = cardNow();
     const fine = f.hourly?.length ? f.hourly : f.daily?.length ? f.daily : null;
     const type = f.hourly?.length ? 'hourly' : f.dailyType ?? 'daily';
     const tl = fine ? new Timeline(fine, type, now) : null;
@@ -75,6 +87,7 @@ export function buildModel(host: ForecastHost, current?: number): Model {
     return {
         W, lang, tl, entries: tl?.slots ?? [], hours: hrs, has, metrics, noun: wetNoun(fine),
         fahrenheit: /F/.test(unitT), unit: precipitationUnit(entity?.attributes, hass?.config?.unit_system),
+        units: { wind: String(entity?.attributes?.wind_speed_unit ?? 'km/h'), pressure: String(entity?.attributes?.pressure_unit ?? 'hPa') },
         lineAt, hl: tl ? highLow(f.daily, f.dailyType === 'twice_daily' ? 'twice_daily' : f.dailyType ? 'daily' : null, tl.slots, now, current, hass) : null,
         current,
     };
@@ -129,7 +142,7 @@ export function valueText(m: Model, host: ForecastHost, slot: Slot | null): stri
     }
     const when = m.tl.unit === 'hour' ? timeText(slot.at, hass) : dayName(slot.at, hass, 'long');
     const chance = slot.precipitation_probability;
-    return `${when}, ${relative(slot.at.getTime() - Date.now(), hass, m.tl.unit === 'hour' ? 'hour' : 'day')}: ${name(slot.condition)}`
+    return `${when}, ${relative(slot.at.getTime() - cardNow(), hass, m.tl.unit === 'hour' ? 'hour' : 'day')}: ${name(slot.condition)}`
         + `${typeof slot.temperature === 'number' ? `, ${host.temperature(slot.temperature)}°` : ''}${typeof chance === 'number' && chance >= 20 ? `, ${fill(W.chance_of, { v: String(Math.round(chance)) })}` : ''}`;
 }
 
@@ -157,7 +170,7 @@ export function cardClock(host: ForecastHost, root: HTMLElement) {
         const place = loc.querySelector('.awc-place') as HTMLElement | null;
         const right = layoutLeft(loc) + loc.clientWidth + 1;
         const fits = (e: HTMLElement | null) => !e || e.hidden || layoutLeft(e) + e.offsetWidth <= right;
-        const forms = [shortDate(new Date(), host.hass(), true), shortDate(new Date(), host.hass())];
+        const forms = [shortDate(cardDate(), host.hass(), true), shortDate(cardDate(), host.hass())];
         if (place) place.hidden = false;
         for (const withPlace of [true, false]) {
             if (place) place.hidden = !withPlace;
@@ -178,11 +191,11 @@ export function cardClock(host: ForecastHost, root: HTMLElement) {
     };
     const date = () => {
         if (!dateEl) return;
-        const d = new Date().toDateString();
+        const d = cardDate().toDateString();
         if (d === day && dateEl.textContent) return;
         day = d;
-        dateEl.textContent = shortDate(new Date(), host.hass(), true);
-        dateEl.setAttribute('aria-label', dateText(new Date(), host.hass(), { weekday: 'long', day: 'numeric', month: 'long' }));
+        dateEl.textContent = shortDate(cardDate(), host.hass(), true);
+        dateEl.setAttribute('aria-label', dateText(cardDate(), host.hass(), { weekday: 'long', day: 'numeric', month: 'long' }));
         fitDate();
     };
     return { el: clockEl, big, show, date, fit: () => { fitDate(); fitBig(); }, finish: () => clock?.finish() };
@@ -200,7 +213,7 @@ function whenHtml(m: Model, host: ForecastHost, slot: Slot): string {
     const hass = host.hass();
     if (!m.tl || m.tl.unit !== 'hour') return esc(dayName(slot.at, hass, 'long'));
     const t = timeHtml(slot.at, hass);
-    const today = new Date();
+    const today = cardDate();
     return slot.at.getDate() === today.getDate() && slot.at.getTime() - today.getTime() < 24 * HOUR ? t : `${esc(dayName(slot.at, hass))} ${t}`;
 }
 
@@ -212,6 +225,9 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
     const hero = root.querySelector('.main-weather-info') as HTMLElement;
     const compact = root.dataset.variant === 'compact';
     const forecastOn = () => !!cfg().show_forecast;
+    /** show_days: the days under the row, as many as forecast_days (7 by default); not on the compact strip */
+    const dayCount = () => Math.max(0, Math.min(10, Math.round(Number(cfg().forecast_days ?? 7)) || 0));
+    const daysOn = () => forecastOn() && !compact && !!cfg().show_days && dayCount() > 0;
     /** The hours are read: the forecast is drawn, or the card follows another card's needle */
     const hoursOn = () => forecastOn() || !!host.following?.();
     const theme = () => cfg().color_palette === 'theme';
@@ -229,14 +245,15 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
         // A reading after the card was away just appears: nobody saw that minute change
         const seen = Date.now() - readAt < 70_000;
         readAt = Date.now();
-        clock.show(new Date(), animate && seen && !host.still());
+        clock.show(cardDate(), animate && seen && !host.still());
     }
     tickClock(false);
 
     // ── The forecast's own parts ──
     let model: Model | null = null;
     let dataKey = '';
-    let sec: HTMLElement | null = null, hourly: Hourly | null = null, chips: Chips | null = null;
+    let sec: HTMLElement | null = null, hourly: Hourly | null = null, chips: Chips | null = null, daily: Daily | null = null;
+    let arrived = false;
     let descRow: HTMLElement | null = null, companion: HTMLElement | null = null, lineEl: HTMLElement | null = null;
     let away: HTMLElement | null = null;
     let slide: Slide | null = null, rulerKind = '';
@@ -246,6 +263,13 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
     let tintsFor: ((i: number) => Tints | null) | null = null;
     let pendingRebuild = false;
     const wide = () => !compact && root.clientWidth >= 640;
+    /** The row's width: the text's on a narrow card, the hero's column (to 448 px) on a wide one */
+    const rowWidth = () => (wide()
+        ? Math.min(hero.clientWidth || 448, 448)
+        : (root.clientWidth || 353) - 2 * (parseFloat(getComputedStyle(info).paddingLeft) || 20));
+    /** Where the row was built and for what width: a card laid out narrow and then wide (or the other way) builds it again */
+    let builtFor: { wide: boolean; w: number } | null = null;
+    let resized = 0;
     const desc = root.querySelector('.weather-desc') as HTMLElement | null;
     const current = () => host.current();
 
@@ -309,26 +333,48 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
             meta.prepend(lineEl);
             writeLine(0);
         }
-        // The section: the hourly row and its chips. Narrow: at the card's foot, under the readings; wide: in the hero's column.
+        // The section: the hourly row and its chips, and with show_days the days. Narrow: at the card's foot, under the
+        // readings; wide: in the hero's column.
         metric = m.metrics.includes(metric) ? metric : (m.metrics[0] ?? 'temp');
-        if (m.hours.length && !compact) {
+        const f = host.forecast();
+        const wk = daysOn() ? week(f.daily, f.dailyType === 'twice_daily' ? 'twice_daily' : 'daily', cardNow(), host.hass(), { count: dayCount(), current: current() }) : null;
+        if ((m.hours.length || wk?.days.length) && !compact) {
             sec = document.createElement('div');
             sec.className = 'fc-section';
             if (wide()) hero.append(sec); else info.append(sec);
-            const pad = parseFloat(getComputedStyle(info).paddingLeft) || 20;
-            const w = wide() ? Math.min(hero.clientWidth || 448, 448) : (root.clientWidth || 353) - 2 * pad;
+            const w = rowWidth();
+            builtFor = { wide: wide(), w };
             if (wide()) sec.style.width = `${w}px`;
+        }
+        if (sec && m.hours.length) {
+            const w = rowWidth();
             const cols = hourCols(w, wide() ? 8 : 6);
             tintsFor = iconTints(host, m, { y0: 0.5, y1: 0.66, glow: wide() ? SKY_GLOW_WIDE : SKY_GLOW, reach: cols });
             hourly = createHourly({
                 hass: host.hass(), W, lang: m.lang, hours: m.hours, current: current(), metric, has: m.has, noun: m.noun,
-                pitch: w / cols, plot: 44, glyphSize: 22, tints: i => tintsFor?.(i) ?? null, unit: m.unit, fahrenheit: m.fahrenheit,
+                pitch: w / cols, plot: 44, glyphSize: 22, tints: i => tintsFor?.(i) ?? null, unit: m.unit, units: m.units, fahrenheit: m.fahrenheit,
                 graph: graphOf(host.config().forecast_graph),
                 conditionName: c => conditionNoun(c, host.hass(), s => host.conditionName(s)),
             });
             sec.append(hourly.el);
-            chips = createChips({ W, metrics: m.metrics, value: metric, noun: m.noun, onChange: (k, { keys }) => { metric = k; hourly?.setMetric(k, { animate: !keys }); writeCompanionAway(); } });
-            sec.append(chips.el);
+            // show_chips: false leaves the row on forecast_metric, with nothing to change it by
+            if (host.config().show_chips !== false) {
+                chips = createChips({ W, metrics: m.metrics, value: metric, noun: m.noun, onChange: (k, { keys }) => { metric = k; hourly?.setMetric(k, { animate: !keys }); daily?.setMetric(k, { animate: !keys }); writeCompanionAway(); } });
+                sec.append(chips.el);
+            }
+        }
+        // The days, as the forecast card draws them, lit by the sky where they sit: low in a narrow card, the hero's column on a wide one
+        if (sec && wk?.days.length) {
+            const theme = cfg().color_palette === 'theme';
+            const st = host.hass()?.states[cfg().entity ?? '']?.state ?? 'sunny';
+            let lum = 0;
+            for (const x of wide() ? [0.05, 0.3, 0.55] : [0.12, 0.5, 0.88]) for (const y of [0.6, 0.8, 0.98]) lum = Math.max(lum, relativeLuminance(sampleSkyAt(classOf(st) as SkyCondition, host.phase(), x, y, wide() ? SKY_GLOW_WIDE : SKY_GLOW)));
+            daily = createDaily({ hass: host.hass(), W, week: wk, current: current(), theme, fahrenheit: m.fahrenheit, tints: theme ? null : litTints(45, false, lum), hours: m.hours, currentFeels: feelsNow(host), noun: m.noun, unit: m.unit, units: m.units, lang: m.lang, conditionName: c => conditionNoun(c, host.hass(), s => host.conditionName(s)) });
+            sec.append(daily.el);
+            if (metric !== 'temp') daily.setMetric(metric, { animate: false });
+            daily.draw();
+            if (!arrived && host.seen() && !host.still()) daily.arrive();
+            arrived = true;
         }
         restDesc();
         measureCondition();
@@ -338,7 +384,8 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
         slide?.destroy(); slide = null; rulerKind = '';
         hourly?.destroy(); hourly = null;
         chips?.destroy(); chips = null;
-        sec?.remove(); sec = null;
+        daily?.destroy(); daily = null;
+        sec?.remove(); sec = null; builtFor = null;
         away?.remove(); away = null;
         lineEl?.remove(); lineEl = null;
         if (descRow && desc && !descRow.classList.contains('awc-lead-row')) { descRow.before(desc); descRow.remove(); }
@@ -372,7 +419,7 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
     function chanceHtml(s: Slot): string {
         const p = s.precipitation_probability;
         if (typeof p !== 'number' || (p < 20 && !s.condition?.match(/rain|pour|snow|hail|lightning/))) return '';
-        if (sec && ['full', 'glyphs', 'row'].includes(level) && metric === 'chance') return '';
+        if (sec && ROW_LEVELS.includes(level) && metric === 'chance') return '';
         return `<span class="awc-hl-pair"><b>${esc(model!.W[model!.noun])}</b> ${esc(num(Math.round(p), model!.lang))}%</span>`;
     }
     let awaySlot: Slot | null = null;
@@ -393,17 +440,23 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
     }
 
     // ── The readout: the hour under the needle, in the card's own places ──
-    const metricEls = (): Record<string, HTMLElement> => {
-        const out: Record<string, HTMLElement> = {};
-        for (const kind of ['humidity', 'wind', 'pressure']) { const e = root.querySelector(`.attribute[data-kind="${kind}"] .attribute-text`) as HTMLElement | null; if (e) out[kind] = e; }
-        return out;
+    /** The readings the hour reports, each by the forecast's own field: every row of those types, in order */
+    const HOUR_FIELD: Record<string, string> = {
+        humidity: 'humidity', wind: 'wind_speed', pressure: 'pressure', uv: 'uv_index', feels_like: 'apparent_temperature',
+        dew_point: 'dew_point', cloud_cover: 'cloud_coverage', gust: 'wind_gust_speed',
     };
+    const rowEls = (): Array<{ kind: string; el: HTMLElement }> =>
+        [...root.querySelectorAll<HTMLElement>('.weather-attributes .attribute[data-kind]')]
+            .filter(a => Object.prototype.hasOwnProperty.call(HOUR_FIELD, a.dataset.kind ?? ''))
+            .map(a => ({ kind: a.dataset.kind!, el: a.querySelector('.attribute-text') as HTMLElement }))
+            .filter(x => !!x.el);
+    const metricEls = (): HTMLElement[] => rowEls().map(x => x.el);
     let saved: Map<HTMLElement, string> | null = null;
     let savedArrow: string | null = null;
     function save() {
         saved = new Map();
         const temp = root.querySelector('.temperature-value') as HTMLElement | null;
-        for (const e of [temp, desc, ...Object.values(metricEls())]) if (e) saved.set(e, e.innerHTML);
+        for (const e of [temp, desc, ...metricEls()]) if (e) saved.set(e, e.innerHTML);
         const arrow = root.querySelector('.wind-bearing-arrow') as HTMLElement | null;
         savedArrow = arrow ? arrow.style.transform : null;
     }
@@ -439,7 +492,7 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
             restore();
             if (madeRow && descRow && desc) { descRow.before(desc); descRow.remove(); descRow = null; madeRow = false; }
             delete root.dataset.awcAway;
-            if (clock.big) clock.show(new Date(), false);
+            if (clock.big) clock.show(cardDate(), false);
             away?.remove();
             writeLine(0);
             writeCompanionAway();
@@ -456,8 +509,8 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
         if (bigHour) clock.show(slot.at, false);
         if (away) {
             const at = away.querySelector('.awc-at') as HTMLElement, rel = away.querySelector('.awc-rel') as HTMLElement;
-            at.innerHTML = !bigHour ? whenHtml(m, host, slot) : slot.at.toDateString() === new Date().toDateString() ? '' : esc(dayName(slot.at, host.hass()));
-            rel.textContent = relative(slot.at.getTime() - Date.now(), host.hass(), m.tl?.unit === 'hour' ? 'hour' : 'day');
+            at.innerHTML = !bigHour ? whenHtml(m, host, slot) : slot.at.toDateString() === cardDate().toDateString() ? '' : esc(dayName(slot.at, host.hass()));
+            rel.textContent = relative(slot.at.getTime() - cardNow(), host.hass(), m.tl?.unit === 'hour' ? 'hour' : 'day');
             if (locShown && loc && away.parentElement !== loc) loc.append(away);
             // How far ahead is said only if it fits whole inside the line's tint limit
             rel.hidden = false;
@@ -474,15 +527,29 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
         }
         writeCompanionAway();
         writeLine(k);
-        // The readings read the hour too: the card stays whole when pulled
-        const els = metricEls();
-        const vals: Record<string, unknown> = { humidity: slot.humidity, wind: slot.wind_speed, pressure: slot.pressure };
-        for (const [kind, e] of Object.entries(els)) {
-            const v = vals[kind];
-            const home = saved?.get(e);
-            if (typeof v !== 'number' || home === undefined) continue;
-            const t = home.replace(/^[\d.,\s  ]+/, `${nf(v)}${/^[\d.,]+[\s ]/.test(home) ? ' ' : ''}`);
-            if (e.innerHTML !== t) e.innerHTML = t;
+        // The readings read the hour too: the card stays whole when pulled. Each is the hour's value whole, in the
+        // weather entity's units, whatever sensor it shows at now
+        const a = host.hass()?.states[cfg().entity ?? '']?.attributes ?? {};
+        const wu = String(a.wind_speed_unit ?? 'km/h'), pu = String(a.pressure_unit ?? 'hPa');
+        const hour = slot as unknown as Record<string, unknown>;
+        for (const { kind, el: e } of rowEls()) {
+            const v = hour[HOUR_FIELD[kind]];
+            if (typeof v !== 'number' || saved?.get(e) === undefined) continue;
+            // The UV's level goes with its number: the card words both, and colours the icon by the hour's level
+            if (kind === 'uv') {
+                const r = host.reading?.('uv', v);
+                const box = e.closest('.attribute') as HTMLElement | null;
+                if (!r || !box) continue;
+                const t = `${r.value} ${r.word ?? ''}`.trim();
+                if (e.textContent !== t) e.textContent = t;
+                if (r.level) box.dataset.level = r.level;
+                continue;
+            }
+            const t = kind === 'humidity' || kind === 'cloud_cover' ? `${nf(v)}%`
+                : kind === 'wind' || kind === 'gust' ? `${nf(v)} ${wu}`
+                : kind === 'pressure' ? `${num(v, model?.lang ?? 'en', pu.toLowerCase() === 'inhg' ? 2 : 0)} ${pu}`
+                : `${host.temperature(v)}°`;
+            if (e.textContent !== t) e.textContent = t;
         }
         const arrow = root.querySelector('.wind-bearing-arrow') as HTMLElement | null;
         if (arrow && typeof slot.wind_bearing === 'number') arrow.style.transform = `rotate(${slot.wind_bearing + 180}deg)`;
@@ -492,7 +559,7 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
         if (!model?.tl || !hoursOn()) return;
         // Without the forecast, a slide that only follows: no ruler or rail, since the card takes no drag of its own
         const follower = !forecastOn();
-        const useRow = !!hourly && !hourly.empty && ['full', 'glyphs', 'row'].includes(level);
+        const useRow = !!hourly && !hourly.empty && ROW_LEVELS.includes(level);
         const kind = follower ? 'follow' : useRow ? 'row' : compact ? 'strip' : wide() ? 'info' : 'divider';
         if (slide && kind === rulerKind) return;
         if (slide?.active()) return;
@@ -509,20 +576,24 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
             valueText: s => valueText(m, host, s),
             onSlot: readout,
             onAway: a => { hourly?.el.classList.toggle('fc-away', a); },
+            onNeedle: (at, t) => daily?.follow(at === null ? null : { at, temperature: t }),
             onHome: () => { if (pendingRebuild) { pendingRebuild = false; setTimeout(() => { dataKey = keyOf(); rebuild(); }, 0); } },
-            group: () => [loc, root.querySelector('.temperature'), descRow ?? desc, lineEl, ...Object.values(metricEls())].filter((e): e is HTMLElement => !!e),
+            group: () => [loc, root.querySelector('.temperature'), descRow ?? desc, lineEl, ...metricEls()].filter((e): e is HTMLElement => !!e),
             mirror: () => (chips?.sel ? [chips.sel] : []),
         });
     }
 
     // ── The fit's levels ──
+    /** "days:5" shows the row with five days under it; any other level, no days */
     function setLevel(l: string) {
-        level = l;
-        root.dataset.fc = l;
+        const n = l.startsWith('days:') ? Number(l.slice(5)) : 0;
+        level = n ? 'days' : l;
+        root.dataset.fc = level;
+        daily?.el.querySelectorAll<HTMLElement>('.fc-day').forEach((r, i) => { r.hidden = i >= n; });
         sec?.style.setProperty('--fc-sec-top', '0px');
     }
     function levelOk(overflows: () => boolean): boolean {
-        if (!sec || wide() || !['full', 'glyphs', 'row'].includes(level)) return true;
+        if (!sec || wide() || !ROW_LEVELS.includes(level) || !hourly) return true;
         const r = root.getBoundingClientRect(), s = sec.getBoundingClientRect();
         if (!r.height) return true;
         const need = r.height * ROW_TOP_MIN - (s.top - r.top);
@@ -551,7 +622,7 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
      * beside the hero and the floor is the row's top. With no row, today's sky
      */
     function floor() {
-        if (compact || !forecastOn() || !sec || !['full', 'glyphs', 'row'].includes(level) || !sec.getClientRects().length) { cloudFloor(root, null); return; }
+        if (compact || !forecastOn() || !sec || !ROW_LEVELS.includes(level) || !sec.getClientRects().length) { cloudFloor(root, null); return; }
         const readings = wide() ? null : root.querySelector('.weather-attributes') as HTMLElement | null;
         const top = readings?.getClientRects().length
             ? readings.getBoundingClientRect().top
@@ -579,7 +650,22 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
             if (e.getBoundingClientRect().right > limit || e.offsetTop > lineEl.offsetTop + 4) e.style.display = 'none';
         }
     }
+    /**
+     * The row is placed for one layout: a card built narrow and then made wide (or the other way) kept it where the
+     * other layout has it, and the wide layout made it a third column at the top. Crossing 640 px builds it again,
+     * once the card is home. Narrow, the row runs to the card's edge and a new width shows more or fewer hours; wide,
+     * it has the hero column's width, so a column that changes by more than the gap before the readings has room for
+     * builds it again too (the readings' own values move it by less)
+     */
+    function stale(): boolean {
+        if (!sec || !builtFor) return false;
+        return builtFor.wide !== wide() || (builtFor.wide && Math.abs(builtFor.w - rowWidth()) > 16);
+    }
     function fitted() {
+        if (stale()) {
+            if (slide?.active()) pendingRebuild = true;
+            else if (!resized) resized = requestAnimationFrame(() => { resized = 0; if (stale() && !slide?.active()) rebuild(); });
+        }
         clock.fit();
         fitCompanion();
         fitLine();
@@ -610,10 +696,10 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
     };
 
     // ── The hour passing, and the clock ──
-    let hour = Math.floor(Date.now() / HOUR);
+    let hour = Math.floor(cardNow() / HOUR);
     const ticker = minuteTicker(() => {
         tickClock(true);
-        const h = Math.floor(Date.now() / HOUR);
+        const h = Math.floor(cardNow() / HOUR);
         if (h !== hour) {
             hour = h;
             if (slide?.active()) { pendingRebuild = true; slide.home(); return; }
@@ -635,8 +721,11 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
     return {
         levels: () => {
             if (!forecastOn() || compact) return [];
-            if (model?.tl && hourly && !hourly.empty) return LEVELS;
-            return model?.tl ? ['none', 'bare'] : [];
+            // The days first: all of them, then one fewer at a time to three, then none
+            const n = daily && !daily.empty ? daily.el.querySelectorAll('.fc-day').length : 0;
+            const days = Array.from({ length: n ? Math.max(1, n - Math.min(n, MIN_DAYS) + 1) : 0 }, (_, i) => `days:${n - i}`);
+            if (model?.tl && hourly && !hourly.empty) return [...days, ...LEVELS];
+            return model?.tl ? [...days, 'none', 'bare'] : [];
         },
         setLevel,
         levelOk,
@@ -661,13 +750,14 @@ export function attachWeather(host: ForecastHost): ForecastExtras {
         conditionText: (state: string) => (forecastOn() ? conditionNoun(state, host.hass(), s => host.conditionName(s)) : null),
         open() {
             if (!model?.tl || !forecastOn()) { host.moreInfo(); return; }
-            openView(host, { model, metric, slots: slide?.slots() ?? 0, chipsLevel: chips?.level() ?? 0, small: root });
+            openView(host, { model, metric, slots: slide?.slots() ?? 0, chipsLevel: chips?.level() ?? 0, chipsScroll: chips?.scroll() ?? 0, small: root });
         },
         destroy() {
             info.removeEventListener('pointerdown', prepare);
             info.removeEventListener('focusin', prepare);
             dropView(el);
             clearTimeout(prepTimer);
+            cancelAnimationFrame(resized);
             ticker.stop();
             clock.finish();
             teardownForecast();

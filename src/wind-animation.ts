@@ -19,6 +19,8 @@ export const MAX_SWOOSHES = 2;
 export const LEAF_GAP_MS: [number, number] = [900, 1400];
 /** Gap between swooshes in ms. */
 export const SWOOSH_GAP_MS: [number, number] = [1800, 2600];
+/** The share of swooshes that are strong (thicker), with no gusts */
+export const STRONG_SWOOSHES = 0.2;
 
 export class WindAnimation extends BaseAnimation {
     public readonly animationType = 'wind';
@@ -65,34 +67,42 @@ export class WindAnimation extends BaseAnimation {
 
     /**
      * Leaves come one at a time, a second or so apart, with at most a few
-     * crossing at once ("Leaf amount" scales both).
+     * crossing at once ("Leaf amount" scales both, and in auto mode the
+     * wind: amounts.leaves). Both are read at each leaf, so new amounts
+     * reach the next one.
      */
     private scheduleLeaf(delayMs: number): void {
-        const settings = getWeatherSettings(this.cardConfig, this.realWindSpeed);
         this.leafTimer = setTimeout(() => {
             if (this.state !== AnimationLifecycleState.ACTIVE) return;
-            const cap = Math.max(1, Math.round(MAX_LEAVES * settings.leafCount));
+            const settings = getWeatherSettings(this.cardConfig, this.realWindSpeed);
+            const amount = settings.leafCount * (this.amounts?.leaves ?? 1);
+            const cap = Math.max(1, Math.round(MAX_LEAVES * amount));
             if (this.leaves.size < cap) {
                 const leaf = createGSAPLeaf(this.layer(), settings, 1, this.card(),
                     el => this.forget(el, this.leaves), this.cardConfig.spill_particles !== false);
                 this.leaves.add(leaf);
                 this.addParticle(leaf);
             }
-            this.scheduleLeaf(between(LEAF_GAP_MS[0], LEAF_GAP_MS[1]) / Math.max(0.5, settings.leafCount));
+            this.scheduleLeaf(between(LEAF_GAP_MS[0], LEAF_GAP_MS[1]) / Math.max(0.5, amount));
         }, delayMs);
     }
 
+    /**
+     * Swooshes: gusts (auto mode's amounts.gusts, 0 to 1, how far they
+     * reach past the wind) bring more of them, sooner, and more strong ones.
+     */
     private scheduleSwoosh(delayMs: number): void {
-        const settings = getWeatherSettings(this.cardConfig, this.realWindSpeed);
         this.swooshTimer = setTimeout(() => {
             if (this.state !== AnimationLifecycleState.ACTIVE) return;
-            if (this.swooshes.size < MAX_SWOOSHES) {
+            const settings = getWeatherSettings(this.cardConfig, this.realWindSpeed);
+            const gusts = this.amounts?.gusts ?? 0;
+            if (this.swooshes.size < MAX_SWOOSHES + Math.round(2 * gusts)) {
                 const swoosh = createGSAPSwoosh(this.layer(), settings, 1, this.card(), this.cardConfig,
-                    el => this.forget(el, this.swooshes));
+                    el => this.forget(el, this.swooshes), STRONG_SWOOSHES + 0.3 * gusts);
                 this.swooshes.add(swoosh);
                 this.addParticle(swoosh);
             }
-            this.scheduleSwoosh(between(SWOOSH_GAP_MS[0], SWOOSH_GAP_MS[1]));
+            this.scheduleSwoosh(between(SWOOSH_GAP_MS[0], SWOOSH_GAP_MS[1]) / (1 + gusts));
         }, delayMs);
     }
 

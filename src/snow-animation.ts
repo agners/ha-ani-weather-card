@@ -1,7 +1,7 @@
 // SnowAnimation - snow as a fixed field of recycled, drifting flakes
 
 import { BaseAnimation, BaseAnimationConfig, AnimationLifecycleState } from './base-animation';
-import { AnimatedWeatherCardConfig } from './types';
+import { AnimatedWeatherCardConfig, EngineAmounts } from './types';
 import { getWeatherSettings, devLog } from './utils';
 import { DEFAULT_ENGINE_SETTINGS } from './constants';
 import { ParticlePool, prewarm, between, areaFactor } from './particle-pool';
@@ -51,6 +51,9 @@ export class SnowAnimation extends BaseAnimation {
     protected accumulationElement?: HTMLElement;
     private pool?: ParticlePool;
     private swings: GSAPAnimation[] = [];
+    /** Each flake's sway, so a flake that leaves takes its own with it */
+    private swingOf = new WeakMap<HTMLElement, GSAPAnimation>();
+    private card?: HTMLElement;
     
     
     constructor(
@@ -91,7 +94,8 @@ export class SnowAnimation extends BaseAnimation {
 
         const settings = getWeatherSettings(this.cardConfig, this.realWindSpeed);
         const card = this.element.querySelector('.animated-weather-card') as HTMLElement;
-        const count = snowPoolSize(settings.snowCount, card.offsetWidth, card.offsetHeight);
+        this.card = card;
+        const count = this.flakeCount();
         // Fallback only; the card always defines --weather-snow-color
         const color = '#ffffff';
         const spill = this.cardConfig.spill_particles !== false;
@@ -105,10 +109,32 @@ export class SnowAnimation extends BaseAnimation {
             snowLayer,
             () => this.createFlake(color),
             (flake, next, warm) => this.fall(flake, card, wind, spill, next, warm),
+            (flake) => {
+                const swing = this.swingOf.get(flake);
+                swing?.kill();
+                this.swings = this.swings.filter(other => other !== swing);
+                this.removeParticle(flake);
+            },
         );
         this.pool.start(count).forEach(flake => this.addParticle(flake));
 
         devLog(this.config.devMode, `Snow animation started - ${count} flakes`);
+    }
+
+    /** Flakes in the air: the amounts' in auto mode, snowCount in manual; more on a bigger card */
+    private flakeCount(): number {
+        const card = this.card;
+        if (!card) return 0;
+        const amount = this.amounts?.snow ?? getWeatherSettings(this.cardConfig, this.realWindSpeed).snowCount;
+        return snowPoolSize(amount, card.offsetWidth, card.offsetHeight);
+    }
+
+    /**
+     * New amounts while it snows: flakes join from above the card, or leave at the end of their fall. Snow falls
+     * slowly, so the slide's hours (quick) show their own at once: flakes join part-way down, and leave unseen.
+     */
+    protected onAmountsChange(_previous: EngineAmounts | null, quick: boolean): void {
+        this.pool?.resize(this.flakeCount(), 6, quick).forEach(flake => this.addParticle(flake));
     }
 
     /**
@@ -141,7 +167,10 @@ export class SnowAnimation extends BaseAnimation {
             repeat: -1,
         });
         swing.progress(Math.random());
+        // A flake that joins while the card is paused holds still with the rest
+        if (this.state === AnimationLifecycleState.PAUSED) swing.pause();
         this.swings.push(swing);
+        this.swingOf.set(flake, swing);
         return flake;
     }
 

@@ -20,7 +20,7 @@
  */
 
 import { SunData } from './weather-data';
-import { localizeString, localeKey, formatTime, formatDuration, hourOfDay, timeHtml as splitTimeHtml } from './localize';
+import { localizeString, localeKey, formatTime, formatDuration, formatDaylightChange, daysToLastMonth, hourOfDay, zoneOffset, timeHtml as splitTimeHtml } from './localize';
 import { HomeAssistant } from './types';
 import { escapeHtml, getWeatherClass, lookup } from './utils';
 import { ActionConfig, ActionsConfig, bindActions, readActions, syncActionTarget } from './actions';
@@ -28,6 +28,9 @@ import { loadEditorBundle } from './bundles';
 import { IconName, icon } from './icons';
 import { HOUR_EVENT, HourLink } from './hour-link';
 import { onSharedWeather, weatherOnSun } from './weather-share';
+import { DEV_EVENT, devBase, devCards, devMarked, devOffset, devSee, loadDevWorld, type DevCard, type DevConfig } from './dev-link';
+import { DEV_MARKER } from './styles/card';
+import { PlaceView } from './place';
 import { COMPACT_PATH, PathGeometry, REGULAR_PATH, VH, VW, hourFrac, pathElevation, xFor, yFor } from './sun-path';
 
 export { pathElevation };
@@ -37,9 +40,13 @@ import {
     SKY_TEXT, SKY_TEXT_SECONDARY_ALPHA, SKY_GLOW, skyGlowGradient,
     SKY_COLOR_PROPERTIES, SKY_DISSOLVE_SEC, SKY_DISSOLVE_EASE,
 } from './sky';
+import { cardDate } from './clock';
+import { daylightChange, sunEvent } from './solar';
 
 export interface SunTrackerConfig {
     sun_entity?: string;
+    /** Always on the dev card's world (dev-link.ts): no sun entity needed */
+    dev_mode?: boolean;
     moon_entity?: string;
     /** Match the sky to this weather entity's condition; without it, the first weather card's on the same sun */
     weather_entity?: string;
@@ -47,10 +54,17 @@ export interface SunTrackerConfig {
     compact?: boolean;
     show_header?: boolean;
     show_details?: boolean;
+    /** Under Daylight, how much it changed: since yesterday (the default), last week or last month, or not at all */
+    daylight_delta?: 'day' | 'week' | 'month' | 'none';
     title?: string;
     color_palette?: 'default' | 'theme';
     /** Which way the sun crosses the chart: auto runs right to left south of the equator (Home Assistant's latitude) */
     direction?: 'auto' | 'left_to_right' | 'right_to_left';
+    /** Another place: its coordinates give the tracker its sun, computed, without sun_entity */
+    latitude?: number;
+    longitude?: number;
+    /** Another place's time zone: the tracker's times are in it */
+    time_zone?: string;
     /** What a tap does (default: the sun entity's more-info dialog) */
     tap_action?: ActionConfig;
     /** What a hold does (default: nothing) */
@@ -123,6 +137,53 @@ export function detailColumns(count: number, width: number): number {
 }
 
 
+/**
+ * Today's daylight against yesterday's, last week's or last month's ("+2m 14s since yesterday"), from the sun's path
+ * at Home Assistant's coordinates (the place's, for another place): today is the card's own date, by its local noon,
+ * so the figure holds all day and turns at midnight. The figure and the words either side of it apart, so the card
+ * can show the figure alone where the words don't fit. Nothing without coordinates or through a polar day or night.
+ */
+export function daylightDelta(hass: HomeAssistant | undefined, mode: SunTrackerConfig['daylight_delta'], now: Date): { before: string; figure: string; after: string } | null {
+    if (mode === 'none') return null;
+    const latitude = hass?.config?.latitude, longitude = hass?.config?.longitude;
+    if (typeof latitude !== 'number' || typeof longitude !== 'number' || !Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+    const kind = mode === 'week' || mode === 'month' ? mode : 'day';
+    const back = kind === 'week' ? 7 : kind === 'month' ? daysToLastMonth(now, hass) : 1;
+    const noon = now.getTime() + (12 - hourOfDay(now, hass)) * 3_600_000;
+    const seconds = daylightChange(latitude, longitude, noon, back);
+    if (seconds === null) return null;
+    const mark = '\u0000';
+    const [before = '', after = ''] = localizeString(hass, kind === 'week' ? 'daylight_week' : kind === 'month' ? 'daylight_month' : 'daylight_day', { delta: mark }).split(mark);
+    return { before, figure: formatDaylightChange(seconds, hass), after };
+}
+
+/**
+ * How much earlier (negative) or later the next sunrise or sunset is than the same one yesterday, last week or last
+ * month, in seconds of clock time: the two crossings where the sun's path finds them, a whole number of days apart,
+ * and the clock's change between them (a week across a clock change is about an hour). The day is the one whose
+ * crossing is nearest the sun entity's event, so a sunset after midnight is the day before's. Nothing without
+ * coordinates, where either day hasn't that crossing, or where it rounds to no change.
+ */
+export function sunShift(hass: HomeAssistant | undefined, mode: SunTrackerConfig['daylight_delta'], which: 'rise' | 'set', eventIso: string | null): number | null {
+    if (mode === 'none' || !eventIso) return null;
+    const latitude = hass?.config?.latitude, longitude = hass?.config?.longitude;
+    if (typeof latitude !== 'number' || typeof longitude !== 'number' || !Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+    const at = Date.parse(eventIso);
+    if (!Number.isFinite(at)) return null;
+    const back = mode === 'week' ? 7 : mode === 'month' ? daysToLastMonth(new Date(at), hass) : 1;
+    const event = sunEvent(latitude, longitude, at, which, back);
+    if (!event) return null;
+    const ms = event.now - event.then - back * 86_400_000 + zoneOffset(event.now, hass) - zoneOffset(event.then, hass);
+    const seconds = Math.round(ms / 1000);
+    return seconds === 0 ? null : seconds;
+}
+
+/** The daylight's change in words: "+2m 14s since yesterday" */
+export function daylightDeltaText(hass: HomeAssistant | undefined, mode: SunTrackerConfig['daylight_delta'], now: Date): string {
+    const d = daylightDelta(hass, mode, now);
+    return d ? d.before + d.figure + d.after : '';
+}
+
 function sunPath(riseHour: number, setHour: number, g: PathGeometry, rtl: boolean): string {
     const points: string[] = [];
     for (let i = 0; i <= 240; i++) {
@@ -159,6 +220,24 @@ const SKY_TEXT_HEX = toHex(oklchToSrgb(SKY_TEXT));
 
 // ── Styles ──
 const STYLES = `
+    :host([data-awc-dev]) .st-card::after {
+        content: 'Simulated';
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        z-index: 5;
+        padding: 0 8px;
+        border-radius: 9px;
+        font-size: 11px;
+        line-height: 18px;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+        color: ${DEV_MARKER.text};
+        background: ${DEV_MARKER.fill};
+        pointer-events: none;
+    }
+    /* The compact strip's next event sits in its top right: the marker takes the bottom corner */
+    :host([data-awc-dev]) .st-card.compact::after { top: auto; bottom: 8px; }
     :host {
         display: block;
         height: 100%;
@@ -304,9 +383,25 @@ const STYLES = `
         font-size: 15px;
         line-height: 20px;
         font-variant-numeric: tabular-nums;
+        white-space: nowrap;
         color: var(--st-secondary);
         opacity: var(--st-secondary-opacity);
     }
+    /* How much earlier or later the sunrise or sunset is, after the countdown: in words, or the signed figure where
+       they don't fit, or nothing (_fit). What it's compared with is its tooltip, and screen readers hear it all.
+       Never cut short, never on a second line */
+    .st-shift-sign { display: none; }
+    .st-shift[data-form="sign"] .st-shift-sign { display: inline; }
+    .st-shift-period,
+    .st-shift[data-form="sign"] .st-shift-words {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+    }
+    .st-shift[hidden] { display: none; }
 
     /* ── Sun path ── */
     .st-chart {
@@ -431,6 +526,28 @@ const STYLES = `
         white-space: normal;
         text-wrap: balance;
     }
+    /* How much the daylight changed, quiet after its value on the same line, so the details take no more room. Its
+       words show where the column has room for them; where it doesn't, the figure stands alone and the words stay for
+       screen readers; where even that doesn't fit, it's left out (_fit). Never cut short. */
+    .st-delta {
+        margin-left: 0.5em;
+        font-size: 13px;
+        /* Its own smaller line box, so the value's line keeps its height */
+        line-height: 1;
+        font-weight: 400;
+        letter-spacing: 0;
+        color: var(--st-secondary);
+        opacity: var(--st-secondary-opacity);
+    }
+    .st-delta[data-words="off"] .st-delta-words {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+    }
+    .st-delta[hidden] { display: none; }
 
     /* Fit to the frame, stepped down until nothing overflows (see _fit) */
     .st-card[data-fit="compact"] .st-metric[data-kind="first-light"],
@@ -535,9 +652,12 @@ const STYLES = `
     }
 `;
 
-class AnimatedSunTrackerCard extends HTMLElement {
+class AnimatedSunTrackerCard extends HTMLElement implements DevCard {
     private config: SunTrackerConfig = {};
     private _hass?: HomeAssistant;
+    /** Home Assistant as it arrives; _hass is it as the tracker reads it: through the dev card's world, and from its place */
+    private _homeHass?: HomeAssistant;
+    private _place = new PlaceView(() => [this.config ? this._weatherId() : undefined]);
     private _shadow: ShadowRoot;
     private _clock?: ReturnType<typeof setInterval>;
     private _resizeObserver?: ResizeObserver;
@@ -550,20 +670,50 @@ class AnimatedSunTrackerCard extends HTMLElement {
     private _drawnWeather: string | undefined;
     private _unshare?: () => void;
 
+    readonly devKind = 'tracker' as const;
+    /** The dev card's world changed: read Home Assistant again through it, and draw the now line again when the time moved */
+    private _onDev = () => {
+        this.toggleAttribute('data-awc-dev', devMarked(this.config as DevConfig));
+        if (this._homeHass && this.isConnected) this.hass = this._homeHass;
+        const offset = devOffset();
+        if (offset !== this._devClock) { this._devClock = offset; this._render(); }
+    };
+    private _devClock = 0;
+
     constructor() {
         super();
         this._shadow = this.attachShadow({ mode: 'open' });
     }
 
+    devConfig(): DevConfig {
+        return this.config as DevConfig;
+    }
+
+    /** Home Assistant as the tracker reads it: through the dev card's world when it's on for it, then from its place */
+    private _see(hass: HomeAssistant): HomeAssistant {
+        return this._place.see(devSee(hass, this.config as DevConfig));
+    }
+
     setConfig(config: SunTrackerConfig): void {
-        if (!config.sun_entity) {
-            throw new Error('Please define a sun_entity (e.g. sun.sun)');
+        const placeChanged = this._place.set(config);
+        const placeSun = this._place.place?.sunId;
+        if (!config.sun_entity && !placeSun && !config.dev_mode) {
+            throw new Error('Please define a sun_entity (e.g. sun.sun), or the latitude and longitude of a place');
         }
-        this.config = { ...config };
+        const devChanged = !!this.config.dev_mode !== !!config.dev_mode;
+        // Another place's sun is computed, under a key from its coordinates; they win over sun_entity, your own sun.
+        // dev_mode runs on the dev card's world, whose sun is sun.sun
+        this.config = { ...config, sun_entity: placeSun || config.sun_entity || 'sun.sun' };
+        // dev_mode with no dev card on the page: the marker says the sky is simulated
+        this.toggleAttribute('data-awc-dev', devMarked(this.config as DevConfig));
+        if (config.dev_mode) loadDevWorld().then(this._onDev).catch((err: Error) => console.warn(`Animated Weather Card: ${err.message}`));
+        if ((placeChanged || devChanged) && this._homeHass) this._hass = this._see(this._homeHass);
         this._render();
     }
 
     set hass(hass: HomeAssistant) {
+        this._homeHass = devBase(hass);
+        hass = this._see(hass);
         const sunId = this.config.sun_entity || '';
         const moonId = this.config.moon_entity || '';
         const oldSun = this._hass?.states[sunId];
@@ -589,9 +739,15 @@ class AnimatedSunTrackerCard extends HTMLElement {
 
     connectedCallback(): void {
         // The "now" dot and the countdown move with the clock, not with HA.
-        if (!this._clock) this._clock = setInterval(() => this._render(), 60_000);
+        // A computed sun moves with the clock too: the tracker looks again through its place
+        if (!this._clock) this._clock = setInterval(() => {
+            if (this._homeHass && this._place.place) this._hass = this._see(this._homeHass);
+            this._render();
+        }, 60_000);
         // The same listener twice is one
         window.addEventListener(HOUR_EVENT, this._onHour);
+        window.addEventListener(DEV_EVENT, this._onDev);
+        devCards().add(this);
         // A weather card on its sun arrives, leaves or changes its weather: the sky follows when it's this one's
         if (!this._unshare) this._unshare = onSharedWeather(() => { if (this._weatherId() !== this._drawnWeather) this._render(); });
         if (!this._resizeObserver && typeof ResizeObserver !== 'undefined') {
@@ -604,6 +760,8 @@ class AnimatedSunTrackerCard extends HTMLElement {
         if (this._clock) clearInterval(this._clock);
         this._clock = undefined;
         window.removeEventListener(HOUR_EVENT, this._onHour);
+        window.removeEventListener(DEV_EVENT, this._onDev);
+        devCards().delete(this);
         this._unshare?.();
         this._unshare = undefined;
         this._link = null;
@@ -623,20 +781,76 @@ class AnimatedSunTrackerCard extends HTMLElement {
         const card = this._shadow.querySelector('.st-card') as HTMLElement | null;
         if (!card) return;
         const metrics = card.querySelector('.st-metrics') as HTMLElement | null;
+        const delta = card.querySelector('.st-delta') as HTMLElement | null;
         for (const state of ['regular', 'compact', 'short', 'tight']) {
             card.dataset.fit = state;
+            // First, as the compact tracker's chart moves with its headline's width
+            this._fitShift(card);
             if (metrics) {
                 // Each fit shows a different number of details, so the columns follow it
                 const shown = Array.from(metrics.children).filter(el => getComputedStyle(el).display !== 'none').length;
                 metrics.style.setProperty('--st-cols', String(detailColumns(shown, metrics.clientWidth)));
             }
+            // The daylight's change on its line: with its words, else the figure alone, else not at all, never cut short
+            if (delta?.parentElement) {
+                const line = delta.parentElement;
+                const over = () => line.scrollWidth > line.clientWidth + 0.5;
+                delta.hidden = false;
+                delete delta.dataset.words;
+                if (over()) delta.dataset.words = 'off';
+                if (over()) delta.hidden = true;
+            }
             if (card.scrollHeight <= card.clientHeight + 1) return;
         }
     }
 
+    /**
+     * The shift's markup: "1m 6s earlier" on the line, "−1m 6s" where that doesn't fit, and what it's compared with
+     * ("than yesterday") as its tooltip and for screen readers, who hear the whole phrase in either form.
+     */
+    private _shiftHtml(shift: number, hass: HomeAssistant | undefined): string {
+        const mode = this.config.daylight_delta;
+        const words = localizeString(hass, shift < 0 ? 'shift_earlier' : 'shift_later', { delta: formatDaylightChange(shift, hass, false) });
+        const mark = '\u0000';
+        const full = localizeString(hass, mode === 'week' ? 'shift_week' : mode === 'month' ? 'shift_month' : 'shift_day', { shift: mark });
+        const [before = '', after = ''] = full.split(mark);
+        const period = (text: string) => (text ? `<span class="st-shift-period">${escapeHtml(text)}</span>` : '');
+        return `<span class="st-shift" title="${escapeHtml(before + words + after)}"><span class="st-shift-sep" aria-hidden="true"> · </span>`
+            + `${period(before)}<span class="st-shift-words">${escapeHtml(words)}</span>${period(after)}`
+            + `<span class="st-shift-sign" aria-hidden="true">${escapeHtml(formatDaylightChange(shift, hass))}</span></span>`;
+    }
+
+    /**
+     * The sunrise's or sunset's shift after the countdown, in the longest form that fits on its one line: its words,
+     * else the signed figure, else nothing. On the regular tracker the line has the card's width; on the compact one
+     * the headline is as wide as its words, so the shift may widen it only a little (8% of the card, 40 px at most),
+     * or the sun's path beside it would be squeezed.
+     */
+    private _fitShift(card: HTMLElement): void {
+        const shift = card.querySelector('.st-shift') as HTMLElement | null;
+        const line = shift?.parentElement;
+        if (!shift || !line) return;
+        shift.hidden = false;
+        if (getComputedStyle(line).display === 'none') return;
+        let room = line.clientWidth;
+        if (card.classList.contains('compact')) {
+            shift.hidden = true;
+            const hero = card.querySelector('.st-hero') as HTMLElement | null;
+            room = (hero?.getBoundingClientRect().width ?? line.clientWidth) + Math.min(40, 0.08 * card.clientWidth);
+            shift.hidden = false;
+        }
+        for (const form of ['words', 'sign']) {
+            shift.dataset.form = form;
+            if (line.scrollWidth <= room + 0.5) return;
+        }
+        shift.hidden = true;
+    }
+
     /** The gestures' actions, against the sun entity: a tap opens its more-info dialog unless told otherwise */
     private _actions(): ActionsConfig {
-        return readActions(this.config as Record<string, unknown>, this.config.sun_entity);
+        // A computed sun has no entity in Home Assistant to open: a tap does what tap_action says, else nothing
+        const sun = this.config.sun_entity === this._place.place?.sunId ? undefined : this.config.sun_entity;
+        return readActions(this.config as Record<string, unknown>, sun);
     }
 
     getCardSize(): number { return this.config.compact ? 2 : 6; }
@@ -664,7 +878,7 @@ class AnimatedSunTrackerCard extends HTMLElement {
         const id = this._weatherId();
         const state = id ? this._hass?.states[id]?.state : undefined;
         if (state && state !== 'unavailable' && state !== 'unknown') {
-            const weatherClass = getWeatherClass(state, false, undefined, undefined, this._hass?.config?.time_zone,
+            const weatherClass = getWeatherClass(state, undefined, undefined, this._hass?.config?.time_zone,
                 { night: phase === 'night' });
             if ((SKY_CONDITIONS as readonly string[]).includes(weatherClass)) return weatherClass as SkyCondition;
         }
@@ -731,7 +945,7 @@ class AnimatedSunTrackerCard extends HTMLElement {
             return;
         }
 
-        const now = new Date();
+        const now = cardDate();
         const nowHour = hourOfDay(now, this._hass);
         const riseH = isoToHours(sun.sunrise, this._hass);
         const setH = isoToHours(sun.sunset, this._hass);
@@ -749,6 +963,10 @@ class AnimatedSunTrackerCard extends HTMLElement {
         const countdown = untilMs > 0
             ? localizeString(hass, 'in_duration', { duration: formatDuration(untilMs / 3600000, hass) })
             : '';
+        // After it, how much earlier or later that sunrise or sunset is: in words where there's room, else the signed
+        // figure (the words kept for screen readers), else nothing (_fit)
+        const shift = countdown && this.config.show_header !== false ? sunShift(hass, this.config.daylight_delta, nextIsSunset ? 'set' : 'rise', nextIso) : null;
+        const shiftHtml = shift === null ? '' : this._shiftHtml(shift, hass);
 
         // Sky for the current phase
         const phase = skyPhaseFromSun(sun.elevation, sun.rising, sun.aboveHorizon);
@@ -786,7 +1004,7 @@ class AnimatedSunTrackerCard extends HTMLElement {
                     <span>${t(nextIsSunset ? 'sunset' : 'sunrise')}</span>
                 </div>
                 <div class="st-time">${time(nextIso)}</div>
-                ${countdown ? `<div class="st-countdown">${escapeHtml(countdown)}</div>` : ''}
+                ${countdown ? `<div class="st-countdown">${escapeHtml(countdown)}${shiftHtml}</div>` : ''}
             </div>` : (this.config.title && !compact ? `<div class="st-hero"><div class="st-title">${escapeHtml(this.config.title)}</div></div>` : '');
 
         const metric = (kind: string, iconName: IconName, label: string, valueHtml: string, wrap = false) => `
@@ -795,6 +1013,10 @@ class AnimatedSunTrackerCard extends HTMLElement {
                     <div class="st-metric-value${wrap ? ' wrap' : ''}">${valueHtml}</div>
                 </div>`;
         const showDetails = !compact && this.config.show_details !== false;
+        // The daylight's change, quiet on its line: its words where they fit, the figure alone where they don't (_fit)
+        const d = showDetails ? daylightDelta(hass, this.config.daylight_delta, now) : null;
+        const words = (text: string) => (text.trim() ? `<span class="st-delta-words">${escapeHtml(text)}</span>` : '');
+        const deltaHtml = d ? `<span class="st-delta" title="${escapeHtml(d.before + d.figure + d.after)}">${words(d.before)}<span class="st-delta-figure">${escapeHtml(d.figure)}</span>${words(d.after)}</span>` : '';
         // Compact: the other event, small, in the chart's open sky
         const noteHtml = compact && showHeader ? `
                         <div class="st-chart-note">${t(nextIsSunset ? 'sunrise' : 'sunset')}<span class="st-chart-note-time">${time(nextIsSunset ? sun.sunrise : sun.sunset)}</span></div>` : '';
@@ -804,7 +1026,7 @@ class AnimatedSunTrackerCard extends HTMLElement {
                     ? metric('sunrise', 'sunrise', t('sunrise'), time(sun.sunrise))
                     : metric('sunset', 'sunset', t('sunset'), time(sun.sunset))}
                 ${metric('noon', 'noon', t('solar_noon'), time(sun.noon))}
-                ${metric('daylight', 'daylight', t('daylight'), escapeHtml(formatDuration(dayLength, hass)))}
+                ${metric('daylight', 'daylight', t('daylight'), escapeHtml(formatDuration(dayLength, hass)) + deltaHtml)}
                 ${metric('first-light', 'first-light', t('first_light'), time(sun.dawn))}
                 ${metric('last-light', 'last-light', t('last_light'), time(sun.dusk))}
                 ${moon ? metric('moon', moon.icon, t('moon'), escapeHtml(moon.phaseName), true) : ''}

@@ -14,6 +14,7 @@ import { FC_WORDS } from '../../src/fc-words';
 import type { ForecastExtras, ForecastHost } from '../../src/forecast-host';
 import type { ForecastEntry } from '../../src/forecast-data';
 import { HOUR_EVENT, sendHour, type HourLink } from '../../src/hour-link';
+import { FORECAST_CSS } from '../../src/fc-css';
 
 const HOUR = 3600_000;
 const today = (h: number, m = 0) => { const d = new Date(); d.setHours(h, m, 0, 0); return d; };
@@ -128,7 +129,8 @@ describe('the forecast on the weather card', () => {
         expect(row.querySelector('.fc-col .fc-hr')?.textContent).toBe('Now');
         const chips = card.querySelector('[data-fc-chips]') as HTMLElement;
         expect(chips.getAttribute('role')).toBe('radiogroup');
-        expect([...chips.querySelectorAll('[role="radio"]')].map(c => c.getAttribute('data-metric'))).toEqual(['temp', 'feels', 'chance', 'amount']);
+        // A chip for every value the forecast reports: the sample's humidity, wind and pressure after the four
+        expect([...chips.querySelectorAll('[role="radio"]')].map(c => c.getAttribute('data-metric'))).toEqual(['temp', 'feels', 'chance', 'amount', 'wind', 'humidity', 'pressure']);
         const slider = card.querySelector('[role="slider"]') as HTMLElement;
         expect(slider.getAttribute('aria-valuenow')).toBe('0');
         expect(slider.getAttribute('aria-valuetext')).toMatch(/^Now: Partly cloudy, 21°/);
@@ -147,7 +149,7 @@ describe('the forecast on the weather card', () => {
         // The divider moves with it: between the readings and the row while the row shows, above the readings (the rail's) where it gives way
         const css = card.querySelector('style.awc-fc-css')?.textContent ?? '';
         expect(css).toMatch(/\.weather-attributes ~ \.fc-section::before \{[^}]*height: 1px;[^}]*opacity: 0\.2;/);
-        expect(css).toMatch(/:is\(\[data-fc="full"\], \[data-fc="glyphs"\], \[data-fc="row"\]\) \.weather-attributes:has\(~ \.fc-section\)::before \{ content: none; \}/);
+        expect(css).toMatch(/:is\(\[data-fc="days"\], \[data-fc="full"\], \[data-fc="glyphs"\], \[data-fc="row"\]\) \.weather-attributes:has\(~ \.fc-section\)::before \{ content: none; \}/);
         expect(css).toMatch(/\.weather-attributes ~ \.fc-section \{[^}]*padding-top: calc\(14px \+ var\(--fc-sec-top, 0px\)\)/);
     });
 
@@ -192,6 +194,49 @@ describe('the forecast on the weather card', () => {
         });
     });
 
+    it('builds the row again when the card crosses 640 px: in the hero\'s column wide, under the readings narrow (#32)', async () => {
+        // Home Assistant can lay a 24-column card out narrow before it's wide: the row stayed under the readings,
+        // which the wide layout turned into a third column at the top, beside a clipped temperature
+        let w = 600;
+        const proto = HTMLElement.prototype;
+        const cw = Object.getOwnPropertyDescriptor(proto, 'clientWidth');
+        Object.defineProperty(proto, 'clientWidth', { configurable: true, get() { return this.classList?.contains('animated-weather-card') ? w : 0; } });
+        try {
+            const card = mount({ show_forecast: true });
+            await settle();
+            const extras = (card as unknown as { extras: ForecastExtras }).extras;
+            const sec = () => card.querySelector('.fc-section') as HTMLElement;
+            const parent = () => sec()?.parentElement?.className;
+            expect(parent()).toBe('weather-info');
+            const narrow = sec();
+            w = 715;
+            extras.fitted();
+            await until(() => parent() === 'main-weather-info');
+            expect(parent()).toBe('main-weather-info');
+            expect(sec()).not.toBe(narrow);
+            // The hero's column, to 448 px (jsdom lays out no column: the most)
+            expect(sec().style.width).toBe('448px');
+            // Unchanged, it stays as built
+            const wide = sec();
+            extras.fitted();
+            await settle();
+            expect(sec()).toBe(wide);
+            // Narrow again: under the readings, as wide as the card
+            w = 400;
+            extras.fitted();
+            await until(() => parent() === 'weather-info');
+            const at400 = sec();
+            expect(at400.style.width).toBe('');
+            // A new width within the narrow layout shows more or fewer hours: nothing is built again
+            w = 353;
+            extras.fitted();
+            await settle();
+            expect(sec()).toBe(at400);
+        } finally {
+            if (cw) Object.defineProperty(proto, 'clientWidth', cw); else delete (proto as { clientWidth?: number }).clientWidth;
+        }
+    });
+
     it('keeps the clouds above the readings, and with no row gives the card today\'s sky', async () => {
         const card = mount({ show_forecast: true });
         await settle();
@@ -224,6 +269,44 @@ describe('the forecast on the weather card', () => {
         await settle();
         expect(card.querySelector('[data-fc-hourly]')?.getAttribute('data-metric')).toBe('chance');
         expect(card.querySelector('[data-fc-chips] [data-metric="chance"]')?.getAttribute('aria-checked')).toBe('true');
+    });
+
+    it('leaves the line at the top out of the forecast card with show_summary: false, and still slides', async () => {
+        const card = mount({ show_summary: false }, undefined, 'animated-forecast-card');
+        await settle();
+        expect(card.querySelector('.fc-lead')).toBeNull();
+        expect(card.querySelector('.fc-now')).toBeNull();
+        expect((card.querySelector('.fc-fcard') as HTMLElement).dataset.nolead).toBe('');
+        expect(card.querySelector('[data-fc-hourly]')).not.toBeNull();
+        const slider = card.querySelector('[role="slider"]') as HTMLElement;
+        slider.focus();
+        slider.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+        expect(slider.getAttribute('aria-valuenow')).not.toBe('0');
+        slider.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        // The lead's room is kept for the hours alone: a card without them gives it back
+        const daysOnly = mount({ show_summary: false, show_hours: false }, undefined, 'animated-forecast-card');
+        await settle();
+        expect((daysOnly.querySelector('.fc-fcard') as HTMLElement).dataset.nolead).toBeUndefined();
+        const usual = mount({}, undefined, 'animated-forecast-card');
+        await settle();
+        expect(usual.querySelector('.fc-lead .fc-now')).not.toBeNull();
+    });
+
+    it('leaves the chips out with show_chips: false, the row and the days on forecast_metric, on both cards', async () => {
+        const card = mount({ show_forecast: true, show_days: true, forecast_metric: 'chance', show_chips: false });
+        await settle();
+        expect(card.querySelector('[data-fc-chips]')).toBeNull();
+        expect(card.querySelector('[data-fc-hourly]')?.getAttribute('data-metric')).toBe('chance');
+        expect((card.querySelector('[data-fc-daily]') as HTMLElement)?.dataset.metric).toBe('chance');
+        const forecast = mount({ forecast_metric: 'chance', show_chips: false }, undefined, 'animated-forecast-card');
+        await settle();
+        expect(forecast.querySelector('[data-fc-chips]')).toBeNull();
+        expect(forecast.querySelector('[data-fc-hourly]')?.getAttribute('data-metric')).toBe('chance');
+        expect((forecast.querySelector('[data-fc-daily]') as HTMLElement)?.dataset.metric).toBe('chance');
+        // With them, as always
+        const usual = mount({ forecast_metric: 'chance' }, undefined, 'animated-forecast-card');
+        await settle();
+        expect(usual.querySelector('[data-fc-chips]')).not.toBeNull();
     });
 
     it('asks for eight rows with an hourly forecast, five without one, one more with a note; the nightstand six', () => {
@@ -636,6 +719,33 @@ describe('the slide: it stays where it\'s left', () => {
         };
         return { root, slide, offsets, slots, needles, drag, pointer };
     }
+
+    it('shows each hour\'s own amounts as it comes under the needle, carries them on the needle, and the card\'s own at home', () => {
+        const shown: unknown[] = [];
+        const layers = {
+            animations: {}, startAnimation: async () => {}, stopAnimation: async () => {},
+            amountsAt: (e: ForecastEntry) => ({ hour: e.datetime }), showAmounts: (a: unknown) => shown.push(a),
+        };
+        const { slide, slots, drag } = rig({ layers });
+        const heard: HourLink[] = [];
+        const listen = (e: Event) => heard.push((e as CustomEvent<HourLink>).detail);
+        window.addEventListener(HOUR_EVENT, listen);
+        drag(-100);
+        vi.advanceTimersByTime(2000);
+        const k = slots[slots.length - 1]!;
+        expect(k).toBe(2);
+        const hour = new Timeline(forecast(), 'hourly', Date.now()).slots[k].datetime;
+        expect(shown[shown.length - 1]).toEqual({ hour });
+        expect(heard[heard.length - 1].amounts).toEqual({ hour });
+        slide.home(true);
+        expect(shown[shown.length - 1]).toBeNull();
+        expect(heard[heard.length - 1].amounts).toBeNull();
+        window.removeEventListener(HOUR_EVENT, listen);
+        // From a main bundle without them (manual, or older), the slide moves as always
+        const older = rig({ layers: { animations: {}, startAnimation: async () => {}, stopAnimation: async () => {} } });
+        expect(() => { older.drag(-100); vi.advanceTimersByTime(2000); }).not.toThrow();
+        expect(older.slots[older.slots.length - 1]).toBe(2);
+    });
 
     it('following another card, a hand on it continues from the hour it shows, and from then on it leads', () => {
         const { slide, slots, drag } = rig();
@@ -1122,8 +1232,8 @@ describe('the time as the big value (hero: clock), and the date (show_date)', ()
         expect(at(L + 8 + P + 10)).toEqual([long, false]);
     });
 
-    it('leaves the nightstand, the forecast card and dev mode their own text', async () => {
-        for (const [config, type] of [[{ hero: 'clock', layout: 'nightstand' }, undefined], [{ hero: 'clock' }, 'animated-forecast-card'], [{ hero: 'clock', dev_mode: true }, undefined]] as const) {
+    it('leaves the nightstand and the forecast card their own text', async () => {
+        for (const [config, type] of [[{ hero: 'clock', layout: 'nightstand' }, undefined], [{ hero: 'clock' }, 'animated-forecast-card']] as const) {
             const card = mount(config, makeHass(), type);
             await settle();
             expect(card.querySelector('.awc-hero-clock'), JSON.stringify(config)).toBeNull();
@@ -1145,6 +1255,31 @@ describe('the time as the big value (hero: clock), and the date (show_date)', ()
             expect(fw.querySelector('.fw-when .fw-date')?.textContent).not.toBe('');
             expect(fw.querySelector('.fw-today > .fw-lead .fw-tv')?.textContent).toBe('21');
             expect(fw.querySelectorAll('.fw-tv')).toHaveLength(1);
+        } finally {
+            if (cw) Object.defineProperty(proto, 'clientWidth', cw); else delete (proto as { clientWidth?: number }).clientWidth;
+            if (ch) Object.defineProperty(proto, 'clientHeight', ch); else delete (proto as { clientHeight?: number }).clientHeight;
+        }
+    });
+
+    it('marks a frame the wall takes from the card\'s own fit, so its sun and light are the wall\'s before the wall arrives', async () => {
+        const proto = HTMLElement.prototype;
+        const cw = Object.getOwnPropertyDescriptor(proto, 'clientWidth'), ch = Object.getOwnPropertyDescriptor(proto, 'clientHeight');
+        let w = 1278, h = 758;
+        Object.defineProperty(proto, 'clientWidth', { configurable: true, get() { return this.classList?.contains('animated-weather-card') ? w : 0; } });
+        Object.defineProperty(proto, 'clientHeight', { configurable: true, get() { return this.classList?.contains('animated-weather-card') ? h : 0; } });
+        try {
+            const frame = async (config: object) => {
+                const root = mount(config).querySelector('.animated-weather-card') as HTMLElement;
+                await settle();
+                return root.hasAttribute('data-wall-frame');
+            };
+            expect(await frame({ show_forecast: true })).toBe(true);
+            expect(await frame({})).toBe(false);
+            expect(await frame({ show_forecast: true, layout: 'nightstand' })).toBe(false);
+            w = 600;
+            expect(await frame({ show_forecast: true })).toBe(false);
+            w = 1278; h = 500;
+            expect(await frame({ show_forecast: true })).toBe(false);
         } finally {
             if (cw) Object.defineProperty(proto, 'clientWidth', cw); else delete (proto as { clientWidth?: number }).clientWidth;
             if (ch) Object.defineProperty(proto, 'clientHeight', ch); else delete (proto as { clientHeight?: number }).clientHeight;
@@ -1287,6 +1422,24 @@ describe('one needle across the page', () => {
         expect((themed.querySelector('.animated-weather-card .sky') as HTMLElement).style.getPropertyValue('--awc-sky-top')).toBe('');
     });
 
+    it('a forecast card without hours takes the needle\'s amounts with its weather in auto mode, and none in manual', async () => {
+        type Ctl = { showAmounts(a: unknown): void };
+        const controller = (card: HTMLElement) => (card as unknown as { animationController: Ctl }).animationController;
+        const other = document.createElement('div');
+        const at = Date.now() + 3 * HOUR;
+        const weather = { rain: 1, snow: 0, sleet: 0, clouds: 0, fog: 0, wind: 0, lightning: 0 };
+        const amounts = { rain: { kind: 'pouring', drops: 32 }, snow: 1, sleet: 1, clouds: [1, 1, 2], fog: 1, leaves: 1, gusts: 0, stars: 1 };
+        for (const mode of ['auto', 'manual']) {
+            const fc = mount({ show_hours: false, weather_effects: true, engine_mode: mode }, makeHass(), 'animated-forecast-card');
+            await settle();
+            const show = vi.spyOn(controller(fc), 'showAmounts');
+            sendHour({ source: other, entity: 'weather.home', sun: 'sun.sun', at, temperature: 2, sky: null, weather, amounts: amounts as never });
+            sendHour({ source: other, entity: 'weather.home', sun: 'sun.sun', at: null, temperature: null, sky: null, weather: null, amounts: null });
+            if (mode === 'auto') expect(show.mock.calls).toEqual([[amounts], [null]]);
+            else expect(show).not.toHaveBeenCalled();
+        }
+    });
+
     it('a forecast card without hours takes the needle\'s weather too, as the other card shows it, and lets it go with that card', async () => {
         const rainy = makeHass();
         rainy.states['weather.home'].state = 'rainy';
@@ -1396,10 +1549,19 @@ describe('a weather card without the forecast follows a card dragged on its weat
     const rootOf = (card: Card) => card.querySelector('.animated-weather-card') as HTMLElement;
     const text = (card: Card, sel: string) => rootOf(card).querySelector(sel)?.textContent ?? '';
 
-    it('loads and reads nothing until a card on its weather is dragged', async () => {
+    it('in auto mode reads only the hour under way, for how much weather to show, and loads nothing', async () => {
         const hass = makeHass();
         const subscribe = vi.spyOn(hass.connection, 'subscribeMessage');
         const card = mount({}, hass);
+        await settle();
+        expect(extrasOf(card)).toBeUndefined();
+        expect(subscribe.mock.calls.map(([, m]) => m.forecast_type)).toEqual(['hourly']);
+    });
+
+    it('loads and reads nothing until a card on its weather is dragged', async () => {
+        const hass = makeHass();
+        const subscribe = vi.spyOn(hass.connection, 'subscribeMessage');
+        const card = mount({ engine_mode: 'manual' }, hass);
         await settle();
         expect(extrasOf(card)).toBeUndefined();
         // Another weather's needle, and a card coming home, are no drag on its weather
@@ -1559,15 +1721,60 @@ describe('a weather card without the forecast follows a card dragged on its weat
         expect(text(card, '.temperature-value')).toBe('21');
     });
 
-    it('the nightstand and dev mode stay as they are', async () => {
+    it('the nightstand stays as it is', async () => {
         const night = mount({ layout: 'nightstand' });
-        const dev = mount({ dev_mode: true });
         await settle();
         needle(Date.now() + 3 * HOUR);
         await settle();
         await settle();
-        for (const c of [night, dev]) expect(rootOf(c)?.hasAttribute('data-awc-away') ?? false).toBe(false);
-        expect(extrasOf(dev)).toBeUndefined();
+        expect(rootOf(night)?.hasAttribute('data-awc-away') ?? false).toBe(false);
         needle(null);
+    });
+});
+
+describe('the days on the weather card (show_days)', () => {
+    const extrasOf = (card: Card) => (card as unknown as { extras?: ForecastExtras }).extras;
+    const rootOf = (card: Card) => card.querySelector('.animated-weather-card') as HTMLElement;
+    const other = document.createElement('div');
+
+    it('come under the row and its chips, as many as forecast_days, and give way first: one at a time to three, then all', async () => {
+        const card = mount({ show_forecast: true, show_days: true, forecast_days: 5 });
+        await until(() => !!rootOf(card)?.querySelector('.fc-section .fc-daily'));
+        const sec = rootOf(card).querySelector('.fc-section') as HTMLElement;
+        expect([...sec.children].map(e => e.className.split(' ')[0])).toEqual(['fc-hourly', 'fc-chips', 'fc-daily']);
+        expect(sec.querySelectorAll('.fc-day')).toHaveLength(5);
+        const x = extrasOf(card)!;
+        expect(x.levels()).toEqual(['days:5', 'days:4', 'days:3', 'full', 'glyphs', 'row', 'none', 'bare']);
+        x.setLevel('days:4');
+        expect(rootOf(card).dataset.fc).toBe('days');
+        expect([...sec.querySelectorAll<HTMLElement>('.fc-day')].map(r => r.hidden)).toEqual([false, false, false, false, true]);
+        // Any other level hides them, by CSS on data-fc
+        x.setLevel('full');
+        expect(rootOf(card).dataset.fc).toBe('full');
+        expect(FORECAST_CSS).toMatch(/\.animated-weather-card:not\(\[data-fc="days"\]\) \.fc-section \.fc-daily \{ display: none; \}/);
+    });
+
+    it('ask for their rows in the sections view, and add to the card\'s size', () => {
+        expect(mount({ show_forecast: true, show_days: true }).getGridOptions().rows).toBe(12);
+        expect(mount({ show_forecast: true, show_days: true, forecast_days: 3 }).getGridOptions().rows).toBe(10);
+        expect(mount({ show_forecast: true }).getGridOptions().rows).toBe(8);
+        // Not without the forecast, nor on the compact strip
+        expect(mount({ show_days: true }).getGridOptions().rows).toBe(4);
+        expect(mount({ show_forecast: true, show_days: true }).getCardSize()).toBe(mount({ show_forecast: true }).getCardSize() + 4);
+    });
+
+    it('follow the needle as the forecast card\'s do, and stay off the compact strip', async () => {
+        const card = mount({ show_forecast: true, show_days: true });
+        await until(() => !!rootOf(card)?.querySelector('.fc-daily'));
+        const list = rootOf(card).querySelector('.fc-daily') as HTMLElement;
+        sendHour({ source: other, entity: 'weather.home', sun: 'sun.sun', at: Date.now() + 26 * HOUR, temperature: 15, sky: null });
+        await until(() => list.hasAttribute('data-fc-follow'));
+        expect(list.hasAttribute('data-fc-follow')).toBe(true);
+        sendHour({ source: other, entity: 'weather.home', sun: 'sun.sun', at: null, temperature: null, sky: null });
+        await until(() => !list.hasAttribute('data-fc-follow'));
+        const strip = mount({ show_forecast: true, show_days: true, compact: true });
+        await settle();
+        await settle();
+        expect(rootOf(strip).querySelector('.fc-daily')).toBeNull();
     });
 });

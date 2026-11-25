@@ -47,14 +47,15 @@ describe('the sky a sun tracker shares with the weather card on its sun', () => 
         expect(top(tracker)).toBe(skyColors('sunny', 'day').top);
     });
 
-    it('counts the forecast card, on the sun it names; not dev mode\'s sample weather', () => {
+    it('counts the forecast card, on the sun it names, and a card in dev mode', () => {
         mount('animated-forecast-card', { entity: 'weather.home', sun_entity: 'sun.home' });
         expect(weatherOnSun('sun.home')).toBe('weather.home');
         expect(weatherOnSun('sun.sun')).toBeUndefined();
+        // dev_mode reads the dev card's world, whose weather the tracker shares too
         const dev = mount('animated-weather-card', { dev_mode: true, entity: 'weather.home', sun_entity: 'sun.dev' });
-        expect(weatherOnSun('sun.dev')).toBeUndefined();
-        // A new weather or sun follows the card's config
-        dev.setConfig({ entity: 'weather.home', sun_entity: 'sun.dev' });
         expect(weatherOnSun('sun.dev')).toBe('weather.home');
+        // A new weather or sun follows the card's config
+        dev.setConfig({ entity: 'weather.garden', sun_entity: 'sun.dev' });
+        expect(weatherOnSun('sun.dev')).toBe('weather.garden');
     });
 });

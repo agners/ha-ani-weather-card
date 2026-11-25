@@ -31,69 +31,10 @@ export const DEFAULT_ENGINE_SETTINGS = {
     splashBounce: 80
 };
 
-export const DEV_MODE_TEMPERATURES = {
-    'sunny': '26',
-    'rainy': '18',
-    'snowy': '2',
-    'stormy': '16',
-    'windy': '20',
-    'cloudy': '15',
-    'foggy': '12',
-    'partly-cloudy': '23',
-    'pouring': '14',
-    'snowy-rainy': '3',
-    'clear-night': '8',
-    'sleety': '1',
-    'snowy-stormy': '0',
-    'light-rain': '20',
-    'sleety-stormy': '-1'
-};
-
-export const DEV_MODE_CONDITION_NAMES = {
-    'sunny': 'Sunny',
-    'rainy': 'Rainy',
-    'snowy': 'Snowy',
-    'stormy': 'Thunderstorm',
-    'windy': 'Windy',
-    'cloudy': 'Cloudy',
-    'foggy': 'Foggy',
-    'partly-cloudy': 'Partly Cloudy',
-    'pouring': 'Pouring Rain',
-    'snowy-rainy': 'Mixed Precipitation',
-    'clear-night': 'Clear Night',
-    'sleety': 'Sleet',
-    'snowy-stormy': 'Snowy Thunderstorm',
-    'light-rain': 'Light Rain',
-    'sleety-stormy': 'Sleet Storm'
-};
-
-// Performance thresholds for metrics color coding
-export const PERFORMANCE_THRESHOLDS = {
-    PARTICLES: {
-        GOOD: 100,
-        WARNING: 300
-    },
-    ANIMATIONS: {
-        GOOD: 3,
-        WARNING: 6
-    },
-    FRAME_RATE: {
-        GOOD: 45,
-        WARNING: 24
-    },
-    MEMORY: {
-        GOOD: 10240, // 10MB in KB
-        WARNING: 51200 // 50MB in KB
-    }
-};
-
-// Dev panel configuration
-export const DEV_PANEL_CONFIG = {
-    METRICS_REFRESH_INTERVAL: 2000, // 2 seconds
-    METRICS_INITIAL_DELAY: 100, // Initial update delay
-    Z_INDEX: 10000, // Ensure dev panel is always on top
-    MAX_HEIGHT: '80vh',
-    MAX_WIDTH: '300px'
+/** The ranges engine settings are taken in from YAML; outside them a value falls back to its default (the editor's sliders offer less) */
+export const ENGINE_RANGES: Readonly<Record<keyof typeof DEFAULT_ENGINE_SETTINGS, readonly [number, number]>> = {
+    windSpeed: [0.1, 15], rainCount: [0.1, 10], leafCount: [0.1, 10], snowCount: [0.1, 10],
+    cloudBaseSize: [0.3, 2.5], cloudCount: [1, 20], splashBounce: [40, 120],
 };
 
 // Animation timing constants
@@ -107,16 +48,7 @@ export const TIME_THRESHOLDS = {
     UPDATE_INTERVAL: 300000 // 5 minutes in milliseconds
 };
 
-export const DEV_MODE_SAMPLE_DATA = {
-    humidity: "65%",
-    windSpeed: "10 km/h",
-    pressure: "1013 hPa",
-    indoorTemperature: "22°",
-    indoorHumidity: "45%"
-};
-
-
-export const CARD_VERSION = '1.3.2';
+export const CARD_VERSION = '1.4.0';
 
 // Day/Night color schemes for animations
 export const DAY_NIGHT_ANIMATION_COLORS = {
@@ -171,5 +103,4 @@ export const DAY_NIGHT_ANIMATION_COLORS = {
         dusk: '#E8F0FF'      // Faint blue-white
     }
 };
-
 

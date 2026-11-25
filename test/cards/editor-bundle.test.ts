@@ -19,7 +19,7 @@ describe('the editors\' bundle', () => {
         const main = readFileSync(join(process.cwd(), 'animated-weather-card.js'), 'utf8');
         const editors = readFileSync(join(process.cwd(), 'animated-weather-card-editor.js'), 'utf8');
         // The tracker's editor, and the gestures' controls
-        for (const text of ['Share the sky of a weather entity', 'Double tap behavior']) {
+        for (const text of ['Without one, the sky of the weather card on the same sun', 'Double tap behavior']) {
             expect(editors).toContain(text);
             expect(main).not.toContain(text);
         }

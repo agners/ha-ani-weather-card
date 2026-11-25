@@ -74,16 +74,4 @@ describe('TimeOfDayManager wrap-around math', () => {
         expect(at2245?.[1]).toBe('dusk');
     });
 
-    it('respects the dev override regardless of clock', () => {
-        const mgr = new TimeOfDayManager({
-            enableDayNightCycle: true,
-            sunriseHour: 6,
-            sunsetHour: 20,
-        });
-        vi.setSystemTime(new Date(2026, 0, 1, 12, 0));
-        mgr.setDevOverride('night');
-        expect(mgr.getCurrentState().timePhase).toBe('night');
-        mgr.clearDevOverride();
-        expect(mgr.getCurrentState().timePhase).toBe('day');
-    });
 });

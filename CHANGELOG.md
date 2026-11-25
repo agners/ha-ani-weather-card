@@ -7,9 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-11-25
+
+Thank you 🙏 to everyone who installed the card, put it on a dashboard and took the time to say what worked and what didn't, on GitHub and on Reddit. Your feedback is what makes the card flexible enough to fit setups I'd never have thought of, and that's the best part of building it in the open. Keep it coming!
+
+The [README](README.md) has every option in full.
+
 ### Added
 
-- Ukrainian translations for the weather cards, the sun tracker and the forecast, selected from the Home Assistant profile language.
+- **Presets.** The weather card's editor opens on seven layouts to start from: Standard, Simple, Forecast, Full info, Strip, Bedside and Wall. Each writes a few ordinary options and leaves the rest as you set them. The Wall needs a section of Double width, or a panel view.
+- **As much weather as there is** (`engine_mode: auto`, the default). Rain and snow fall as hard as your rain rate sensor or the forecast's hour says, clouds follow the cloud cover, fog the visibility, wind its gusts, and a clear night's stars thin under cloud. A change is followed without the weather starting again. `engine_mode: manual` keeps the engine's settings, and a card that already sets `engine_settings` stays manual ([#33](https://github.com/alexsto1an/ha-ani-weather-card/issues/33)).
+- **The sun tracker compares today with yesterday.** How much earlier or later the next sunrise or sunset is, and how much longer or shorter the day ("+2m 14s since yesterday"). `daylight_delta` compares with last `week` or `month` instead, or `none`.
+- **More chips under the hours:** the UV index, wind, gusts, humidity, dew point, cloud cover and pressure, one for each value your forecast reports. Where they don't fit, they scroll sideways. The days show the same value.
+- **One value per card.** `show_chips: false` leaves the chips out, so the hours and the days stay on `forecast_metric`: one forecast card on the rain, say, and one on the temperature. On the forecast card, `show_summary: false` leaves out the line at the top too.
+- **The week on the weather card.** With the forecast on, `show_days: true` puts the days under the hours, and `forecast_days` sets how many.
+- **The moon in its real phase** on a clear night, where it was always full, worked out from the date and mirrored south of the equator. With `moon_entity` it keeps to the phase the Moon integration names ([#12](https://github.com/alexsto1an/ha-ani-weather-card/issues/12)).
+- **The UV index as a reading,** from `uv_entity` or the weather entity, as the number and its WHO level ("6 High"), its icon in the level's colour ([#18](https://github.com/alexsto1an/ha-ani-weather-card/issues/18)).
+- **A weather station's rain as a reading:** today's rain, and the rate while it rains. The view that opens on tap adds the station's totals ([#33](https://github.com/alexsto1an/ha-ani-weather-card/issues/33)).
+- **Weather in another place.** Give any of the three cards a `latitude`, `longitude` and `time_zone`, and its sky, sunset, moon, clock and forecast hours are that place's, where it used to show that place's weather under your own sky ([#34](https://github.com/alexsto1an/ha-ani-weather-card/issues/34), [#35](https://github.com/alexsto1an/ha-ani-weather-card/issues/35)).
+- **Ukrainian translations.** Thanks to rodion981 ([#37](https://github.com/alexsto1an/ha-ani-weather-card/pull/37)).
+
+### Changed
+
+- **The editors, redesigned.** Each opens on the basics, and **Show all settings** adds the rest, in sections that say what's in them. A setting you've changed always shows. Options that don't apply are hidden, where they were greyed out, and pairs of options are one choice each. The editors write the same YAML as before, and nothing for a default.
+- **The readings are one list,** `readings`, and a list in the editor: add, remove and reorder them. New types: air quality (with its US EPA level), feels like, dew point, visibility, cloud cover, gusts, and any sensor at all. A reading can show only in the view that opens on tap. The old options (`metrics`, `show_sun`, the reading sensors) still work, and the list replaces them the first time you change it.
+- **The card picker** suggests the weather card in four presets (Standard, Forecast, Full info, Strip), where it suggested Regular and Compact.
+- **A hand cursor** over a card you can drag through the hours.
+- **The dev card replaces the developer panel.** `type: custom:animated-weather-dev-card` drives every Animated Weather card on the dashboard with simulated weather: the condition, the time and date, the readings, the forecast's shape and the notes. `dev_mode: true` now runs a card on that weather with everything a card does, marked Simulated.
+
+### Fixed
+
+- **A new config in place stopped the weather.** A card given a new config while on the dashboard, as Home Assistant does when the dashboard changes on another screen, kept its old layout and no weather until the condition changed.
+- **Rain kept the last rain's intensity:** a rainy sky after a downpour still poured until the page was reloaded.
+- **`planes_on_load: true` flew nothing.** The planes already overhead now wait for the card to be ready and on screen ([#36](https://github.com/alexsto1an/ha-ani-weather-card/issues/36)).
+- **A card resized past 640 px wide** showed the hours in the top right corner, over the temperature ([#32](https://github.com/alexsto1an/ha-ani-weather-card/issues/32)).
+- **The view that opens on tap** cut long labels short ("Couverture nuageuse"), let a tablet's week run over the top of the panel, and kept its size when the window changed while it was open.
+- **On a tall card** the sun and the moon sat far down the sky, beside the readings. They stay beside the temperature, with their light around them.
+- **A nightstand with the note on** kept asking your AI for notes it never showed, and one also set to `compact: true` asked for two rows.
 
 ## [1.3.2] - 2026-11-15
 
@@ -174,7 +208,8 @@ The first public release: two cards for Home Assistant, the Animated Weather Car
 - **Try it first.** A [live demo](https://alexsto1an.github.io/ha-ani-weather-card/) runs the real card in your browser, on sample data or your own weather, and a [setup guide](https://alexsto1an.github.io/ha-ani-weather-card/setup/) walks through every step.
 - **Developer mode.** `dev_mode: true` shows sample weather with a panel for every condition, time of day and layer, and a Fly a plane button. Only a card in dev mode logs to the console.
 
-[Unreleased]: https://github.com/alexsto1an/ha-ani-weather-card/compare/v1.3.2...HEAD
+[Unreleased]: https://github.com/alexsto1an/ha-ani-weather-card/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/alexsto1an/ha-ani-weather-card/compare/v1.3.2...v1.4.0
 [1.3.2]: https://github.com/alexsto1an/ha-ani-weather-card/compare/v1.3.1...v1.3.2
 [1.3.1]: https://github.com/alexsto1an/ha-ani-weather-card/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/alexsto1an/ha-ani-weather-card/compare/v1.2.0...v1.3.0

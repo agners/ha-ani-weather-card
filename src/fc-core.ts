@@ -4,6 +4,7 @@
 
 import type { ForecastEntry, ForecastType } from './forecast-data';
 import { cardTimeZone, dayKey, hourOfDay, LocaleSource } from './localize';
+import { solarElevation } from './solar';
 import type { HomeAssistant } from './types';
 
 export const HOUR = 3600_000;
@@ -147,28 +148,8 @@ export const reducedMotion = (): boolean => !!window.matchMedia?.('(prefers-redu
 export const esc = (s: unknown): string => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
 // ── The sun, at any hour ───────────────────────────────────────────────────
-const RAD = Math.PI / 180;
-/** NOAA's solar elevation for a place, in degrees */
-export function solarElevation(date: Date, latitude: number, longitude: number): number {
-    const t = (date.getTime() / 86400000 + 2440587.5 - 2451545) / 36525;
-    const meanLong = (280.46646 + t * (36000.76983 + t * 0.0003032)) % 360;
-    const meanAnomaly = 357.52911 + t * (35999.05029 - 0.0001537 * t);
-    const eccentricity = 0.016708634 - t * (0.000042037 + 0.0000001267 * t);
-    const centre = Math.sin(meanAnomaly * RAD) * (1.914602 - t * (0.004817 + 0.000014 * t))
-        + Math.sin(2 * meanAnomaly * RAD) * (0.019993 - 0.000101 * t) + Math.sin(3 * meanAnomaly * RAD) * 0.000289;
-    const omega = 125.04 - 1934.136 * t;
-    const apparentLong = meanLong + centre - 0.00569 - 0.00478 * Math.sin(omega * RAD);
-    const obliquity = 23 + (26 + (21.448 - t * (46.815 + t * (0.00059 - t * 0.001813))) / 60) / 60 + 0.00256 * Math.cos(omega * RAD);
-    const declination = Math.asin(Math.sin(obliquity * RAD) * Math.sin(apparentLong * RAD));
-    const y = Math.tan((obliquity / 2) * RAD) ** 2;
-    const equationOfTime = (4 / RAD) * (y * Math.sin(2 * meanLong * RAD) - 2 * eccentricity * Math.sin(meanAnomaly * RAD)
-        + 4 * eccentricity * y * Math.sin(meanAnomaly * RAD) * Math.cos(2 * meanLong * RAD)
-        - 0.5 * y * y * Math.sin(4 * meanLong * RAD) - 1.25 * eccentricity * eccentricity * Math.sin(2 * meanAnomaly * RAD));
-    const utcMinutes = date.getUTCHours() * 60 + date.getUTCMinutes() + date.getUTCSeconds() / 60;
-    const hourAngle = ((((utcMinutes + equationOfTime + 4 * longitude) % 1440) + 1440) % 1440) / 4 - 180;
-    const cosZenith = Math.sin(latitude * RAD) * Math.sin(declination) + Math.cos(latitude * RAD) * Math.cos(declination) * Math.cos(hourAngle * RAD);
-    return 90 - Math.acos(clamp(cosZenith, -1, 1)) / RAD;
-}
+// NOAA's solar elevation for a place, in degrees (solar.ts, which the card's own computed sun uses too)
+export { solarElevation };
 
 export interface SunAt { elevation: number; rising: boolean }
 /**
@@ -266,10 +247,10 @@ export class Timeline {
 }
 
 /** The card's number format: "1.4" or "1,4" */
-export function num(value: number, lang: string, digits = 0): string {
+export function num(value: number, lang: string, digits = 0, group = true): string {
     // Zero is "0", never "-0" (see formatLocalizedNumber)
     if (Math.abs(value) < 0.5 / 10 ** digits) value = 0;
-    try { return new Intl.NumberFormat(lang, { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(value); }
+    try { return new Intl.NumberFormat(lang, { minimumFractionDigits: digits, maximumFractionDigits: digits, useGrouping: group }).format(value); }
     catch { return value.toFixed(digits); }
 }
 /** Whole degrees with a true minus, as the row and the bars write them */

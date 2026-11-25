@@ -91,12 +91,6 @@ describe('the weather note', () => {
         expect(note()).toBeNull();
     });
 
-    it('stays out of dev mode, whose sample weather a real note wouldn\'t be about', async () => {
-        await mount({ dev_mode: true });
-        expect(note()).toBeNull();
-        expect(card.getGridOptions().rows).toBe(4);
-    });
-
     it('updates in place when only the longer note changes', async () => {
         await mount({});
         const temperature = card.querySelector('.temperature-value');
@@ -205,6 +199,21 @@ describe('a note the card writes itself', () => {
         expect(note()!.hidden).toBe(true);
         expect(document.querySelector('script[src*="animated-weather-card-note.js"]')).not.toBeNull();
         expect(card.getGridOptions().rows).toBe(5);
+    });
+
+    it('writes none on a nightstand, which draws its own lines and never shows one', async () => {
+        await mount({ layout: 'nightstand' }, false);
+        expect(note()).toBeNull();
+        expect(document.querySelector('script[src*="animated-weather-card-note.js"]')).toBeNull();
+        card.remove();
+        await mount({ layout: 'nightstand' });
+        expect(FakeWriter.made).toHaveLength(0);
+        expect(card.getGridOptions().rows).toBe(6);
+        // compact beside the nightstand: the nightstand wins, as the editor's one Layout choice has it
+        card.remove();
+        await mount({ layout: 'nightstand', compact: true, show_note: false });
+        expect(card.getGridOptions()).toMatchObject({ rows: 6, min_rows: 3 });
+        expect(card.querySelector('.animated-weather-card')!.getAttribute('data-variant')).toBeNull();
     });
 
     it('hands the writer the card, and shows what it writes', async () => {

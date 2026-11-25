@@ -34,8 +34,8 @@
         </a>
         <nav class="topnav" aria-label="Project">
             <a href="../">Live demo</a>
-            <a href="./" aria-current="page">Set up</a>
-            <a href="https://github.com/alexsto1an/ha-ani-weather-card#options">Options</a>
+            <a class="nav-wide" href="./" aria-current="page">Set up</a>
+            <a class="nav-wide" href="https://github.com/alexsto1an/ha-ani-weather-card#options">Options</a>
             <a href="https://github.com/alexsto1an/ha-ani-weather-card">GitHub</a>
         </nav>
     </header>
@@ -89,7 +89,7 @@ entity: weather.forecast_home</code></pre>
                 </li>
                 <li class="step">
                     <h3>Make it yours</h3>
-                    <p>Add <a href="#forecast">the forecast and the clock</a>, have <a href="#note">your AI write a note</a> about the hours ahead, wire in <a href="#sensors">your own sensors</a>, pair it with <a href="#tracker">the sun tracker</a>, or watch <a href="#planes">real planes</a> cross it.</p>
+                    <p>Start from <a href="#presets">one of seven layouts</a>, add <a href="#forecast">the forecast and the clock</a>, have <a href="#note">your AI write a note</a> about the hours ahead, wire in <a href="#sensors">your own sensors</a> and choose <a href="#readings">the readings</a> under the temperature, show <a href="#place">another place</a>, pair it with <a href="#tracker">the sun tracker</a>, or watch <a href="#planes">real planes</a> cross it.</p>
                 </li>
             </ol>
         </section>
@@ -97,12 +97,16 @@ entity: weather.forecast_home</code></pre>
         <div class="guide-body">
             <nav class="toc" aria-label="On this page">
                 <p class="toc-title">On this page</p>
-                <ol>
+                <button type="button" class="toc-toggle" id="toc-toggle" aria-expanded="false" aria-controls="toc-list">
+                    <span class="toc-toggle-label">On this page</span><span class="toc-now" id="toc-now"></span>
+                    <svg class="toc-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.41 8.58 12 13.17l4.59-4.59L18 10l-6 6-6-6z"/></svg>
+                </button>
+                <ol id="toc-list">
                     <li><a href="#install">Install</a></li>
                     <li><a href="#first-card">Your first card</a></li>
                     <li><a href="#forecast">The forecast</a></li>
                     <li><a href="#note">The weather note</a></li>
-                    <li><a href="#extras">Extras</a></li>
+                    <li><a href="#extras">Sensors, places and more</a></li>
                     <li><a href="#troubleshooting">Troubleshooting</a></li>
                 </ol>
             </nav>
@@ -134,7 +138,7 @@ entity: weather.forecast_home</code></pre>
 
                     <h3 id="manual">By hand</h3>
                     <p>The card is six files that sit in the same folder. Only the first is a dashboard resource; it loads the others when it needs them.</p>
-                    <p>It's split so each screen downloads only what it uses. Every phone and wall tablet that shows your dashboard loads the card, but few of them ever open the editor, and only some cards show the forecast or the clock, write a note, fly planes or run in developer mode. Those parts wait in files of their own until a card needs one. Each is fetched from the folder the first file came from, so keep all six together.</p>
+                    <p>It's split so each screen downloads only what it uses. Every phone and wall tablet that shows your dashboard loads the card, but few of them ever open the editor, and only some cards show the forecast or the clock, write a note, fly planes or run the dev card. Those parts wait in files of their own until a card needs one. Each is fetched from the folder the first file came from, so keep all six together.</p>
                     <div class="table-scroll">
                         <table class="files">
                             <thead><tr><th scope="col">File</th><th scope="col">What it is</th></tr></thead>
@@ -144,7 +148,7 @@ entity: weather.forecast_home</code></pre>
                                 <tr><td><code>animated-weather-card-note.js</code></td><td>The note writer, loaded only by cards that write their own note.</td></tr>
                                 <tr><td><code>animated-weather-card-planes.js</code></td><td>The planes, loaded only by cards with a flights sensor.</td></tr>
                                 <tr><td><code>animated-weather-card-forecast.js</code></td><td>The forecast, the clock, the forecast card, the nightstand and the view that opens on tap, loaded only by cards that use one of them.</td></tr>
-                                <tr><td><code>animated-weather-card-dev.js</code></td><td>The developer panel, loaded only with <code>dev_mode: true</code>. You can leave it out.</td></tr>
+                                <tr><td><code>animated-weather-card-dev.js</code></td><td>The dev card, for trying the cards on any weather at any time, loaded only by the dev card and <code>dev_mode: true</code>. You can leave it out.</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -168,8 +172,12 @@ entity: weather.forecast_home</code></pre>
                     <h2 id="first-card-title"><a class="anchor" href="#first-card">Your first card</a></h2>
 
                     <h3 id="editor">In the editor</h3>
-                    <p>Add the card and it's working: it starts on your weather entity. If you have more than one, pick the one you want. Everything else is in the editor's sections: <b>Entities</b>, <b>Display</b>, <b>Forecast and clock</b>, <b>Interactions</b>, <b>Weather note</b>, <b>Day and night</b>, <b>Advanced</b>, <b>Weather engine</b> and <b>Colors</b>.</p>
-                    <p>In Home Assistant 2026.6 and later, the <b>By entity</b> tab suggests the card too. Pick your weather entity, and it's under <b>Community</b>, regular and compact, with the forecast card and its strip beside it.</p>
+                    <p>Add the card and it's working: it starts on your weather entity. If you have more than one, pick the one you want. The editor opens on seven layouts to <a href="#presets">start from</a>, then the basics: the place name, the colours, the forecast and the weather note. Everything else is under <b>Show all settings</b>, the switch at the top: more settings in the same sections, the layout's own choice (regular, compact or nightstand) among them, and <b>Readings</b>, <b>Sky and motion</b>, <b>Custom colors</b>, <b>Planes</b> and <b>Interactions</b> after them. A setting you've changed shows either way. The forecast card's and the sun tracker's editors work the same way, with the same switch.</p>
+                    <p>In Home Assistant 2026.6 and later, the <b>By entity</b> tab suggests the card too. Pick your weather entity, and it's under <b>Community</b> in four of its presets (Standard, Forecast, Full info and Strip), with the forecast card and its strip beside it.</p>
+
+                    <h3 id="presets">Start from a preset</h3>
+                    <p>Seven layouts, each a few ordinary options you can keep changing: <b>Standard</b>, the card as it comes; <b>Simple</b>, the sky, the temperature and the condition; <b>Forecast</b>, the next hours under the readings; <b>Full info</b>, the time and date, the hours and the week; <b>Strip</b>, one line; <b>Bedside</b>, a clock that goes red on black at night; and <b>Wall</b>, a panel to read across the room. Picking one sets the options that make the layout and leaves the rest as you set them, and the card asks for the rows it needs. <a href="../#layouts">The demo</a> shows each one.</p>
+                    <p>The wall needs the card at least 640 × 540 px. In a sections view, open the section's settings and set its <b>Width</b> to Double, or use a <a href="#size">panel view</a>; in a narrower section it's the forecast with the time and date.</p>
 
                     <h3 id="yaml">In YAML</h3>
                     <p>A weather entity is the one thing the card needs. The sun entity is optional: it adds the next sunset, or sunrise, to the metrics. The sky follows <code>sun.sun</code> either way.</p>
@@ -195,7 +203,7 @@ sun_entity: sun.sun</code></pre>
                             </tbody>
                         </table>
                     </div>
-                    <p>In a masonry view, the card grows to fit its content. On a wall tablet, a panel view gives it the whole screen, and from 640 px wide the metrics move beside a larger temperature. With <a href="#forecast">the forecast</a> on and at least 640 × 540 px, it lays itself out for reading across the room: a larger temperature, the clock with the date, the hours in two-hour steps and five days beside them.</p>
+                    <p>In a masonry view, the card grows to fit its content. On a wall tablet, a panel view gives it the whole screen, and from 640 px wide the metrics move beside a larger temperature. With <a href="#forecast">the forecast</a> on and at least 640 × 540 px, it lays itself out for reading across the room: a larger temperature, the clock with the date, the hours in two-hour steps and five days beside them. In a sections view, the <a href="#presets">Wall preset</a> in a section of Double width does the same.</p>
                     <div class="code" data-lang="yaml">
                         <div class="code-bar"><span class="code-name">A panel view, for a wall tablet</span><button type="button" class="copy"><span class="copy-icon" aria-hidden="true"></span><span class="copy-label">Copy</span></button></div>
                         <pre><code>title: Weather
@@ -209,10 +217,10 @@ cards:
 
                 <section class="chapter" id="forecast" aria-labelledby="forecast-title">
                     <h2 id="forecast-title"><a class="anchor" href="#forecast">The forecast</a></h2>
-                    <p>Two switches in the editor's <b>Forecast and clock</b> section. The clock puts the time at the start of the location line. The forecast adds today's high and low beside the condition, a line on what turns (<i>Rain from 17:00 to 19:00</i>, <i>Dry all day</i>), and the next hours in a row at the card's foot, under the readings. Both read the forecast your weather integration already provides; there's nothing else to set up.</p>
+                    <p>In the editor's <b>Forecast and clock</b> section: the <b>Forecast</b> switch, and with <b>Show all settings</b> on, <b>Time and date</b>. The clock puts the time at the start of the location line. The forecast adds today's high and low beside the condition, a line on what turns (<i>Rain from 17:00 to 19:00</i>, <i>Dry all day</i>), and the next hours in a row at the card's foot, under the readings. Both read the forecast your weather integration already provides; there's nothing else to set up.</p>
 
                     <h3 id="forecast-on">Turn it on</h3>
-                    <p>The clock follows your profile's 12- or 24-hour setting and its time zone, and adds no rows. <code>show_date</code> puts the date after it, and <code>hero: clock</code> makes the time the big value, in the temperature's place, with the temperature leading the condition's line. The row shows the temperature first; <code>forecast_metric</code> picks something else. <code>forecast_graph</code> draws it as a line, the line over a soft fill (<code>area</code>), bars, or the values alone (<code>none</code>), the same for every metric.</p>
+                    <p>The clock follows your profile's 12- or 24-hour setting and its time zone, and adds no rows. <code>show_date</code> puts the date after it, and <code>hero: clock</code> makes the time the big value, in the temperature's place, with the temperature leading the condition's line. The row shows the temperature first; <code>forecast_metric</code> picks something else. <code>forecast_graph</code> draws it as a line, the line over a soft fill (<code>area</code>), bars, or the values alone (<code>none</code>), the same for every metric. <code>show_days</code> puts the week under the hours and their chips, <code>forecast_days</code> of them, and the card asks for a row more for every two days.</p>
                     <div class="code" data-lang="yaml">
                         <div class="code-bar"><span class="code-name">Card YAML</span><button type="button" class="copy"><span class="copy-icon" aria-hidden="true"></span><span class="copy-label">Copy</span></button></div>
                         <pre><code>type: custom:animated-weather-card
@@ -221,10 +229,20 @@ sun_entity: sun.sun
 show_clock: true
 show_forecast: true
 # Optional
-show_date: true          # the date after the time
-hero: clock              # the time as the big value
-forecast_metric: chance  # temp, feels, chance or amount
-forecast_graph: bars     # line, area, bars or none</code></pre>
+# The date after the time
+show_date: true
+# The time as the big value
+hero: clock
+# What the hours open on: temp, feels, chance, amount, uv, wind, gust, humidity, dew, cloud or pressure
+forecast_metric: chance
+# No chips: the hours stay on forecast_metric
+show_chips: false
+# line, area, bars or none
+forecast_graph: bars
+# The week under the hours
+show_days: true
+# How many days: 7 unless you say
+forecast_days: 5</code></pre>
                     </div>
 
                     <h3 id="slide">Drag through the hours</h3>
@@ -236,7 +254,7 @@ forecast_graph: bars     # line, area, bars or none</code></pre>
                         <li><b>It comes home</b> when you tap <b>Now</b>, after half a minute without a touch, at once when the card scrolls away or the page is hidden, and when a new forecast arrives.</li>
                         <li><b>The page still scrolls.</b> A drag up or down scrolls the dashboard. On a trackpad, swipe sideways with two fingers.</li>
                         <li><b>Keys and screen readers.</b> Tab to the hours: the arrows step an hour, Page Up and Page Down three, Home or Escape comes back to now. A screen reader hears the hour, the condition, the temperature and the chance of rain.</li>
-                        <li><b>The chips</b> under the row switch what it shows: temperature, feels like, the chance of rain and the amount. A metric your integration doesn't report has no chip.</li>
+                        <li><b>The chips</b> under the row switch what it shows: temperature, feels like, the chance of rain and the amount, then the UV index, wind, gusts, humidity, dew point, cloud cover and pressure. There's one for each value your integration's hourly forecast reports; where they're more than fit, swipe them sideways.</li>
                         <li><b>With reduced motion,</b> the sky is still and steps with the hour, and the way home is a short fade.</li>
                     </ul>
 
@@ -247,14 +265,28 @@ forecast_graph: bars     # line, area, bars or none</code></pre>
                     <p>With the forecast on, a tap grows the card's sky into the screen: the hours, the chips, seven days with their ranges (eight on a tablet), and every reading your weather entity reports. <b>History and settings</b> opens Home Assistant's own dialog. Close it with ×, Escape, Back, a tap outside it, or a swipe down on a phone. To have a tap do something else, set it under <b>Interactions</b>.</p>
 
                     <h3 id="forecast-card">The forecast card</h3>
-                    <p>The hours and the week on a card of their own, on your weather entity's sky: the line on what turns, the row with its chips, and the days with their ranges on one scale for the week. Search for <b>Animated Forecast</b>, or pick it under <b>By entity</b>. Its row works the same way: leave it at an hour and its sky goes there, and a weather card on the same weather goes with it. It shows its sky alone, with no weather moving in it, so stacked under the weather card the rain falls once; <code>weather_effects: true</code> brings in the rain, snow, fog, wind and lightning. Its days show the day the hour falls in, and the chips change what they show: each day's feels-like range, its chance of rain or its amount.</p>
+                    <p>The hours and the week on a card of their own, on your weather entity's sky: the line on what turns, the row with its chips, and the days with their ranges on one scale for the week. Search for <b>Animated Forecast</b>, or pick it under <b>By entity</b>. Its row works the same way: leave it at an hour and its sky goes there, and a weather card on the same weather goes with it. It shows its sky alone, with no weather moving in it, so stacked under the weather card the rain falls once; <code>weather_effects: true</code> brings in the rain, snow, fog, wind and lightning. Its days show the day the hour falls in, and the chips change what they show: each day's feels-like range, its chance of rain or its amount, or its own figure for the rest.</p>
                     <div class="code" data-lang="yaml">
                         <div class="code-bar"><span class="code-name">Card YAML</span><button type="button" class="copy"><span class="copy-icon" aria-hidden="true"></span><span class="copy-label">Copy</span></button></div>
                         <pre><code>type: custom:animated-forecast-card
 entity: weather.forecast_home
 # Optional
-forecast_days: 5  # 0 to 10
-weather_effects: true  # rain, snow and wind behind it</code></pre>
+# 0 to 10
+forecast_days: 5
+# Rain, snow and wind behind it
+weather_effects: true</code></pre>
+                    </div>
+                    <p>For one value per card, say the rain on one and the temperature on another, set what each opens on with <code>forecast_metric</code> (<b>Hours show</b> in its editor) and leave out the chips that change it. A chip you tap on the card isn't kept when the dashboard reloads. <code>show_summary: false</code> leaves out the line at the top too.</p>
+                    <div class="code" data-lang="yaml">
+                        <div class="code-bar"><span class="code-name">Card YAML</span><button type="button" class="copy"><span class="copy-icon" aria-hidden="true"></span><span class="copy-label">Copy</span></button></div>
+                        <pre><code>type: custom:animated-forecast-card
+entity: weather.forecast_home
+# The rain's amount
+forecast_metric: amount
+# No chips: it stays on the amount
+show_chips: false
+# No line at the top
+show_summary: false</code></pre>
                     </div>
                     <p>As a strip, it sits under the compact weather card: the hours alone, lined up with the card's text.</p>
                     <div class="code" data-lang="yaml">
@@ -277,10 +309,14 @@ cards:
 entity: weather.forecast_home
 layout: nightstand
 # Optional
-alarm_entity: sensor.phone_next_alarm      # the Companion app's next alarm
-night_sensor: sensor.bedroom_illuminance   # night when the room is dark
-night_lux: 5                               # how dark, in lux: raise it if night never comes
-wake_time: "07:00"                         # without an alarm</code></pre>
+# The Companion app's next alarm
+alarm_entity: sensor.phone_next_alarm
+# Night when the room is dark
+night_sensor: sensor.bedroom_illuminance
+# How dark, in lux: raise it if night never comes
+night_lux: 5
+# Without an alarm
+wake_time: "07:00"</code></pre>
                     </div>
                     <p>The alarm can be any timestamp sensor: the Android Companion app's next alarm sensor, or an input_datetime that an iOS Shortcut sets. It counts when it's within 18 hours.</p>
                 </section>
@@ -314,7 +350,7 @@ wake_time: "07:00"                         # without an alarm</code></pre>
                     </div>
 
                     <h3 id="note-on">Turn it on</h3>
-                    <p>In the editor's <b>Weather note</b> section, switch on <b>Write it with your AI</b>. It's snarky by default; pick another voice if you like, and your calendar, so it can say what to wear when you're out.</p>
+                    <p>In the editor's <b>Weather note</b> section, set <b>Note</b> to <b>Written by your AI</b>. It's snarky by default; pick another voice if you like, and, with <b>Show all settings</b> on, your calendar, so it can say what to wear when you're out.</p>
                     <div class="code" data-lang="yaml">
                         <div class="code-bar"><span class="code-name">Card YAML</span><button type="button" class="copy"><span class="copy-icon" aria-hidden="true"></span><span class="copy-label">Copy</span></button></div>
                         <pre><code>type: custom:animated-weather-card
@@ -322,8 +358,10 @@ entity: weather.forecast_home
 sun_entity: sun.sun
 show_note: true
 # Optional
-note_tone: calm                 # snarky, calm, friendly or dry
-note_calendar: calendar.family  # when you're out, for what to wear</code></pre>
+# snarky, calm, friendly or dry
+note_tone: calm
+# When you're out, for what to wear
+note_calendar: calendar.family</code></pre>
                     </div>
 
                     <h3 id="note-see">What you'll see</h3>
@@ -350,10 +388,10 @@ note_entity: input_text.weather_note</code></pre>
                 </section>
 
                 <section class="chapter" id="extras" aria-labelledby="extras-title">
-                    <h2 id="extras-title"><a class="anchor" href="#extras">Extras</a></h2>
+                    <h2 id="extras-title"><a class="anchor" href="#extras">Sensors, places and more</a></h2>
 
                     <h3 id="sensors">Your own sensors</h3>
-                    <p>Your sensors take the place of the weather entity's values; indoor readings sit under the condition. A wind speed sensor also sets how fast the weather moves, and a wind direction sensor can report degrees or a compass point like NW. Without a feels-like sensor, the card uses the weather entity's apparent temperature if it has one.</p>
+                    <p>Your sensors take the place of the weather entity's values; indoor readings sit under the condition. Without a feels-like sensor, the card uses the weather entity's apparent temperature if it has one. The readings in the row take their sensors in <code>readings</code>: a wind speed sensor there also sets how fast the weather moves, and a wind direction sensor can report degrees or a compass point like NW.</p>
                     <div class="code" data-lang="yaml">
                         <div class="code-bar"><span class="code-name">Card YAML</span><button type="button" class="copy"><span class="copy-icon" aria-hidden="true"></span><span class="copy-label">Copy</span></button></div>
                         <pre><code>type: custom:animated-weather-card
@@ -362,16 +400,67 @@ name: Garden
 sun_entity: sun.sun
 outdoor_sensor_entity: sensor.garden_temperature
 feels_like_entity: sensor.garden_apparent_temperature
-humidity_sensor_entity: sensor.garden_humidity
-wind_speed_sensor_entity: sensor.garden_wind_speed
-wind_direction_sensor_entity: sensor.garden_wind_direction
-pressure_sensor_entity: sensor.barometer
 indoor_temperature_entity: sensor.living_room_temperature
-indoor_humidity_entity: sensor.living_room_humidity</code></pre>
+indoor_humidity_entity: sensor.living_room_humidity
+readings:
+  - type: humidity
+    entity: sensor.garden_humidity
+  - type: wind
+    entity: sensor.garden_wind_speed
+    direction_entity: sensor.garden_wind_direction
+  - type: pressure
+    entity: sensor.barometer
+  - sun</code></pre>
+                    </div>
+
+                    <h3 id="readings">The readings</h3>
+                    <p>The row under the temperature holds humidity, wind, pressure and the next sunset or sunrise. <code>readings</code> lists them and their order, each a type and, where it needs one or you'd rather, an entity; in the editor they're a list under <b>Readings</b>, with <b>Show all settings</b> on, and <b>Add a reading</b>. Four fit best.</p>
+                    <ul>
+                        <li><b>From the weather entity:</b> humidity, wind, pressure, UV, feels like, dew point, visibility, cloud cover and gusts read its own value unless the row names a sensor. Wind can take a direction sensor too.</li>
+                        <li><b>UV:</b> the number and its WHO level, "6 High", such as from the <a href="https://www.home-assistant.io/integrations/openuv/">OpenUV integration</a>; on the sky palette its icon takes the level's colour, and <code>uv_levels</code> moves where the levels start.</li>
+                        <li><b>Rain:</b> a weather station's today's rain, such as an Ecowitt's, and while it rains, the rate from <code>rate_entity</code>.</li>
+                        <li><b>Air quality:</b> a sensor's index and its US EPA level, "42 Good"; <code>aqi_levels</code> moves the bands for another scale.</li>
+                        <li><b>Any sensor:</b> as Home Assistant words its state, under its <code>name</code> or its own.</li>
+                        <li><b>View only:</b> <code>view: true</code> shows a reading in the view that opens on tap and not in the row. Today's highest UV and a station's rain totals always do.</li>
+                    </ul>
+                    <p>Cards set up with <code>metrics</code>, <code>uv_entity</code>, the <code>rain_*</code> sensors and the other reading sensors keep working; the editor's list replaces them the first time you change it.</p>
+                    <div class="code" data-lang="yaml">
+                        <div class="code-bar"><span class="code-name">Card YAML</span><button type="button" class="copy"><span class="copy-icon" aria-hidden="true"></span><span class="copy-label">Copy</span></button></div>
+                        <pre><code>type: custom:animated-weather-card
+entity: weather.forecast_home
+sun_entity: sun.sun
+readings:
+  - humidity
+  - wind
+  - type: uv
+    entity: sensor.current_uv_index
+  - type: rain
+    entity: sensor.gw2000_daily_rain
+    rate_entity: sensor.gw2000_rain_rate
+  - type: aqi
+    entity: sensor.air_quality_index
+  - type: sensor
+    entity: sensor.office_co2
+    name: CO₂
+  - type: rain_week
+    entity: sensor.gw2000_weekly_rain</code></pre>
+                    </div>
+
+                    <h3 id="amounts">How much weather</h3>
+                    <p>The card shows as much rain, snow, cloud, fog and wind as your weather reports, and follows it as it changes, without starting over. Rain and snow fall as hard as your rain rate sensor says, the <code>rate_entity</code> of a rain reading as above, or else as hard as the forecast's hour under way. Cloud cover, visibility and gusts come from a reading's own sensor, then the weather entity, then the forecast. The condition sets the least: pouring always pours, and a cloudy sky keeps its clouds. Drag the card through the hours and each hour shows its own.</p>
+                    <p>To set the amounts yourself, turn off <b>Amounts follow the weather</b> under <b>Sky and motion</b>, with <b>Show all settings</b> on. The sliders that appear write <code>engine_settings</code>, and a card that already sets them stays on them.</p>
+                    <div class="code" data-lang="yaml">
+                        <div class="code-bar"><span class="code-name">Card YAML</span><button type="button" class="copy"><span class="copy-icon" aria-hidden="true"></span><span class="copy-label">Copy</span></button></div>
+                        <pre><code>type: custom:animated-weather-card
+entity: weather.forecast_home
+engine_mode: manual
+engine_settings:
+  rainCount: 2
+  cloudCount: 5</code></pre>
                     </div>
 
                     <h3 id="tracker">The sun tracker</h3>
-                    <p>It comes in the same download: the sun's path through your day, and the next sunrise or sunset as its headline. Stacked under the weather card it takes the card's sky, by itself or from <code>weather_entity</code> when the dashboard has more than one weather, and the weather card can leave the sunset to it. South of the equator the sun runs right to left, as it crosses your sky; <code>direction: left_to_right</code> or <code>right_to_left</code> sets it.</p>
+                    <p>It comes in the same download: the sun's path through your day, and the next sunrise or sunset as its headline. Stacked under the weather card it takes the card's sky, by itself or from <code>weather_entity</code> when the dashboard has more than one weather, and the weather card can leave the sunset to it. South of the equator the sun runs right to left, as it crosses your sky; <code>direction: left_to_right</code> or <code>right_to_left</code> sets it. After the countdown it says how much earlier or later that sunrise or sunset is than yesterday's, and after the daylight how much longer or shorter the day is; <code>daylight_delta: week</code> or <code>month</code> compares with last week or last month, and <code>none</code> leaves both out.</p>
                     <div class="code" data-lang="yaml">
                         <div class="code-bar"><span class="code-name">A vertical stack</span><button type="button" class="copy"><span class="copy-icon" aria-hidden="true"></span><span class="copy-label">Copy</span></button></div>
                         <pre><code>type: vertical-stack
@@ -379,7 +468,7 @@ cards:
   - type: custom:animated-weather-card
     entity: weather.forecast_home
     sun_entity: sun.sun
-    show_sun: false
+    readings: [humidity, wind, pressure]
   - type: custom:animated-sun-tracker-card
     sun_entity: sun.sun
     moon_entity: sensor.moon_phase
@@ -387,8 +476,27 @@ cards:
     compact: true</code></pre>
                     </div>
 
+                    <h3 id="place">Weather in another place</h3>
+                    <p>A card can show the weather where your family lives. Give it a weather entity for that place, such as a second Met.no location added under <b>Settings → Devices &amp; services</b>, and the place's <code>latitude</code>, <code>longitude</code> and <code>time_zone</code>; the editor has them under <b>Weather</b>, as <b>Weather for another place</b>, with <b>Show all settings</b> on. The card works out that place's sun from its coordinates, so its sky, sunset reading and moon are that place's, a clear sky is sunny or a clear night by that sun, and every time it shows is in the place's time zone. The sun tracker takes the same three options instead of <code>sun_entity</code>, and pairs with the weather card on the same coordinates.</p>
+                    <div class="code" data-lang="yaml">
+                        <div class="code-bar"><span class="code-name">A vertical stack</span><button type="button" class="copy"><span class="copy-icon" aria-hidden="true"></span><span class="copy-label">Copy</span></button></div>
+                        <pre><code>type: vertical-stack
+cards:
+  - type: custom:animated-weather-card
+    entity: weather.sydney
+    name: Sydney
+    latitude: -33.87
+    longitude: 151.21
+    time_zone: Australia/Sydney
+  - type: custom:animated-sun-tracker-card
+    latitude: -33.87
+    longitude: 151.21
+    time_zone: Australia/Sydney
+    compact: true</code></pre>
+                    </div>
+
                     <h3 id="moon">The moon</h3>
-                    <p>The tracker names the moon's phase among its details. Add Home Assistant's <a href="https://www.home-assistant.io/integrations/moon/">Moon integration</a> under <b>Settings → Devices &amp; services</b>, and give the tracker its sensor as <code>moon_entity</code>, as above.</p>
+                    <p>The weather card draws a clear night's moon in its real phase, worked out from the date, so it needs nothing. The tracker names the phase among its details. Add Home Assistant's <a href="https://www.home-assistant.io/integrations/moon/">Moon integration</a> under <b>Settings → Devices &amp; services</b>, and give the tracker its sensor as <code>moon_entity</code>, as above. Give it to the weather card too, and its moon keeps to the phase the tracker names.</p>
 
                     <h3 id="planes">Planes</h3>
                     <p>With the <a href="https://github.com/AlexandrErohin/home-assistant-flightradar24">Flightradar24 integration</a> (from the Marketplace), each flight that enters your area crosses the card once, at its real heading, height and speed, drawn as its aircraft: an airliner, a 747, a turboprop, a business jet, a helicopter. Each is tagged with its flight number and aircraft; set <code>flight_label: route</code> to tag it with where it's going instead ("Lisbon → Paris", or the airport codes on a narrow card), or <code>both</code> for the route over the flight. A flight with no route, like most light aircraft, keeps its number. Set <code>plane_speed: 0.5</code> (down to <code>0.25</code>) to slow them down so you can follow one, and <code>planes_on_load: true</code> to also fly the ones already overhead when the dashboard opens. Set <code>show_flight_labels: false</code> to fly them without tags.</p>
@@ -448,6 +556,10 @@ color_palette: theme</code></pre>
                             <dd>Reduced motion is on in your system settings, or <code>animate</code> is <code>false</code>.</dd>
                         </div>
                         <div>
+                            <dt>The rain doesn't follow my rain sensor</dt>
+                            <dd>Give your rain reading the sensor for the rate, in mm/h or in/h, as <code>rate_entity</code>, not today's total (see <a href="#amounts">How much weather</a>). A rate of 0 counts as no reading, since a tipping bucket reads 0 between tips, so the card then follows the forecast's hour. With <code>engine_mode: manual</code>, or <code>engine_settings</code> and no <code>engine_mode: auto</code>, the card keeps its own amounts.</dd>
+                        </div>
+                        <div>
                             <dt>The settings panel stays empty</dt>
                             <dd><code>animated-weather-card-editor.js</code> has to be in the same folder as <code>animated-weather-card.js</code>.</dd>
                         </div>
@@ -457,7 +569,7 @@ color_palette: theme</code></pre>
                         </div>
                         <div>
                             <dt>Planes don't appear</dt>
-                            <dd>Only flights that enter your area after the dashboard loads fly, unless you set <code>planes_on_load: true</code>; planes on the ground wait until they take off, flights that arrive while the card is paused are skipped, and at most three cross at once. In <code>dev_mode</code>, the developer panel's <b>Fly a plane</b> button sends one across to check the setup. On a copy of your own, <code>animated-weather-card-planes.js</code> has to be in the same folder as <code>animated-weather-card.js</code>.</dd>
+                            <dd>Only flights that enter your area after the dashboard loads fly, unless you set <code>planes_on_load: true</code>, which flies those already up once the card is on screen; planes on the ground wait until they take off, flights that arrive while the card is paused are skipped, and at most three cross at once. If none arrive for a while and Home Assistant's log says <code>rate limited (HTTP 429)</code>, Flightradar24 has paused the integration for up to 15 minutes: set its scan interval to 20–60 seconds, as <a href="https://github.com/AlexandrErohin/home-assistant-flightradar24#notes">its README</a> advises, since a shorter interval, a bigger radius or several Flightradar24 entries on one internet connection make that more likely. To check the setup, the dev card's <b>Fly a plane</b> button (<code>type: custom:animated-weather-dev-card</code>) sends one across every weather card on the dashboard. On a copy of your own, <code>animated-weather-card-planes.js</code> has to be in the same folder as <code>animated-weather-card.js</code>.</dd>
                         </div>
                     </dl>
                     <p>Something else? <a href="https://github.com/alexsto1an/ha-ani-weather-card/issues">Open an issue</a> with what you see and your card's YAML.</p>

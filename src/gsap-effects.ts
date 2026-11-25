@@ -69,13 +69,14 @@ export function createGSAPLeaf(windLayer: Element, settings: any, scale: number,
 /**
  * Create GSAP-animated wind swoosh: a faint streak of moving air.
  */
-export function createGSAPSwoosh(windLayer: Element, settings: any, scale: number, cardElement: HTMLElement, config: any, onRemove?: (el: HTMLElement) => void): HTMLElement {
+export function createGSAPSwoosh(windLayer: Element, settings: any, scale: number, cardElement: HTMLElement, config: any, onRemove?: (el: HTMLElement) => void, strong = 0.2): HTMLElement {
     const swoosh = document.createElement('div');
     swoosh.className = 'wind-swoosh-gsap';
 
+    // A share of them are strong (thicker): a fifth, more in gusts
     const swooshType = Math.random();
     const isCurved = swooshType > 0.6;
-    const isStrong = swooshType > 0.8;
+    const isStrong = swooshType > 1 - strong;
 
     swoosh.style.position = 'absolute';
     swoosh.style.height = (isStrong ? 2 : 1) * scale + 'px';
@@ -249,175 +250,199 @@ export function cloudHeightScale(cardHeight: number): number {
     return Math.min(1, Math.max(0.5, cardHeight / 160)) || 1;
 }
 
+/** How many clouds each depth draws for a cloud count (engine_settings.cloudCount, manual): back, middle, front */
+export function cloudLayerCounts(cloudCount: number): [number, number, number] {
+    return [Math.ceil(cloudCount * 0.4), Math.ceil(cloudCount * 0.4), Math.ceil(cloudCount * 0.6)];
+}
+
+/** One cloud on its way across: its depth, its place among that depth's clouds (its size and height), its tracks and drift */
+export interface DriftingCloud {
+    layer: number;
+    i: number;
+    /** Its track, and on the theme palette its twin's */
+    tracks: HTMLElement[];
+    tl: GSAPTimeline;
+}
+
+export interface CloudOptions {
+    /** Start out of sight at the card's left edge after this share of its crossing, rather than somewhere along its path */
+    enter?: number;
+    /** The wind factor its speed is worked out from: the clouds' start, so a later change of wind scales it with the rest */
+    windFactor?: number;
+    /** Each time it has crossed and starts again, out of sight */
+    onRepeat?: () => void;
+}
+
 /**
- * Create GSAP-animated cloud with parallax layers
+ * One cloud at a depth (0 back, 1 middle, 2 front) and place (1 up, its size and height), drifting across forever.
  */
-export function createGSAPCloud(cloudLayer: Element, settings: any, cloudCount: number, cardElement: HTMLElement, config: any): GSAPTimeline[] {
-    // Get card dimensions
+export function createCloud(cloudLayer: Element, settings: any, layerIndex: number, i: number, cardElement: HTMLElement, config: any, options: CloudOptions = {}): DriftingCloud {
     const cardWidth = cardElement.offsetWidth;
     const cardHeight = cardElement.offsetHeight;
-
-    // Parallax layer configuration (3 layers: background, middle, foreground)
     // Slightly dimmed and softened so clouds passing behind the hero text
     // don't compete with it; they still roam the whole sky. Farther clouds
     // are smaller, fainter and slower, so depth reads the right way round.
-    const parallaxLayers = CLOUD_LAYERS;
-    const windFactor = driftWindFactor(settings.windSpeed);
-
-    const cloudTimelines: GSAPTimeline[] = [];
-    const effectiveCloudCount = cloudCount || settings.cloudCount;
+    const layer = CLOUD_LAYERS[layerIndex];
+    const windFactor = options.windFactor ?? driftWindFactor(settings.windSpeed);
     // Short strips (compact cards, one-row sections) get smaller clouds, so
     // a cloud is part of the sky rather than half the card
     const heightScale = cloudHeightScale(cardHeight);
 
-    parallaxLayers.forEach((layer, layerIndex) => {
-        // Determine how many clouds to create for this layer (fewer for background, more for foreground)
-        const layerCloudCount = layerIndex === 0 ? Math.ceil(effectiveCloudCount * 0.4) :
-                               layerIndex === 1 ? Math.ceil(effectiveCloudCount * 0.4) :
-                               Math.ceil(effectiveCloudCount * 0.6);
+    const cloud = document.createElement('div');
+    cloud.className = `cloud-gsap cloud-gsap-${layer.name}-${i}`;
 
-        for (let i = 1; i <= layerCloudCount; i++) {
-            const cloud = document.createElement('div');
-            cloud.className = `cloud-gsap cloud-gsap-${layer.name}-${i}`;
+    // Calculate cloud size with parallax depth
+    const baseCloudSize = settings.cloudBaseSize * layer.scale;
+    const sizeVariation = 1 + ((i - 1) * 0.15);
+    const actualSize = Math.max(0.3, Math.min(2.5, baseCloudSize)) * sizeVariation * heightScale;
+    const shape = cloudShape(actualSize);
 
-            // Calculate cloud size with parallax depth
-            const baseCloudSize = settings.cloudBaseSize * layer.scale;
-            const sizeVariation = 1 + ((i - 1) * 0.15);
-            const actualSize = Math.max(0.3, Math.min(2.5, baseCloudSize)) * sizeVariation * heightScale;
-            const shape = cloudShape(actualSize);
+    cloud.style.position = 'absolute';
+    cloud.style.opacity = layer.opacity.toString();
+    // Its own opacity, which it grows from as it passes the sun (clouds-animation.ts)
+    cloud.dataset.awcO = String(layer.opacity);
+    cloud.style.zIndex = (10 + layerIndex).toString();
 
-            cloud.style.position = 'absolute';
-            cloud.style.opacity = layer.opacity.toString();
-            // Its own opacity, which it grows from as it passes the sun (clouds-animation.ts)
-            cloud.dataset.awcO = String(layer.opacity);
-            cloud.style.zIndex = (10 + layerIndex).toString();
+    // Far clouds are dimmer and cooler, near clouds brightest. The
+    // tints come from the sky (condition, time of day, palette).
+    const cloudColor = ['var(--awc-cloud-far)', 'var(--awc-cloud-mid)', 'var(--awc-cloud-near)'][layerIndex];
 
-            // Far clouds are dimmer and cooler, near clouds brightest. The
-            // tints come from the sky (condition, time of day, palette).
-            const cloudColor = ['var(--awc-cloud-far)', 'var(--awc-cloud-mid)', 'var(--awc-cloud-near)'][layerIndex];
-
-            // Farther clouds are softer. Theme clouds are crisp: without a
-            // sky behind them, a blurred cloud reads as a smudge.
-            const blur = config?.color_palette === 'theme' ? 0 : layer.blur;
-            // The body, then the puffs over it, each translucent, so a puff
-            // shows faintly where it overlaps the body
-            const parts = [
-                { x: 0, y: 0, width: shape.width, height: shape.height },
-                ...shape.puffs.map(p => ({ x: p.x, y: p.y, width: p.size, height: p.size })),
-            ];
-            const dpr = Math.min(3, Math.max(1, window.devicePixelRatio || 1));
-            const masks = parts.map(p => cloudPartMask(p.width, p.height, blur, dpr));
-            const masked = masks.every(Boolean);
-            const reach = masked ? blurReach(blur) : 0;
-            // The cloud's box is its body, as the track places it
-            cloud.style.width = shape.width + 'px';
-            cloud.style.height = shape.height + 'px';
-            if (masked) {
-                // Each part blurred by its mask, its colour showing through
-                cloud.classList.add('cloud-masked');
-                parts.forEach((p, n) => {
-                    const el = document.createElement('div');
-                    el.style.position = 'absolute';
-                    el.style.left = p.x - reach + 'px';
-                    el.style.top = p.y - reach + 'px';
-                    el.style.width = p.width + 2 * reach + 'px';
-                    el.style.height = p.height + 2 * reach + 'px';
-                    el.style.background = cloudColor;
-                    for (const prefix of ['-webkit-', '']) {
-                        el.style.setProperty(`${prefix}mask-image`, `url("${masks[n]}")`);
-                        el.style.setProperty(`${prefix}mask-size`, '100% 100%');
-                        el.style.setProperty(`${prefix}mask-repeat`, 'no-repeat');
-                    }
-                    cloud.appendChild(el);
-                });
-            } else {
-                // No canvas: the body and its puffs, blurred by CSS
-                cloud.style.borderRadius = '50px';
-                cloud.style.background = cloudColor;
-                if (blur > 0) cloud.style.filter = `blur(${blur}px)`;
-                for (const puff of shape.puffs) {
-                    const el = document.createElement('div');
-                    el.style.position = 'absolute';
-                    el.style.left = puff.x + 'px';
-                    el.style.top = puff.y + 'px';
-                    el.style.width = puff.size + 'px';
-                    el.style.height = puff.size + 'px';
-                    el.style.borderRadius = '50px';
-                    el.style.background = cloudColor;
-                    cloud.appendChild(el);
-                }
+    // Farther clouds are softer. Theme clouds are crisp: without a
+    // sky behind them, a blurred cloud reads as a smudge.
+    const blur = config?.color_palette === 'theme' ? 0 : layer.blur;
+    // The body, then the puffs over it, each translucent, so a puff
+    // shows faintly where it overlaps the body
+    const parts = [
+        { x: 0, y: 0, width: shape.width, height: shape.height },
+        ...shape.puffs.map(p => ({ x: p.x, y: p.y, width: p.size, height: p.size })),
+    ];
+    const dpr = Math.min(3, Math.max(1, window.devicePixelRatio || 1));
+    const masks = parts.map(p => cloudPartMask(p.width, p.height, blur, dpr));
+    const masked = masks.every(Boolean);
+    const reach = masked ? blurReach(blur) : 0;
+    // The cloud's box is its body, as the track places it
+    cloud.style.width = shape.width + 'px';
+    cloud.style.height = shape.height + 'px';
+    if (masked) {
+        // Each part blurred by its mask, its colour showing through
+        cloud.classList.add('cloud-masked');
+        parts.forEach((p, n) => {
+            const el = document.createElement('div');
+            el.style.position = 'absolute';
+            el.style.left = p.x - reach + 'px';
+            el.style.top = p.y - reach + 'px';
+            el.style.width = p.width + 2 * reach + 'px';
+            el.style.height = p.height + 2 * reach + 'px';
+            el.style.background = cloudColor;
+            for (const prefix of ['-webkit-', '']) {
+                el.style.setProperty(`${prefix}mask-image`, `url("${masks[n]}")`);
+                el.style.setProperty(`${prefix}mask-size`, '100% 100%');
+                el.style.setProperty(`${prefix}mask-repeat`, 'no-repeat');
             }
-            // How wide the cloud draws, its blur included
-            const extent = shape.width + 2 * reach;
-
-            // Parallax positioning - different heights and depths
-            const heightVariations = [
-                [10, 25, 40, 15, 30], // Background - lower in sky
-                [20, 45, 60, 35, 50], // Middle - middle heights
-                [5, 35, 55, 25, 45]   // Foreground - varied heights
-            ];
-            
-            const topPosition = heightVariations[layerIndex][i - 1] || (15 + layerIndex * 10);
-            // How far down its sky the cloud rides, and how much of it hangs below that (its body and blur).
-            // With the forecast on, the sky ends above the row (data-cloud-band, px): the whole cloud stays above it.
-            const frac = topPosition / 60;
-            const bottom = shape.height + Math.max(reach, Math.ceil(blur * 3)) + 2;
-            const banded = Number(cardElement.dataset?.cloudBand);
-            const band = Number.isFinite(banded) && cardElement.dataset?.cloudBand !== undefined ? banded : null;
-            
-            // Start and end fully outside the card, by this much
-            const margin = Math.max(150 + layerIndex * 50, extent + CLOUD_BLUR_PAD_PX);
-            const speed = layer.speed * windFactor * (0.9 + Math.random() * 0.2);
-            const duration = (cardWidth + 2 * margin) / speed;
-
-            // The cloud rides a track as wide as the sky. The track's
-            // xPercent carries it across the card's width, whatever that
-            // width becomes later (a sidebar closes, a tablet turns), and
-            // its x adds the margins, so a cloud always enters and leaves
-            // out of sight. Both are transforms: no layout per frame.
-            const track = document.createElement('div');
-            track.className = 'cloud-track';
-            track.dataset.awcF = String(frac);
-            track.dataset.awcB = String(bottom);
-            track.appendChild(cloud);
-            window.AnimatedWeatherCardGsap.set(cloud, { opacity: layer.opacity });
-            // On the theme palette, a twin in the card's fill rides under it, clipped to the card, to hide the sun
-            // behind it (styles/card.ts: .clouds-occluders). Its track carries the same place, so a floor moves it too.
-            const tracks: HTMLElement[] = [track];
-            if (config?.color_palette === 'theme') {
-                const twins = cloudLayer.parentElement?.querySelector('.clouds-occluders')
-                    ?? cloudLayer.insertAdjacentElement('beforebegin', Object.assign(document.createElement('div'), { className: 'clouds-occluders' }));
-                const twin = cloud.cloneNode(true) as HTMLElement;
-                twin.className = 'cloud-occluder';
-                twin.style.opacity = '1';
-                for (const el of [twin, ...Array.from(twin.querySelectorAll<HTMLElement>('div'))]) if (el.style.background) el.style.background = 'var(--awc-card-bg)';
-                const shadow = track.cloneNode(false) as HTMLElement;
-                shadow.appendChild(twin);
-                twins?.appendChild(shadow);
-                tracks.push(shadow);
-            }
-            const moved = tracks.length > 1 ? tracks : track;
-            window.AnimatedWeatherCardGsap.set(moved, {
-                xPercent: 0,
-                x: -margin,
-                y: cloudY(frac, bottom, band, cardHeight),
-            });
-
-            cloudLayer.appendChild(track);
-
-            // Drift across at constant speed, forever. Each cloud starts
-            // somewhere along its path, so the sky is already populated.
-            const tl = window.AnimatedWeatherCardGsap.timeline({
-                repeat: -1,
-                repeatDelay: Math.random() * 1.5,
-            });
-            tl.fromTo(moved, { xPercent: 0, x: -margin }, { xPercent: 100, x: margin, duration, ease: 'none' });
-            tl.progress(Math.random());
-
-            cloudTimelines.push(tl);
+            cloud.appendChild(el);
+        });
+    } else {
+        // No canvas: the body and its puffs, blurred by CSS
+        cloud.style.borderRadius = '50px';
+        cloud.style.background = cloudColor;
+        if (blur > 0) cloud.style.filter = `blur(${blur}px)`;
+        for (const puff of shape.puffs) {
+            const el = document.createElement('div');
+            el.style.position = 'absolute';
+            el.style.left = puff.x + 'px';
+            el.style.top = puff.y + 'px';
+            el.style.width = puff.size + 'px';
+            el.style.height = puff.size + 'px';
+            el.style.borderRadius = '50px';
+            el.style.background = cloudColor;
+            cloud.appendChild(el);
         }
+    }
+    // How wide the cloud draws, its blur included
+    const extent = shape.width + 2 * reach;
+
+    // Parallax positioning - different heights and depths
+    const heightVariations = [
+        [10, 25, 40, 15, 30], // Background - lower in sky
+        [20, 45, 60, 35, 50], // Middle - middle heights
+        [5, 35, 55, 25, 45]   // Foreground - varied heights
+    ];
+    
+    const topPosition = heightVariations[layerIndex][i - 1] || (15 + layerIndex * 10);
+    // How far down its sky the cloud rides, and how much of it hangs below that (its body and blur).
+    // With the forecast on, the sky ends above the row (data-cloud-band, px): the whole cloud stays above it.
+    const frac = topPosition / 60;
+    const bottom = shape.height + Math.max(reach, Math.ceil(blur * 3)) + 2;
+    const banded = Number(cardElement.dataset?.cloudBand);
+    const band = Number.isFinite(banded) && cardElement.dataset?.cloudBand !== undefined ? banded : null;
+    
+    // Start and end fully outside the card, by this much
+    const margin = Math.max(150 + layerIndex * 50, extent + CLOUD_BLUR_PAD_PX);
+    const speed = layer.speed * windFactor * (0.9 + Math.random() * 0.2);
+    const duration = (cardWidth + 2 * margin) / speed;
+
+    // The cloud rides a track as wide as the sky. The track's
+    // xPercent carries it across the card's width, whatever that
+    // width becomes later (a sidebar closes, a tablet turns), and
+    // its x adds the margins, so a cloud always enters and leaves
+    // out of sight. Both are transforms: no layout per frame.
+    const track = document.createElement('div');
+    track.className = 'cloud-track';
+    track.dataset.awcF = String(frac);
+    track.dataset.awcB = String(bottom);
+    track.appendChild(cloud);
+    window.AnimatedWeatherCardGsap.set(cloud, { opacity: layer.opacity });
+    // On the theme palette, a twin in the card's fill rides under it, clipped to the card, to hide the sun
+    // behind it (styles/card.ts: .clouds-occluders). Its track carries the same place, so a floor moves it too.
+    const tracks: HTMLElement[] = [track];
+    if (config?.color_palette === 'theme') {
+        const twins = cloudLayer.parentElement?.querySelector('.clouds-occluders')
+            ?? cloudLayer.insertAdjacentElement('beforebegin', Object.assign(document.createElement('div'), { className: 'clouds-occluders' }));
+        const twin = cloud.cloneNode(true) as HTMLElement;
+        twin.className = 'cloud-occluder';
+        twin.style.opacity = '1';
+        for (const el of [twin, ...Array.from(twin.querySelectorAll<HTMLElement>('div'))]) if (el.style.background) el.style.background = 'var(--awc-card-bg)';
+        const shadow = track.cloneNode(false) as HTMLElement;
+        shadow.appendChild(twin);
+        twins?.appendChild(shadow);
+        tracks.push(shadow);
+    }
+    const moved = tracks.length > 1 ? tracks : track;
+    window.AnimatedWeatherCardGsap.set(moved, {
+        xPercent: 0,
+        x: -margin,
+        y: cloudY(frac, bottom, band, cardHeight),
     });
 
+    cloudLayer.appendChild(track);
+
+    // Drift across at constant speed, forever. Each cloud starts
+    // somewhere along its path, so the sky is already populated; one
+    // that joins later comes in from the left, out of sight.
+    const tl = window.AnimatedWeatherCardGsap.timeline({
+        repeat: -1,
+        repeatDelay: Math.random() * 1.5,
+        ...(options.enter !== undefined ? { delay: options.enter * duration } : {}),
+        ...(options.onRepeat ? { onRepeat: options.onRepeat } : {}),
+    });
+    tl.fromTo(moved, { xPercent: 0, x: -margin }, { xPercent: 100, x: margin, duration, ease: 'none' });
+    if (options.enter === undefined) tl.progress(Math.random());
+
+    return { layer: layerIndex, i, tracks, tl };
+}
+
+/**
+ * Create GSAP-animated cloud with parallax layers: 3 depths (background, middle, foreground), fewer far away. `counts`
+ * gives each depth's clouds (auto mode's amounts), else they come from the cloud count.
+ */
+export function createGSAPCloud(cloudLayer: Element, settings: any, cloudCount: number, cardElement: HTMLElement, config: any, counts?: readonly number[]): GSAPTimeline[] {
+    const perLayer = counts ?? cloudLayerCounts(cloudCount || settings.cloudCount);
+    const cloudTimelines: GSAPTimeline[] = [];
+    CLOUD_LAYERS.forEach((_, layerIndex) => {
+        for (let i = 1; i <= (perLayer[layerIndex] ?? 0); i++) {
+            cloudTimelines.push(createCloud(cloudLayer, settings, layerIndex, i, cardElement, config).tl);
+        }
+    });
     return cloudTimelines;
 }
 
@@ -564,7 +589,7 @@ export function createGSAPFogLayer(fogContainer: Element, settings: any, layerIn
  * Clear fog layers when weather changes
  */
 export function clearFogLayers(cardElement: HTMLElement) {
-    const fogLayers = cardElement.querySelectorAll('.fog-layer');
+    const fogLayers = cardElement.querySelectorAll('.fog-layer, .fog-amount');
     fogLayers.forEach(layer => {
         if (layer.parentNode) {
             layer.parentNode.removeChild(layer);

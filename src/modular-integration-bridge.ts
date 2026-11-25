@@ -16,7 +16,7 @@ import { CloudsAnimation } from './clouds-animation';
 import { FogAnimation } from './fog-animation';
 import { StarsAnimation } from './stars-animation';
 import { SunAnimation } from './sun-animation';
-import { AnimatedWeatherCardConfig } from './types';
+import { AnimatedWeatherCardConfig, EngineAmounts } from './types';
 import { TimeOfDayManager } from './time-manager';
 import { devLog } from './utils';
 
@@ -25,6 +25,8 @@ export class ModularIntegrationBridge {
     private config: AnimatedWeatherCardConfig;
     private timeOfDayManager?: TimeOfDayManager;
     private realWindSpeed?: number;
+    /** In auto mode, how much of each weather to show; new animations start with it, running ones follow it */
+    private amounts: EngineAmounts | null = null;
 
     private activeAnimations = new Map<string, BaseAnimation>();
 
@@ -58,7 +60,8 @@ export class ModularIntegrationBridge {
                 scale: 1,
                 windSpeed: this.realWindSpeed || 10,
                 timeOfDay: this.timeOfDayManager?.getCurrentState()?.timePhase || 'day',
-                devMode: this.config.dev_mode || false
+                devMode: this.config.dev_mode || false,
+                amounts: this.amounts,
             };
 
             let animation: BaseAnimation | null = null;
@@ -203,6 +206,22 @@ export class ModularIntegrationBridge {
                 animation.setWindSpeed(windSpeed);
             } catch (error) {
                 console.warn(`Failed to update wind speed for ${type}:`, error);
+            }
+        }
+    }
+
+    /**
+     * Pass new amounts (auto mode) to the running animations, in place, as the wind. Every data update calls this, so
+     * amounts that would draw the same as the last do nothing. `quick` is the slide's (BaseAnimation.setAmounts).
+     */
+    public updateAmounts(amounts: EngineAmounts | null, quick = false): void {
+        if (JSON.stringify(amounts) === JSON.stringify(this.amounts)) return;
+        this.amounts = amounts;
+        for (const [type, animation] of this.activeAnimations) {
+            try {
+                animation.setAmounts(amounts, quick);
+            } catch (error) {
+                console.warn(`Failed to update amounts for ${type}:`, error);
             }
         }
     }

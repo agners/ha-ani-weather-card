@@ -97,6 +97,145 @@ describe('ParticlePool', () => {
     });
 });
 
+describe('a pool that grows and shrinks (auto mode\'s amounts)', () => {
+    let layer: HTMLElement;
+    const cycle = (_el: HTMLElement, next: () => void) => window.AnimatedWeatherCardGsap.timeline({ onComplete: next }) as never;
+    const delayed = () => (window.AnimatedWeatherCardGsap as unknown as { delayedCall: ReturnType<typeof vi.fn> }).delayedCall.mock.results.map(r => r.value as FakeTimeline);
+    beforeEach(() => {
+        layer = document.createElement('div');
+        document.body.appendChild(layer);
+    });
+    afterEach(() => layer.remove());
+
+    it('adds particles unseen, each starting its first cycle from the top at its own moment', () => {
+        const pool = new ParticlePool(layer, () => document.createElement('i'), cycle);
+        pool.start(4);
+        const before = timelines().length;
+        const waiting = delayed().length;
+        const added = pool.resize(7, 1);
+        expect(added).toHaveLength(3);
+        expect(pool.live).toBe(7);
+        expect(added.every(el => el.style.visibility === 'hidden')).toBe(true);
+        // No cycle until each one's moment comes
+        expect(timelines().length).toBe(before);
+        delayed().slice(waiting).forEach(d => d.vars.onComplete?.());
+        expect(added.every(el => el.style.visibility === '')).toBe(true);
+        expect(timelines().length).toBe(before + 3);
+        // From the top: not part-way through, as a starting pool is
+        expect(timelines().slice(before).every(tl => !(tl.progress as ReturnType<typeof vi.fn>).mock?.calls.length)).toBe(true);
+        pool.stop();
+    });
+
+    it('lets particles go at the end of their cycle, and keeps them when it grows again first', () => {
+        const retired: HTMLElement[] = [];
+        const pool = new ParticlePool(layer, () => document.createElement('i'), cycle, el => retired.push(el));
+        pool.start(6);
+        pool.resize(4);
+        // Still falling: nothing leaves until its cycle ends
+        expect(layer.children.length).toBe(6);
+        expect(pool.live).toBe(4);
+        // Growing back keeps the two on their way out instead of making new ones
+        pool.resize(5);
+        expect(pool.live).toBe(5);
+        pool.resize(3);
+        completeAll(0);
+        expect(layer.children.length).toBe(3);
+        expect(retired).toHaveLength(3);
+        pool.stop();
+    });
+
+    it('shows the slide\'s hours at once: new particles start part-way through, and the ones let go step out of sight', () => {
+        const warmth: boolean[] = [];
+        const pool = new ParticlePool(layer, () => document.createElement('i'), (el, next, warm) => { warmth.push(warm); return cycle(el, next); });
+        pool.start(4);
+        warmth.length = 0;
+        const added = pool.resize(6, 6, true);
+        expect(added).toHaveLength(2);
+        expect(warmth).toEqual([true, true]);
+        expect(added.every(el => el.style.visibility === '')).toBe(true);
+        pool.resize(3, 6, true);
+        const hidden = [...layer.children].filter(el => (el as HTMLElement).style.visibility === 'hidden');
+        expect(hidden).toHaveLength(3);
+        // The next hour wants one back: it shows again, and keeps falling
+        pool.resize(4, 6, true);
+        expect([...layer.children].filter(el => (el as HTMLElement).style.visibility === 'hidden')).toHaveLength(2);
+        completeAll(0);
+        expect(layer.children.length).toBe(4);
+        pool.stop();
+    });
+
+    it('holds a waiting particle while paused', () => {
+        const pool = new ParticlePool(layer, () => document.createElement('i'), cycle);
+        pool.start(1);
+        pool.pause();
+        const waiting = delayed().length;
+        pool.resize(3, 1);
+        expect(delayed().slice(waiting).every(d => (d.pause as ReturnType<typeof vi.fn>).mock.calls.length > 0)).toBe(true);
+        pool.stop();
+    });
+});
+
+describe('rain, snow and sleet by their amounts', () => {
+    const amounts = (rain: { kind: 'light' | 'rain' | 'storm' | 'pouring'; drops: number }, snow = 1) =>
+        ({ rain, snow, sleet: snow, clouds: [1, 1, 2] as [number, number, number], fog: 1, leaves: 1, gusts: 0, stars: 1 });
+
+    it('starts with the amounts\' drops, and follows new ones without starting again: the kind at each drop\'s next fall', async () => {
+        const host = makeCard();
+        const rain = new RainAnimation(host, { intensity: 1, scale: 1, amounts: amounts({ kind: 'light', drops: 8 }) }, { entity: 'weather.home' });
+        await rain.start();
+        const drops = () => [...host.querySelectorAll('.raindrop')] as HTMLElement[];
+        expect(drops()).toHaveLength(8);
+        expect(drops()[0].style.height).toBe('16px');
+        const first = drops()[0];
+        rain.setAmounts(amounts({ kind: 'pouring', drops: 20 }));
+        // The same drops are still falling: the weather never started again
+        expect(drops()[0]).toBe(first);
+        expect(drops()).toHaveLength(20);
+        // A drop takes pouring's length when it starts its next fall
+        completeAll(0);
+        expect(first.style.height).toBe('42px');
+        // Less rain: drops leave at the end of their fall
+        rain.setAmounts(amounts({ kind: 'rain', drops: 5 }));
+        expect(drops()).toHaveLength(20);
+        completeAll(0);
+        expect(drops().length).toBeLessThan(20);
+        await rain.stop();
+        host.remove();
+    });
+
+    it('keeps manual\'s count when there are no amounts', async () => {
+        const host = makeCard();
+        const rain = new RainAnimation(host, { intensity: 1, scale: 1 }, { entity: 'weather.home' });
+        await rain.start();
+        expect(host.querySelectorAll('.raindrop')).toHaveLength(18);
+        await rain.stop();
+        host.remove();
+    });
+
+    it('lets snow thin out, each flake taking its sway with it; sleet the same', async () => {
+        const host = makeCard();
+        const snow = new SnowAnimation(host, { intensity: 1, scale: 1, amounts: amounts({ kind: 'rain', drops: 18 }, 1) }, { entity: 'weather.home' });
+        await snow.start();
+        const flakes = () => host.querySelectorAll('.snowflake').length;
+        expect(flakes()).toBe(snowPoolSize(1, 420, 230));
+        snow.setAmounts(amounts({ kind: 'rain', drops: 18 }, 0.4));
+        completeAll(0);
+        expect(flakes()).toBe(snowPoolSize(0.4, 420, 230));
+        snow.setAmounts(amounts({ kind: 'rain', drops: 18 }, 2));
+        expect(flakes()).toBe(snowPoolSize(2, 420, 230));
+        await snow.stop();
+        const sleet = new SleetAnimation(host, { intensity: 1, scale: 1, amounts: amounts({ kind: 'rain', drops: 18 }, 2) }, { entity: 'weather.home' });
+        await sleet.start();
+        const pellets = () => host.querySelectorAll('.sleet-particle-gsap').length;
+        const many = pellets();
+        sleet.setAmounts(amounts({ kind: 'rain', drops: 18 }, 1));
+        completeAll(0);
+        expect(pellets()).toBeLessThan(many);
+        await sleet.stop();
+        host.remove();
+    });
+});
+
 describe('rain', () => {
     it('falls faster and denser as it gets heavier', () => {
         const kinds = ['light', 'rain', 'storm', 'pouring'] as const;

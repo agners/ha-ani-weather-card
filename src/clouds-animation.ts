@@ -1,9 +1,9 @@
 // CloudsAnimation - Modular cloud animation with parallax layers
 
 import { BaseAnimation, BaseAnimationConfig, AnimationLifecycleState } from './base-animation';
-import { AnimatedWeatherCardConfig, GSAPTimeline } from './types';
+import { AnimatedWeatherCardConfig, EngineAmounts, GSAPTimeline, WeatherEngineSettings } from './types';
 import { getWeatherSettings, devLog } from './utils';
-import { createGSAPCloud, driftWindFactor, removeClouds } from './gsap-effects';
+import { cloudLayerCounts, createCloud, driftWindFactor, DriftingCloud, removeClouds } from './gsap-effects';
 import { SKY_DISSOLVE_SEC } from './sky';
 
 /**
@@ -15,6 +15,16 @@ const DISC = Array.from({ length: 25 }, (_, i) => [(i % 5) / 2 - 1, Math.floor(i
 const DENSE = 1.9;
 /** And the sun's light dims by each cloud's opacity times this, for the part of its disc the cloud covers */
 const HIDE = 0.6;
+/** The slide shows an hour's clouds by fading them, this long (s) */
+const CLOUD_FADE_SEC = 0.3;
+/** Clouds that join at once come in one after another, this share of a crossing apart */
+const CLOUD_ENTER_GAP = 0.3;
+
+/** A cloud and where it's going: on its way out (it leaves as it reaches the right), or hidden by the slide */
+interface Cloud extends DriftingCloud {
+    retiring?: boolean;
+    hidden?: boolean;
+}
 
 export interface CloudsAnimationConfig extends BaseAnimationConfig {
     cloudCount: number;
@@ -28,7 +38,7 @@ export class CloudsAnimation extends BaseAnimation {
     public readonly containerSelector = '.clouds-container';
 
     protected cloudsConfig: CloudsAnimationConfig;
-    protected cloudTimelines: GSAPTimeline[] = [];
+    protected clouds: Cloud[] = [];
     /** The drift factor the clouds started with; wind changes scale from it */
     protected startWindFactor = 1;
     /** How much of the sun's light the clouds last let through, 0 to 1 */
@@ -68,30 +78,27 @@ export class CloudsAnimation extends BaseAnimation {
         // Clear any existing GSAP clouds
         removeClouds(cloudLayer);
 
-        // Calculate cloud count
-        let cloudCount = Math.min(6, Math.max(1, Math.round(settings.cloudCount)));
-        if (this.cloudsConfig.isPartlyCloudy) {
-            cloudCount = Math.max(1, Math.round(cloudCount * 0.6));
-        }
-
-        this.cloudTimelines = createGSAPCloud(cloudLayer, settings, cloudCount, card, this.cardConfig);
+        // Each depth's clouds: the amounts' in auto mode, else from the cloud count
+        const counts = this.amounts?.clouds ?? cloudLayerCounts(this.cloudCount(settings));
         this.startWindFactor = driftWindFactor(settings.windSpeed);
+        this.clouds = [];
+        counts.forEach((n, layer) => { for (let i = 1; i <= n; i++) this.addCloud(layer, i, settings); });
         // A look at the sun about eight times a second, paused and stopped with the clouds
         this.looks?.kill();
         this.looks = window.AnimatedWeatherCardGsap.timeline({ repeat: -1, onRepeat: () => this.veilSun() });
         this.looks.to({}, { duration: 0.12 });
         this.veilSun(true);
 
-        devLog(this.config.devMode, `Clouds animation started with ${cloudCount} clouds`);
+        devLog(this.config.devMode, `Clouds animation started with ${this.clouds.length} clouds`);
     }
 
     protected async onStop(): Promise<void> {
         // Kill all cloud timelines, and any change of speed still easing in
-        this.cloudTimelines.forEach(tl => {
+        this.clouds.forEach(({ tl }) => {
             window.AnimatedWeatherCardGsap?.killTweensOf(tl);
             if (tl && typeof tl.kill === 'function') tl.kill();
         });
-        this.cloudTimelines = [];
+        this.clouds = [];
         this.looks?.kill();
         this.looks = null;
 
@@ -105,7 +112,7 @@ export class CloudsAnimation extends BaseAnimation {
     }
 
     protected async onPause(): Promise<void> {
-        this.cloudTimelines.forEach(tl => {
+        this.clouds.forEach(({ tl }) => {
             if (tl && typeof tl.pause === 'function') tl.pause();
         });
         this.looks?.pause();
@@ -113,7 +120,7 @@ export class CloudsAnimation extends BaseAnimation {
     }
 
     protected async onResume(): Promise<void> {
-        this.cloudTimelines.forEach(tl => {
+        this.clouds.forEach(({ tl }) => {
             if (tl && typeof tl.resume === 'function') tl.resume();
         });
         this.looks?.resume();
@@ -147,8 +154,10 @@ export class CloudsAnimation extends BaseAnimation {
         const layer = this.element.querySelector(this.containerSelector);
         const fade = layer ? parseFloat(getComputedStyle(layer).opacity) : 1;
         const shown = Number.isFinite(fade) ? fade : 1;
-        // What each cloud shows of its own opacity: less on the theme palette's faint clouds (without twins), or while it fades out
-        const hide = clouds.map(cloud => Math.min(base(cloud), parseFloat(getComputedStyle(cloud).opacity) || 0) * HIDE * shown);
+        // What each cloud shows of its own opacity: less on the theme palette's faint clouds (without twins), or while it
+        // fades out, or its track does (the slide hiding it)
+        const opacity = (el: Element | null) => { const o = el ? parseFloat(getComputedStyle(el).opacity) : 1; return Number.isFinite(o) ? o : 1; };
+        const hide = clouds.map(cloud => Math.min(base(cloud), opacity(cloud) || 0) * opacity(cloud.parentElement) * HIDE * shown);
         // The body and its puffs: pills and circles, as boxes with round ends
         const parts = clouds.map(cloud => [cloud, ...Array.from(cloud.children)].map(el => el.getBoundingClientRect()).filter(b => b.width && b.height));
         const over = (n: number, x: number, y: number) => parts[n].some(b => {
@@ -215,8 +224,100 @@ export class CloudsAnimation extends BaseAnimation {
         if (!window.AnimatedWeatherCardGsap) return;
         const settings = getWeatherSettings(this.cardConfig, this.realWindSpeed);
         const timeScale = driftWindFactor(settings.windSpeed) / this.startWindFactor;
-        this.cloudTimelines.forEach(tl => {
+        this.clouds.forEach(({ tl }) => {
             window.AnimatedWeatherCardGsap!.to(tl, { timeScale, duration: SKY_DISSOLVE_SEC, ease: 'sine.inOut', overwrite: true });
         });
+    }
+
+    /** The clouds engine_settings call for (manual): cloudCount, 1 to 6, fewer when partly cloudy */
+    protected cloudCount(settings: WeatherEngineSettings): number {
+        const count = Math.min(6, Math.max(1, Math.round(settings.cloudCount)));
+        return this.cloudsConfig.isPartlyCloudy ? Math.max(1, Math.round(count * 0.6)) : count;
+    }
+
+    /**
+     * A cloud at a depth and place. `enter` brings it in from the left (a share of its crossing from now), else it starts
+     * somewhere along its path. Its speed is worked out from the clouds' start and scaled to the wind now, as the rest.
+     */
+    protected addCloud(layer: number, i: number, settings: WeatherEngineSettings, enter?: number): Cloud {
+        const cloudLayer = this.element.querySelector(this.layerSelector) as Element;
+        const card = this.element.querySelector('.animated-weather-card') as HTMLElement;
+        // It leaves when it has crossed if it's on its way out, or the slide has hidden it
+        const cloud: Cloud = createCloud(cloudLayer, settings, layer, i, card, this.cardConfig, {
+            enter, windFactor: this.startWindFactor, onRepeat: () => { if (cloud.retiring || cloud.hidden) this.retire(cloud); },
+        });
+        const timeScale = driftWindFactor(settings.windSpeed) / this.startWindFactor;
+        if (Math.abs(timeScale - 1) > 1e-6) cloud.tl.timeScale(timeScale);
+        if (this.state === AnimationLifecycleState.PAUSED) cloud.tl.pause();
+        this.clouds.push(cloud);
+        return cloud;
+    }
+
+    /** A cloud leaves for good, its twin with it */
+    protected retire(cloud: Cloud): void {
+        cloud.tl.kill();
+        window.AnimatedWeatherCardGsap?.killTweensOf(cloud.tl);
+        for (const track of cloud.tracks) {
+            window.AnimatedWeatherCardGsap?.killTweensOf([track, ...Array.from(track.children)]);
+            track.remove();
+        }
+        this.clouds = this.clouds.filter(c => c !== cloud);
+    }
+
+    /** The lowest place at a depth no cloud has, so a new one takes the size and height of the one it replaces */
+    protected freePlace(layer: number): number {
+        const taken = new Set(this.clouds.filter(c => c.layer === layer).map(c => c.i));
+        let i = 1;
+        while (taken.has(i)) i++;
+        return i;
+    }
+
+    /**
+     * New amounts (auto mode). As the weather changes, clouds come in from the left out of sight and leave as they reach
+     * the right, so cover builds and clears as the wind carries it. The slide's hours (quick) fade clouds in and out
+     * where they are, as it fades the rest of the weather.
+     */
+    protected onAmountsChange(_previous: EngineAmounts | null, quick: boolean): void {
+        const settings = getWeatherSettings(this.cardConfig, this.realWindSpeed);
+        const counts = this.amounts?.clouds ?? cloudLayerCounts(this.cloudCount(settings));
+        counts.forEach((n, layer) => quick ? this.showClouds(layer, n, settings) : this.driftClouds(layer, n, settings));
+    }
+
+    /** The weather's own change at a depth: clouds drift in and out at the card's edges */
+    protected driftClouds(layer: number, n: number, settings: WeatherEngineSettings): void {
+        const here = this.clouds.filter(c => c.layer === layer).sort((a, b) => a.i - b.i);
+        // What the slide hid is out of sight, so it goes now
+        here.filter(c => c.hidden).forEach(c => this.retire(c));
+        const staying = here.filter(c => !c.hidden && !c.retiring);
+        // A cloud on its way out stays after all, before a new one comes
+        for (const c of here.filter(c => c.retiring)) {
+            if (staying.length >= n) break;
+            c.retiring = false;
+            staying.push(c);
+        }
+        for (let k = 0, missing = n - staying.length; k < missing; k++) {
+            this.addCloud(layer, this.freePlace(layer), settings, k * CLOUD_ENTER_GAP);
+        }
+        // Too many: the last to come leave first, as they reach the right
+        staying.sort((a, b) => a.i - b.i).slice(n).forEach(c => { c.retiring = true; });
+    }
+
+    /** The slide's hour at a depth: its first n clouds show, the rest fade out where they are */
+    protected showClouds(layer: number, n: number, settings: WeatherEngineSettings): void {
+        const here = this.clouds.filter(c => c.layer === layer).sort((a, b) => a.i - b.i);
+        here.forEach((c, k) => this.fadeCloud(c, k < n));
+        for (let k = here.length; k < n; k++) {
+            const cloud = this.addCloud(layer, this.freePlace(layer), settings);
+            window.AnimatedWeatherCardGsap?.set(cloud.tracks, { opacity: 0 });
+            cloud.hidden = true;
+            this.fadeCloud(cloud, true);
+        }
+    }
+
+    protected fadeCloud(cloud: Cloud, on: boolean): void {
+        cloud.retiring = false;
+        if (!!cloud.hidden === !on) return;
+        cloud.hidden = !on;
+        window.AnimatedWeatherCardGsap?.to(cloud.tracks, { opacity: on ? 1 : 0, duration: CLOUD_FADE_SEC, ease: 'sine.out', overwrite: 'auto' });
     }
 }

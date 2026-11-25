@@ -2,7 +2,7 @@
 // Provides common interface and lifecycle methods for all weather animations
 
 import { devLog } from './utils';
-import { AnimatedWeatherCardConfig } from './types';
+import { AnimatedWeatherCardConfig, EngineAmounts } from './types';
 
 /**
  * Animation lifecycle states
@@ -26,6 +26,8 @@ export interface BaseAnimationConfig {
     windSpeed?: number;
     timeOfDay?: 'dawn' | 'day' | 'dusk' | 'night';
     devMode?: boolean;
+    /** In auto mode (engine_mode), how much of each weather to show; none in manual, where engine_settings say */
+    amounts?: EngineAmounts | null;
 }
 
 /**
@@ -42,6 +44,8 @@ export abstract class BaseAnimation {
     protected particles: HTMLElement[] = [];
     /** The live wind speed from the weather entity, in its own unit */
     protected realWindSpeed?: number;
+    /** In auto mode, how much of each weather to show (engine.ts); null in manual */
+    protected amounts: EngineAmounts | null = null;
 
     // Abstract properties that must be implemented by subclasses
     public abstract readonly animationType: string;
@@ -52,6 +56,7 @@ export abstract class BaseAnimation {
         this.element = element;
         this.config = config;
         this.cardConfig = cardConfig;
+        this.amounts = config.amounts ?? null;
         this.state = AnimationLifecycleState.CREATED;
 
         // Note: subclasses set `animationType` (abstract) before super() runs
@@ -172,6 +177,19 @@ export abstract class BaseAnimation {
     }
     
     /**
+     * Follow new amounts (auto mode) without restarting, as the wind: particles come and go at the ends of their
+     * paths, clouds at the card's edges, fog and stars ease. Null goes back to engine_settings. `quick` is the
+     * slide's: an hour's amounts show at once (a cloud fades rather than drifting in, fog and stars ease in 0.3 s).
+     */
+    public setAmounts(amounts: EngineAmounts | null, quick = false): void {
+        const previous = this.amounts;
+        this.amounts = amounts;
+        if (this.state === AnimationLifecycleState.ACTIVE || this.state === AnimationLifecycleState.PAUSED) {
+            this.onAmountsChange(previous, quick);
+        }
+    }
+
+    /**
      * Destroy the animation and clean up all resources
      */
     public async destroy(): Promise<void> {
@@ -211,6 +229,8 @@ export abstract class BaseAnimation {
     protected abstract onResume(): Promise<void>;
     /** Apply a wind speed change to what's already moving. Most need nothing. */
     protected onWindSpeedChange(): void {}
+    /** Apply new amounts to what's already moving. Most need nothing. */
+    protected onAmountsChange(_previous: EngineAmounts | null, _quick: boolean): void {}
 
     // Protected helper methods
     protected setState(newState: AnimationLifecycleState): void {

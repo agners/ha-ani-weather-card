@@ -13,6 +13,7 @@ import { convertWindSpeedToKmh, lookup } from './utils';
 import { cardLanguage, formatTime } from './localize';
 import { ForecastEntry, ForecastType, forecastTypeFor, subscribeForecast } from './forecast-data';
 import { precipitationUnit } from './units';
+import { cardNow } from './clock';
 
 export type { ForecastEntry, ForecastType } from './forecast-data';
 
@@ -703,6 +704,8 @@ export class NoteWriter {
     private subscriptions: Promise<(() => void) | void>[] = [];
     private stopForecast?: () => void;
     private subscribedTo?: string;
+    /** The connection the note's storage and forecast are read through: Home Assistant's, or the dev card's world */
+    private connection?: unknown;
     private lastWeather?: HassEntity;
     private timer?: ReturnType<typeof setInterval>;
     private failedAt = 0;
@@ -728,9 +731,10 @@ export class NoteWriter {
         const { hass, config } = this.host;
         if (!hass?.connection || !config?.entity) return;
         const target = noteStorageKey(config, cardLanguage(hass));
-        if (this.subscribedTo === target && this.timer) return;
+        if (this.subscribedTo === target && this.connection === hass.connection && this.timer) return;
         this.unsubscribe();
         this.subscribedTo = target;
+        this.connection = hass.connection;
         this.lastWeather = hass.states[config.entity];
         this.waking = true;
         this.stored = null;
@@ -816,7 +820,8 @@ export class NoteWriter {
     hassChanged(): void {
         const { hass, config } = this.host;
         if (!this.running || !hass || !config?.entity) return;
-        if (!this.timer || this.subscribedTo !== noteStorageKey(config, cardLanguage(hass))) {
+        // A new key, or another connection: the dev card's world keeps its notes apart from yours
+        if (!this.timer || this.subscribedTo !== noteStorageKey(config, cardLanguage(hass)) || this.connection !== hass.connection) {
             this.connect();
             return;
         }
@@ -849,7 +854,7 @@ export class NoteWriter {
         if (!hass || !config || !weather) return;
         const facts = computeFacts({
             weather, forecast: this.forecast, forecastType: this.forecastType,
-            windows: calendarWindows(this.events, Date.now()), now: Date.now(),
+            windows: calendarWindows(this.events, cardNow()), now: cardNow(),
             formatHour: date => formatTime(date.toISOString(), hass),
             unitSystem: hass.config?.unit_system,
         });
@@ -857,7 +862,7 @@ export class NoteWriter {
         const signature = noteSignature(hass);
         const factsId = factsKey(facts);
         const stored = this.stored;
-        const now = Date.now();
+        const now = cardNow();
 
         // The stored note, while it's still about this weather
         const usable = !!stored?.line && stored.signature === signature && stored.condition === facts.condition;
@@ -913,7 +918,7 @@ export class NoteWriter {
                     throw new NoteProblem('no-entity', 'pick an AI Task entity for the note, or set a default in Settings → System → AI');
                 }
             }
-            await this.save(key, { ...(this.stored ?? {}), claim: { by: this.id, at: Date.now() } } as StoredNote);
+            await this.save(key, { ...(this.stored ?? {}), claim: { by: this.id, at: cardNow() } } as StoredNote);
             claimed = true;
 
             const task = {
@@ -933,12 +938,12 @@ export class NoteWriter {
             const parsed = parseNote(result?.response?.data);
             if (!parsed) throw new NoteProblem('empty', 'the AI Task answered with no note');
 
-            const note: StoredNote = { signature, facts: factsId, condition: facts.condition, ...parsed, written: Date.now(), claim: null };
+            const note: StoredNote = { signature, facts: factsId, condition: facts.condition, ...parsed, written: cardNow(), claim: null };
             this.stored = note;
             this.unconfigured = false;
             await this.save(key, note);
         } catch (err) {
-            this.failedAt = Date.now();
+            this.failedAt = cardNow();
             const kind = err instanceof NoteProblem ? err.kind : 'error';
             if (kind === 'no-entity') this.unconfigured = true;
             this.warnOnce(kind, err instanceof Error ? err.message : String(err));

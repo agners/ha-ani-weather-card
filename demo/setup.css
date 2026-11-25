@@ -32,7 +32,9 @@
     transition: opacity 1.4s var(--ease-in-out-sine);
 }
 .guide-window.is-lit .guide-light { opacity: 1; }
-.guide-slot { position: relative; z-index: 1; min-height: 240px; }
+/* The card's own height with its note (342 px; 367 at a phone's width), so the page under it doesn't move as it draws */
+.guide-slot { position: relative; z-index: 1; min-height: 342px; }
+@media (max-width: 640px) { .guide-slot { min-height: 367px; } }
 .guide-slot animated-weather-card {
     display: block;
     border-radius: 12px;
@@ -144,6 +146,7 @@
     transform: scale(0.6);
     transition: opacity 0.2s ease, transform 0.25s var(--ease-out-quart);
 }
+.toc-toggle { display: none; }
 .toc a:hover { color: var(--text-2); }
 .toc a[aria-current] { color: var(--text); }
 .toc a[aria-current]::before { opacity: 1; transform: none; }
@@ -254,14 +257,44 @@
     .guide-hero { row-gap: 40px; }
     .guide-intro, .guide-card { grid-column: 1 / -1; }
     .guide-card { max-width: 560px; }
+    /* The contents stay with you down a long page: one line at the top edge, naming the section you're in, that
+       opens to the list */
     .toc {
         grid-column: 1 / -1;
-        position: static;
-        margin-bottom: 56px;
-        padding-bottom: 28px;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        margin: 0 calc(-1 * var(--gutter)) 40px;
+        padding: 0 var(--gutter);
+        background: color-mix(in oklch, var(--ink), transparent 8%);
+        -webkit-backdrop-filter: blur(14px);
+        backdrop-filter: blur(14px);
         border-bottom: 1px solid var(--hairline);
     }
-    .toc ol { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+    .toc-title { display: none; }
+    .toc-toggle {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        min-height: 48px;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        background: none;
+        color: var(--text-2);
+        font: inherit;
+        font-weight: 600;
+        text-align: left;
+        cursor: pointer;
+    }
+    .toc-now { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; color: var(--text); }
+    .toc-chevron { flex: none; width: 18px; height: 18px; fill: currentColor; transition: transform 0.3s var(--ease-out-quint); }
+    .toc[data-open] .toc-chevron { transform: rotate(180deg); }
+    .toc ol { display: none; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); padding-bottom: 14px; }
+    .toc[data-open] ol { display: grid; }
+    .toc a { padding-block: 9px; }
+    .chapter, .guide-article h3 { scroll-margin-top: 68px; }
     .guide-article { grid-column: 1 / -1; }
 }
 @media (max-width: 640px) {

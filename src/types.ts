@@ -186,6 +186,21 @@ export interface CustomColorConfig {
 /**
  * Main configuration interface with comprehensive typing
  */
+/** One row of the weather card's readings, as YAML holds it (readings.ts normalizes it) */
+export interface ReadingEntry {
+    type: string;
+    /** A sensor, or a weather entity whose attribute it reads; none reads the card's own weather entity */
+    entity?: string;
+    /** wind: the direction's sensor */
+    direction_entity?: string;
+    /** rain: the rate's sensor, shown while it rains */
+    rate_entity?: string;
+    /** sensor: the label; else the entity's own name */
+    name?: string;
+    /** Only in the view that opens on tap */
+    view?: boolean;
+}
+
 export interface AnimatedWeatherCardConfig {
     type?: 'custom:animated-weather-card';
     entity?: string;
@@ -201,6 +216,37 @@ export interface AnimatedWeatherCardConfig {
     indoor_temperature_entity?: string;
     indoor_humidity_entity?: string;
     sun_entity?: string;
+    /** A moon phase sensor (the Moon integration's): the night's moon keeps to the phase it names. Without it, the date's */
+    moon_entity?: string;
+    /** Another place: its coordinates give the card its own sun, computed (solar.ts), instead of sun.sun */
+    latitude?: number;
+    longitude?: number;
+    /** Another place's time zone (an IANA name, such as Europe/Rome): every time on the card is shown in it */
+    time_zone?: string;
+    /** The readings in the metric row, in order: humidity, wind, pressure, sun (the default) and uv */
+    metrics?: string[] | string;
+    /**
+     * The readings, in order (readings.ts): a type, or a type with its entity. With it, metrics, the reading sensors,
+     * show_sun, uv_entity, uv_max_entity and rain_* are ignored; without it, they build the list
+     */
+    readings?: Array<ReadingEntry | string>;
+    /** Where AQI's levels after good start, five rising numbers (default the US EPA's 51, 101, 151, 201, 301) */
+    aqi_levels?: number[] | string;
+    /** A UV index sensor, such as OpenUV's current UV index. Without it, the weather entity's uv_index */
+    uv_entity?: string;
+    /** Today's highest UV index, for the view that opens on tap */
+    uv_max_entity?: string;
+    /** Where the UV levels start: moderate, high, very high and extreme (default 3, 6, 8, 11, the WHO's) */
+    uv_levels?: number[];
+    /** Today's rain from a station's sensor, such as an Ecowitt's daily rain: the rain reading */
+    rain_entity?: string;
+    /** The rain rate: the rain reading while it rains */
+    rain_rate_entity?: string;
+    /** A station's other rain totals, for the view that opens on tap: this rain event, this week, month and year */
+    rain_event_entity?: string;
+    rain_week_entity?: string;
+    rain_month_entity?: string;
+    rain_year_entity?: string;
     // Plane fly-overs: a Flightradar24 area sensor with a `flights` attribute
     flights_entity?: string;
     /** Write a note under the conditions with Home Assistant's AI Task, from the forecast */
@@ -250,12 +296,18 @@ export interface AnimatedWeatherCardConfig {
     hero?: 'temperature' | 'clock';
     /** The forecast on the card: today's high and low, the turning line, the hourly row and its chips, and the slide through the hours */
     show_forecast?: boolean;
-    /** The metric the row shows first: temp, feels, chance or amount */
-    forecast_metric?: 'temp' | 'feels' | 'chance' | 'amount';
+    /** The chip the row opens on: one the hourly forecast reports, else the temperature */
+    forecast_metric?: 'temp' | 'feels' | 'chance' | 'amount' | 'uv' | 'wind' | 'gust' | 'humidity' | 'dew' | 'cloud' | 'pressure';
+    /** The chips under the hourly row, which change what it shows (default true). Without them the row stays on forecast_metric */
+    show_chips?: boolean;
     /** The hours' graph, the same for every metric: a line (default), the line with a soft fill under it, bars, or none */
     forecast_graph?: 'line' | 'area' | 'bars' | 'none';
-    /** The forecast card: how many days its list shows (0 to 10, default 7) */
+    /** With show_forecast, the days under the hourly row (default false) */
+    show_days?: boolean;
+    /** How many days the list shows, on the forecast card and with show_days (0 to 10, default 7) */
     forecast_days?: number;
+    /** The forecast card: the line on what turns, at its top (default true). Without it there's no Now control either: the row's capsule names the hour */
+    show_summary?: boolean;
     /** The forecast card: the hourly row (default true) */
     show_hours?: boolean;
     /** The forecast card: the weather behind it, rain, snow, fog, wind and lightning (default false: the sky alone) */
@@ -283,6 +335,8 @@ export interface AnimatedWeatherCardConfig {
     spill_particles?: boolean;
     color_palette?: 'default' | 'theme';
     custom_colors?: Partial<CustomColorConfig>;
+    /** auto: the weather's own values set how much rain, snow, cloud, fog and wind there is; manual: engine_settings do. Auto unless engine_settings tune something */
+    engine_mode?: 'auto' | 'manual';
     engine_settings?: Partial<WeatherEngineSettings>;
     // Day/night cycle settings
     enable_day_night_cycle?: boolean;
@@ -340,6 +394,31 @@ export interface AnimationState {
  * Animation state keys - the actual animation type properties
  */
 export type AnimationStateKey = 'rain' | 'snow' | 'sleet' | 'wind' | 'lightning' | 'clouds' | 'fog' | 'stars' | 'sun';
+
+/** The rain's kind: how fast it falls and how long its drops are (rain-animation.ts) */
+export type RainKind = 'light' | 'rain' | 'storm' | 'pouring';
+
+/**
+ * The weather engine's amounts in auto mode (engine_mode, engine.ts): how much of each weather to show. Plain names,
+ * because the forecast bundle hands the card an hour's.
+ */
+export interface EngineAmounts {
+    /** The rain's kind, and its drops on a 420 × 230 card (the card's area scales them) */
+    rain: { kind: RainKind; drops: number };
+    /** Snow and sleet: how many times the usual flakes */
+    snow: number;
+    sleet: number;
+    /** Clouds at each depth, back to front */
+    clouds: [number, number, number];
+    /** Fog's thickness, 0.45 to 1 */
+    fog: number;
+    /** Leaves: how many times the usual */
+    leaves: number;
+    /** Gusts, 0 to 1: more and stronger swooshes */
+    gusts: number;
+    /** A clear night's stars: the share shown */
+    stars: number;
+}
 
 /**
  * Animation controller state - data-only properties for animation states
@@ -437,6 +516,8 @@ export interface GSAP {
     timeline(vars?: Record<string, any>): GSAPTimeline;
     killTweensOf(target: any): void;
     getTweensOf(target: any, onlyActive?: boolean): GSAPAnimation[];
+    /** A call after a delay that pauses and resumes like a tween (a particle that joins the weather waits its turn) */
+    delayedCall(delay: number, callback: () => void): GSAPAnimation;
     /** A tweened property's current value (the forecast reads a cloud track's height to move it above its words) */
     getProperty(target: any, property: string): number | string;
     globalTimeline: GSAPTimeline;
@@ -478,6 +559,8 @@ export interface GSAPTimeline {
     repeat(value: number): GSAPTimeline;
     repeatDelay(value: number): GSAPTimeline;
     yoyo(value: boolean): GSAPTimeline;
+    timeScale(): number;
+    timeScale(value: number): GSAPTimeline;
 }
 
 /**
@@ -511,8 +594,12 @@ declare global {
         /** The card's own GSAP, bundled into animated-weather-card.js and set there; the planes bundle reads it too */
         AnimatedWeatherCardGsap: GSAP;
         customCards: CustomCardDefinition[];
-        /** Set by the dev panel bundle (animated-weather-card-dev.js) when it loads */
-        AnimatedWeatherCardDevPanel?: new (card: import('./dev-panel').DevPanelHost) => import('./dev-panel').DevPanel;
+        /** The dev card's world (dev-link.ts), set by the dev bundle (animated-weather-card-dev.js): the cards' clock and Home Assistant as they read it */
+        AnimatedWeatherCardDev?: import('./dev-link').DevWorld;
+        /** Set by the dev bundle when it loads: what draws the dev card */
+        AnimatedWeatherCardDevCards?: import('./dev-link').DevCards;
+        /** The cards on the page, for the dev card (dev-link.ts) */
+        AnimatedWeatherCardsOnPage?: Set<import('./dev-link').DevCard>;
         /** Set by the note bundle (animated-weather-card-note.js) when it loads */
         AnimatedWeatherCardNote?: new (host: import('./note-generator').NoteHost) => import('./note-generator').NoteWriter;
         /** Set by the planes bundle (animated-weather-card-planes.js) when it loads */

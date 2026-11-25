@@ -13,91 +13,188 @@ export type CardString =
     | 'sunrise' | 'sunset' | 'solar_noon' | 'daylight'
     | 'first_light' | 'last_light' | 'moon'
     | 'in_duration'
-    | 'note_reading' | 'note_writing';
+    | 'daylight_day' | 'daylight_week' | 'daylight_month'
+    | 'shift_earlier' | 'shift_later' | 'shift_day' | 'shift_week' | 'shift_month'
+    | 'note_reading' | 'note_writing'
+    | 'uv_index' | 'uv_low' | 'uv_moderate' | 'uv_high' | 'uv_very_high' | 'uv_extreme'
+    | 'rain_today' | 'rain_now'
+    | 'dew_point' | 'visibility' | 'cloud_cover' | 'gusts'
+    | 'aqi' | 'aqi_good' | 'aqi_moderate' | 'aqi_sensitive' | 'aqi_unhealthy' | 'aqi_very_unhealthy' | 'aqi_hazardous';
 
+/** Norwegian, Bokmål */
+const NB: Partial<Record<CardString, string>> = {
+    feels_like: 'Føles som', indoors: 'Inne',
+    sunrise: 'Soloppgang', sunset: 'Solnedgang', solar_noon: 'Solens høydepunkt', daylight: 'Dagslengde',
+    first_light: 'Morgengry', last_light: 'Kveldsskumring', moon: 'Måne',
+    in_duration: 'om {duration}',
+    daylight_day: '{delta} siden i går', daylight_week: '{delta} siden forrige uke', daylight_month: '{delta} siden forrige måned',
+    shift_earlier: '{delta} tidligere', shift_later: '{delta} senere',
+    shift_day: '{shift} enn i går', shift_week: '{shift} enn forrige uke', shift_month: '{shift} enn forrige måned',
+    note_reading: 'Leser værmeldingen', note_writing: 'Skriver notatet',
+    uv_index: 'UV-indeks',
+    uv_low: 'Lav', uv_moderate: 'Moderat', uv_high: 'Høy', uv_very_high: 'Svært høy', uv_extreme: 'Ekstrem',
+    rain_today: 'Regn i dag', rain_now: 'Regn nå',
+    dew_point: 'Duggpunkt', visibility: 'Sikt', cloud_cover: 'Skydekke', gusts: 'Vindkast',
+    aqi: 'Luftkvalitet', aqi_good: 'God', aqi_moderate: 'Moderat', aqi_sensitive: 'Usunn for følsomme', aqi_unhealthy: 'Usunn', aqi_very_unhealthy: 'Svært usunn', aqi_hazardous: 'Farlig',
+};
+
+// One object literal, with no statement after it, so a bundle that never asks for a card string leaves the table out
 const STRINGS: Record<string, Partial<Record<CardString, string>>> = {
     en: {
         feels_like: 'Feels like', indoors: 'Indoors',
         sunrise: 'Sunrise', sunset: 'Sunset', solar_noon: 'Solar noon', daylight: 'Daylight',
         first_light: 'First light', last_light: 'Last light', moon: 'Moon',
         in_duration: 'in {duration}',
+        daylight_day: '{delta} since yesterday', daylight_week: '{delta} since last week', daylight_month: '{delta} since last month',
+        shift_earlier: '{delta} earlier', shift_later: '{delta} later',
+        shift_day: '{shift} than yesterday', shift_week: '{shift} than last week', shift_month: '{shift} than last month',
         note_reading: 'Reading the forecast', note_writing: 'Writing the note',
+        uv_index: 'UV index',
+        uv_low: 'Low', uv_moderate: 'Moderate', uv_high: 'High', uv_very_high: 'Very high', uv_extreme: 'Extreme',
+        rain_today: 'Rain today', rain_now: 'Rain now',
+        dew_point: 'Dew point', visibility: 'Visibility', cloud_cover: 'Cloud cover', gusts: 'Gusts',
+        aqi: 'Air quality', aqi_good: 'Good', aqi_moderate: 'Moderate', aqi_sensitive: 'Unhealthy for some', aqi_unhealthy: 'Unhealthy', aqi_very_unhealthy: 'Very unhealthy', aqi_hazardous: 'Hazardous',
     },
     de: {
         feels_like: 'Gefühlt', indoors: 'Innen',
         sunrise: 'Sonnenaufgang', sunset: 'Sonnenuntergang', solar_noon: 'Sonnenhöchststand', daylight: 'Tageslänge',
         first_light: 'Morgendämmerung', last_light: 'Abenddämmerung', moon: 'Mond',
         in_duration: 'in {duration}',
+        daylight_day: '{delta} seit gestern', daylight_week: '{delta} seit letzter Woche', daylight_month: '{delta} seit letztem Monat',
+        shift_earlier: '{delta} früher', shift_later: '{delta} später',
+        shift_day: '{shift} als gestern', shift_week: '{shift} als letzte Woche', shift_month: '{shift} als letzten Monat',
         note_reading: 'Vorhersage wird gelesen', note_writing: 'Notiz wird geschrieben',
+        uv_index: 'UV-Index',
+        uv_low: 'Niedrig', uv_moderate: 'Mäßig', uv_high: 'Hoch', uv_very_high: 'Sehr hoch', uv_extreme: 'Extrem',
+        rain_today: 'Regen heute', rain_now: 'Regen jetzt',
+        dew_point: 'Taupunkt', visibility: 'Sichtweite', cloud_cover: 'Bewölkung', gusts: 'Böen',
+        aqi: 'Luftqualität', aqi_good: 'Gut', aqi_moderate: 'Mäßig', aqi_sensitive: 'Ungesund für Empfindliche', aqi_unhealthy: 'Ungesund', aqi_very_unhealthy: 'Sehr ungesund', aqi_hazardous: 'Gefährlich',
     },
     es: {
         feels_like: 'Sensación térmica', indoors: 'Interior',
         sunrise: 'Salida del sol', sunset: 'Puesta del sol', solar_noon: 'Mediodía solar', daylight: 'Duración del día',
         first_light: 'Alba', last_light: 'Anochecer', moon: 'Luna',
         in_duration: 'en {duration}',
+        daylight_day: '{delta} desde ayer', daylight_week: '{delta} desde la semana pasada', daylight_month: '{delta} desde el mes pasado',
+        shift_earlier: '{delta} antes', shift_later: '{delta} después',
+        shift_day: '{shift} que ayer', shift_week: '{shift} que la semana pasada', shift_month: '{shift} que el mes pasado',
         note_reading: 'Leyendo el pronóstico', note_writing: 'Escribiendo la nota',
+        uv_index: 'Índice UV',
+        uv_low: 'Bajo', uv_moderate: 'Moderado', uv_high: 'Alto', uv_very_high: 'Muy alto', uv_extreme: 'Extremo',
+        rain_today: 'Lluvia hoy', rain_now: 'Lluvia ahora',
+        dew_point: 'Punto de rocío', visibility: 'Visibilidad', cloud_cover: 'Nubosidad', gusts: 'Ráfagas',
+        aqi: 'Calidad del aire', aqi_good: 'Buena', aqi_moderate: 'Moderada', aqi_sensitive: 'Dañina para sensibles', aqi_unhealthy: 'Dañina', aqi_very_unhealthy: 'Muy dañina', aqi_hazardous: 'Peligrosa',
     },
     fr: {
         feels_like: 'Ressenti', indoors: 'Intérieur',
         sunrise: 'Lever du soleil', sunset: 'Coucher du soleil', solar_noon: 'Midi solaire', daylight: 'Durée du jour',
         first_light: 'Aube', last_light: 'Crépuscule', moon: 'Lune',
         in_duration: 'dans {duration}',
+        daylight_day: '{delta} depuis hier', daylight_week: '{delta} depuis la semaine dernière', daylight_month: '{delta} depuis le mois dernier',
+        shift_earlier: '{delta} plus tôt', shift_later: '{delta} plus tard',
+        shift_day: '{shift} qu’hier', shift_week: '{shift} que la semaine dernière', shift_month: '{shift} que le mois dernier',
         note_reading: 'Lecture des prévisions', note_writing: 'Rédaction de la note',
+        uv_index: 'Indice UV',
+        uv_low: 'Faible', uv_moderate: 'Modéré', uv_high: 'Élevé', uv_very_high: 'Très élevé', uv_extreme: 'Extrême',
+        rain_today: 'Pluie aujourd’hui', rain_now: 'Pluie en cours',
+        dew_point: 'Point de rosée', visibility: 'Visibilité', cloud_cover: 'Couverture nuageuse', gusts: 'Rafales',
+        aqi: 'Qualité de l\'air', aqi_good: 'Bonne', aqi_moderate: 'Modérée', aqi_sensitive: 'Mauvaise pour les sensibles', aqi_unhealthy: 'Mauvaise', aqi_very_unhealthy: 'Très mauvaise', aqi_hazardous: 'Dangereuse',
     },
     it: {
         feels_like: 'Percepita', indoors: 'Interno',
         sunrise: 'Alba', sunset: 'Tramonto', solar_noon: 'Mezzogiorno solare', daylight: 'Durata del giorno',
         first_light: 'Prima luce', last_light: 'Ultima luce', moon: 'Luna',
         in_duration: 'tra {duration}',
+        daylight_day: '{delta} da ieri', daylight_week: '{delta} dalla settimana scorsa', daylight_month: '{delta} dal mese scorso',
+        shift_earlier: '{delta} prima', shift_later: '{delta} dopo',
+        shift_day: '{shift} rispetto a ieri', shift_week: '{shift} rispetto alla settimana scorsa', shift_month: '{shift} rispetto al mese scorso',
         note_reading: 'Lettura delle previsioni', note_writing: 'Scrittura della nota',
+        uv_index: 'Indice UV',
+        uv_low: 'Basso', uv_moderate: 'Moderato', uv_high: 'Alto', uv_very_high: 'Molto alto', uv_extreme: 'Estremo',
+        rain_today: 'Pioggia oggi', rain_now: 'Pioggia ora',
+        dew_point: 'Punto di rugiada', visibility: 'Visibilità', cloud_cover: 'Copertura nuvolosa', gusts: 'Raffiche',
+        aqi: 'Qualità dell\'aria', aqi_good: 'Buona', aqi_moderate: 'Moderata', aqi_sensitive: 'Nociva per i sensibili', aqi_unhealthy: 'Nociva', aqi_very_unhealthy: 'Molto nociva', aqi_hazardous: 'Pericolosa',
     },
     nl: {
         feels_like: 'Voelt als', indoors: 'Binnen',
         sunrise: 'Zonsopkomst', sunset: 'Zonsondergang', solar_noon: 'Zonnemiddag', daylight: 'Daglengte',
         first_light: 'Ochtendschemering', last_light: 'Avondschemering', moon: 'Maan',
         in_duration: 'over {duration}',
+        daylight_day: '{delta} sinds gisteren', daylight_week: '{delta} sinds vorige week', daylight_month: '{delta} sinds vorige maand',
+        shift_earlier: '{delta} eerder', shift_later: '{delta} later',
+        shift_day: '{shift} dan gisteren', shift_week: '{shift} dan vorige week', shift_month: '{shift} dan vorige maand',
         note_reading: 'Verwachting lezen', note_writing: 'Notitie schrijven',
+        uv_index: 'UV-index',
+        uv_low: 'Laag', uv_moderate: 'Matig', uv_high: 'Hoog', uv_very_high: 'Zeer hoog', uv_extreme: 'Extreem',
+        rain_today: 'Regen vandaag', rain_now: 'Regen nu',
+        dew_point: 'Dauwpunt', visibility: 'Zicht', cloud_cover: 'Bewolking', gusts: 'Windstoten',
+        aqi: 'Luchtkwaliteit', aqi_good: 'Goed', aqi_moderate: 'Matig', aqi_sensitive: 'Ongezond voor gevoeligen', aqi_unhealthy: 'Ongezond', aqi_very_unhealthy: 'Zeer ongezond', aqi_hazardous: 'Gevaarlijk',
     },
     pl: {
         feels_like: 'Odczuwalna', indoors: 'Wewnątrz',
         sunrise: 'Wschód słońca', sunset: 'Zachód słońca', solar_noon: 'Południe słoneczne', daylight: 'Długość dnia',
         first_light: 'Świt', last_light: 'Zmierzch', moon: 'Księżyc',
         in_duration: 'za {duration}',
+        daylight_day: '{delta} od wczoraj', daylight_week: '{delta} od zeszłego tygodnia', daylight_month: '{delta} od zeszłego miesiąca',
+        shift_earlier: '{delta} wcześniej', shift_later: '{delta} później',
+        shift_day: '{shift} niż wczoraj', shift_week: '{shift} niż w zeszłym tygodniu', shift_month: '{shift} niż w zeszłym miesiącu',
         note_reading: 'Czytanie prognozy', note_writing: 'Pisanie notatki',
+        uv_index: 'Indeks UV',
+        uv_low: 'Niski', uv_moderate: 'Umiarkowany', uv_high: 'Wysoki', uv_very_high: 'Bardzo wysoki', uv_extreme: 'Ekstremalny',
+        rain_today: 'Deszcz dziś', rain_now: 'Deszcz teraz',
+        dew_point: 'Punkt rosy', visibility: 'Widoczność', cloud_cover: 'Zachmurzenie', gusts: 'Porywy',
+        aqi: 'Jakość powietrza', aqi_good: 'Dobra', aqi_moderate: 'Umiarkowana', aqi_sensitive: 'Szkodliwa dla wrażliwych', aqi_unhealthy: 'Szkodliwa', aqi_very_unhealthy: 'Bardzo szkodliwa', aqi_hazardous: 'Niebezpieczna',
     },
     pt: {
         feels_like: 'Sensação térmica', indoors: 'Interior',
         sunrise: 'Nascer do sol', sunset: 'Pôr do sol', solar_noon: 'Meio-dia solar', daylight: 'Duração do dia',
         first_light: 'Aurora', last_light: 'Crepúsculo', moon: 'Lua',
         in_duration: 'em {duration}',
+        daylight_day: '{delta} desde ontem', daylight_week: '{delta} desde a semana passada', daylight_month: '{delta} desde o mês passado',
+        shift_earlier: '{delta} mais cedo', shift_later: '{delta} mais tarde',
+        shift_day: '{shift} do que ontem', shift_week: '{shift} do que na semana passada', shift_month: '{shift} do que no mês passado',
         note_reading: 'Leitura da previsão', note_writing: 'Escrita da nota',
+        uv_index: 'Índice UV',
+        uv_low: 'Baixo', uv_moderate: 'Moderado', uv_high: 'Alto', uv_very_high: 'Muito alto', uv_extreme: 'Extremo',
+        rain_today: 'Chuva hoje', rain_now: 'Chuva agora',
+        dew_point: 'Ponto de orvalho', visibility: 'Visibilidade', cloud_cover: 'Nebulosidade', gusts: 'Rajadas',
+        aqi: 'Qualidade do ar', aqi_good: 'Boa', aqi_moderate: 'Moderada', aqi_sensitive: 'Má para sensíveis', aqi_unhealthy: 'Má', aqi_very_unhealthy: 'Muito má', aqi_hazardous: 'Perigosa',
     },
     ro: {
         feels_like: 'Resimțită', indoors: 'Interior',
         sunrise: 'Răsărit', sunset: 'Apus', solar_noon: 'Amiaza solară', daylight: 'Durata zilei',
         first_light: 'Zori', last_light: 'Amurg', moon: 'Lună',
         in_duration: 'în {duration}',
+        daylight_day: '{delta} față de ieri', daylight_week: '{delta} față de săptămâna trecută', daylight_month: '{delta} față de luna trecută',
+        shift_earlier: 'cu {delta} mai devreme', shift_later: 'cu {delta} mai târziu',
+        shift_day: '{shift} decât ieri', shift_week: '{shift} decât săptămâna trecută', shift_month: '{shift} decât luna trecută',
         note_reading: 'Citesc prognoza', note_writing: 'Scriu nota',
+        uv_index: 'Indice UV',
+        uv_low: 'Scăzut', uv_moderate: 'Moderat', uv_high: 'Ridicat', uv_very_high: 'Foarte ridicat', uv_extreme: 'Extrem',
+        rain_today: 'Ploaie azi', rain_now: 'Ploaie acum',
+        dew_point: 'Punct de rouă', visibility: 'Vizibilitate', cloud_cover: 'Nebulozitate', gusts: 'Rafale',
+        aqi: 'Calitatea aerului', aqi_good: 'Bună', aqi_moderate: 'Moderată', aqi_sensitive: 'Nocivă pentru sensibili', aqi_unhealthy: 'Nocivă', aqi_very_unhealthy: 'Foarte nocivă', aqi_hazardous: 'Periculoasă',
     },
-    nb: {
-        feels_like: 'Føles som', indoors: 'Inne',
-        sunrise: 'Soloppgang', sunset: 'Solnedgang', solar_noon: 'Solens høydepunkt', daylight: 'Dagslengde',
-        first_light: 'Morgengry', last_light: 'Kveldsskumring', moon: 'Måne',
-        in_duration: 'om {duration}',
-        note_reading: 'Leser værmeldingen', note_writing: 'Skriver notatet',
-    },
+    nb: NB,
+    // Home Assistant's Norwegian is Bokmål (`nb`); `no` and Nynorsk (`nn`) get the same words
+    no: NB,
+    nn: NB,
     uk: {
         feels_like: 'Відчувається як', indoors: 'У приміщенні',
         sunrise: 'Схід сонця', sunset: 'Захід сонця', solar_noon: 'Сонячний полудень', daylight: 'Тривалість дня',
         first_light: 'Світанок', last_light: 'Вечірні сутінки', moon: 'Місяць',
         in_duration: 'через {duration}',
+        daylight_day: '{delta} з учорашнього дня', daylight_week: '{delta} з минулого тижня', daylight_month: '{delta} з минулого місяця',
+        shift_earlier: 'на {delta} раніше', shift_later: 'на {delta} пізніше',
+        shift_day: '{shift}, ніж учора', shift_week: '{shift}, ніж минулого тижня', shift_month: '{shift}, ніж минулого місяця',
         note_reading: 'Аналіз прогнозу', note_writing: 'Підготовка нотатки',
+        uv_index: 'УФ-індекс',
+        uv_low: 'Низький', uv_moderate: 'Помірний', uv_high: 'Високий', uv_very_high: 'Дуже високий', uv_extreme: 'Екстремальний',
+        rain_today: 'Дощ сьогодні', rain_now: 'Дощ зараз',
+        dew_point: 'Точка роси', visibility: 'Видимість', cloud_cover: 'Хмарність', gusts: 'Пориви',
+        aqi: 'Якість повітря', aqi_good: 'Добра', aqi_moderate: 'Помірна', aqi_sensitive: 'Шкідлива для чутливих', aqi_unhealthy: 'Шкідлива', aqi_very_unhealthy: 'Дуже шкідлива', aqi_hazardous: 'Небезпечна',
     },
 };
-
-// Home Assistant's Norwegian is Bokmål (`nb`); `no` and Nynorsk (`nn`) get the same words.
-STRINGS.no = STRINGS.nb;
-STRINGS.nn = STRINGS.nb;
 
 /** The parts of `hass` these helpers read. */
 export interface LocaleSource {
@@ -301,6 +398,59 @@ export function formatDuration(hours: number, hass?: LocaleSource): string {
         return h > 0 ? `${h}\u00a0год ${m}\u00a0хв` : `${m}\u00a0хв`;
     }
     return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+/**
+ * A change in daylight, signed in text: "+2m 14s", "−8s", "+1h 12m" (no seconds past an hour), "±0s". The sign follows
+ * the rounding, so a change that rounds to nothing is never "−0s".
+ */
+export function formatDaylightChange(seconds: number, hass?: LocaleSource, signed = true): string {
+    const total = Math.round(Math.abs(seconds));
+    const sign = !signed ? '' : total === 0 ? '±' : seconds > 0 ? '+' : '\u2212';
+    const h = Math.floor(total / 3600), m = Math.floor((total % 3600) / 60), s = total % 60;
+    const parts: Record<string, number> = h ? { hours: h, minutes: m } : m ? { minutes: m, seconds: s } : { seconds: s };
+    // No zero after a figure: "2m", never "2m 0s"
+    for (const unit of Object.keys(parts).slice(1)) if (!parts[unit]) delete parts[unit];
+    const language = cardLanguage(hass);
+    const DurationFormat = (Intl as unknown as {
+        DurationFormat?: new (locale?: string, options?: { style: string; secondsDisplay?: string }) => { format(d: object): string };
+    }).DurationFormat;
+    if (DurationFormat && hass) {
+        // A duration of nothing formats as nothing unless its seconds are asked for
+        try {
+            const text = new DurationFormat(language, total ? { style: 'narrow' } : { style: 'narrow', secondsDisplay: 'always' }).format(parts);
+            if (text) return sign + text;
+        } catch { /* fall through */ }
+    }
+    const uk = language.toLowerCase().split('-')[0] === 'uk';
+    const unit: Record<string, string> = uk ? { hours: '\u00a0год', minutes: '\u00a0хв', seconds: '\u00a0с' } : { hours: 'h', minutes: 'm', seconds: 's' };
+    return sign + Object.entries(parts).map(([k, v]) => `${v}${unit[k]}`).join(' ');
+}
+
+/** How far the card's time zone is ahead of UTC at a moment, in ms: so two instants can be compared as clock times */
+export function zoneOffset(ms: number, hass?: LocaleSource): number {
+    const zone = cardTimeZone(hass);
+    if (zone) {
+        try {
+            const parts = new Intl.DateTimeFormat('en-US', { timeZone: zone, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' }).formatToParts(new Date(ms));
+            const part = (type: string) => Number(parts.find(p => p.type === type)?.value);
+            const local = Date.UTC(part('year'), part('month') - 1, part('day'), part('hour'), part('minute'), part('second'));
+            if (Number.isFinite(local)) return local - Math.floor(ms / 1000) * 1000;
+        } catch { /* the device's zone */ }
+    }
+    return -new Date(ms).getTimezoneOffset() * 60_000;
+}
+
+/** The days back to the same date last month in the card's time zone, the last of a shorter month standing in (31 Mar → 28 Feb) */
+export function daysToLastMonth(date: Date, hass?: LocaleSource): number {
+    let y = date.getFullYear(), m = date.getMonth() + 1, d = date.getDate();
+    try {
+        const parts = new Intl.DateTimeFormat('en-GB', { year: 'numeric', month: 'numeric', day: 'numeric', timeZone: cardTimeZone(hass) }).formatToParts(date);
+        const part = (type: string) => Number(parts.find(p => p.type === type)?.value);
+        if ([part('year'), part('month'), part('day')].every(Number.isFinite)) [y, m, d] = [part('year'), part('month'), part('day')];
+    } catch { /* the device's own date */ }
+    const lastMonthDays = new Date(Date.UTC(y, m - 1, 0)).getUTCDate();
+    return Math.round((Date.UTC(y, m - 1, d) - Date.UTC(y, m - 2, Math.min(d, lastMonthDays))) / 86_400_000);
 }
 
 /** "7:12 PM" → "7:12" + a smaller "PM", so the numerals carry the weight. */

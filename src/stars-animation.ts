@@ -1,8 +1,9 @@
 // StarsAnimation - Modular stars and moon animation for clear night sky
 
 import { BaseAnimation, BaseAnimationConfig, AnimationLifecycleState } from './base-animation';
-import { AnimatedWeatherCardConfig } from './types';
+import { AnimatedWeatherCardConfig, EngineAmounts } from './types';
 import { getWeatherSettings, devLog } from './utils';
+import { SKY_DISSOLVE_SEC } from './sky';
 
 /** Stars on a phone-wide card for each cloud of engine_settings.cloudCount (15 by default); a wider card has more, to this width */
 const STARS_PER_CLOUD = 5;
@@ -22,6 +23,30 @@ const STAR_TWINKLE_SPREAD_S = 2;
 export function starCount(cloudCount: number, width: number): number {
     const w = width > 0 ? Math.min(width, STAR_WIDTH_MAX) : STAR_WIDTH;
     return Math.max(15, Math.round(cloudCount * STARS_PER_CLOUD * Math.max(1, w / STAR_WIDTH)));
+}
+
+/**
+ * The stars are dealt into this many bands, so cloud cover can thin them (auto mode's amounts.stars, the share shown):
+ * each band shows whole, part or none, and a quarter of the stars at a time comes or goes.
+ */
+const STAR_BANDS = 4;
+
+/** How much of a band of stars shows for a share of the sky's stars */
+export function starBandOpacity(share: number, band: number): number {
+    return Math.round(Math.min(1, Math.max(0, share * STAR_BANDS - band)) * 100) / 100;
+}
+
+/** Show a share of the stars: at once, or easing over `duration` s */
+export function showStars(root: Element, share: number, duration = 0): void {
+    root.querySelectorAll<HTMLElement>('.stars-band').forEach((band, k) => {
+        const opacity = starBandOpacity(share, k % STAR_BANDS);
+        if (duration > 0 && window.AnimatedWeatherCardGsap) {
+            window.AnimatedWeatherCardGsap.to(band, { opacity, duration, ease: 'sine.inOut', overwrite: true });
+        } else {
+            window.AnimatedWeatherCardGsap?.killTweensOf(band);
+            band.style.opacity = opacity < 1 ? String(opacity) : '';
+        }
+    });
 }
 
 /**
@@ -71,7 +96,10 @@ export function veilStars(stars: Iterable<HTMLElement>, words: Box[]): void {
 /** No star behind a word, after the card has been fitted and its words have moved */
 export function clearStarsFromWords(card: Element): void {
     const stars = card.querySelectorAll<HTMLElement>('.stars-field .star-gsap');
-    if (stars.length) veilStars(stars, wordBoxes(card));
+    if (!stars.length) return;
+    // Nor behind the moon's faint disc of earthshine
+    const moon = card.querySelector('.moon-gsap')?.getBoundingClientRect();
+    veilStars(stars, moon?.width ? [...wordBoxes(card), moon] : wordBoxes(card));
 }
 
 /**
@@ -80,9 +108,21 @@ export function clearStarsFromWords(card: Element): void {
  * false) has the same stars and moon, and none of them twinkle. Each star is placed clear of the card's words where
  * it can be (words: wordBoxes), so the sky keeps its count; one that finds no room is drawn veiled.
  */
-export function drawNight(layer: Element, count: number, { moon, still = false, words = [] }: { moon: boolean; still?: boolean; words?: Box[] }): HTMLElement[] {
+export function drawNight(layer: Element, count: number, { moon, still = false, words = [], share = 1 }: { moon: boolean; still?: boolean; words?: Box[]; share?: number }): HTMLElement[] {
     const field = document.createElement('div');
     field.className = 'stars-field';
+    // Dealt into bands, so cloud cover can thin them (share)
+    const bands = Array.from({ length: STAR_BANDS }, () => field.appendChild(Object.assign(document.createElement('div'), { className: 'stars-band' })));
+    // The moon takes the sun's place in the top-right, clear of the temperature. Its disc stays steady; only its halo
+    // breathes (CSS), and a still night's rests. Most of a moon that isn't full is the faint disc of earthshine, which
+    // a star would show through, so the stars keep clear of the moon as of the words
+    const disc = moon ? document.createElement('div') : null;
+    if (disc) {
+        disc.className = 'moon-gsap';
+        layer.appendChild(disc);
+        const r = disc.getBoundingClientRect();
+        if (r.width && r.height) words = [...words, r];
+    }
     const sky = (layer as HTMLElement).getBoundingClientRect();
     const placeable = words.length > 0 && sky.width > 0 && sky.height > 0;
     for (let i = 0; i < count; i++) {
@@ -113,19 +153,12 @@ export function drawNight(layer: Element, count: number, { moon, still = false, 
             star.style.animationDuration = `${period.toFixed(2)}s`;
             star.style.animationDelay = `${(-Math.random() * period).toFixed(2)}s`;
         }
-        field.appendChild(star);
+        bands[i % STAR_BANDS].appendChild(star);
     }
-    layer.appendChild(field);
-    const drawn = [field];
-    // The moon takes the sun's place in the top-right, clear of the temperature. Its disc stays steady; only its halo
-    // breathes (CSS), and a still night's rests
-    if (moon) {
-        const disc = document.createElement('div');
-        disc.className = 'moon-gsap';
-        layer.appendChild(disc);
-        drawn.push(disc);
-    }
-    return drawn;
+    showStars(field, share);
+    // Under the moon, which is drawn over them
+    if (disc) layer.insertBefore(field, disc); else layer.appendChild(field);
+    return disc ? [field, disc] : [field];
 }
 
 export interface StarsAnimationConfig extends BaseAnimationConfig {
@@ -177,7 +210,7 @@ export class StarsAnimation extends BaseAnimation {
 
         const count = starCount(settings.cloudCount, (animationLayer as HTMLElement).clientWidth || card?.clientWidth || 0);
         // The field and the moon fade in as one, rather than star by star
-        for (const el of drawNight(animationLayer, count, { moon: this.starsConfig.showMoon, words: card ? wordBoxes(card) : [] })) {
+        for (const el of drawNight(animationLayer, count, { moon: this.starsConfig.showMoon, words: card ? wordBoxes(card) : [], share: this.amounts?.stars ?? 1 })) {
             this.addParticle(el);
             window.AnimatedWeatherCardGsap.fromTo(el, { opacity: 0 }, { opacity: 1, duration: 1.2, ease: 'power1.out' });
         }
@@ -212,5 +245,11 @@ export class StarsAnimation extends BaseAnimation {
     protected async onResume(): Promise<void> {
         this.setPaused(false);
         devLog(this.config.devMode, 'Stars animation resumed');
+    }
+
+    /** New amounts: the stars thin under cloud or come out as it clears, over the sky's few seconds (the slide's in a moment) */
+    protected onAmountsChange(_previous: EngineAmounts | null, quick: boolean): void {
+        const field = this.element.querySelector(`${this.layerSelector} .stars-field`);
+        if (field) showStars(field, this.amounts?.stars ?? 1, quick ? 0.3 : SKY_DISSOLVE_SEC);
     }
 }

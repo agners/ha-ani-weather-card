@@ -88,6 +88,7 @@ describe('the visual editor', () => {
             note_calendar: TAGS,
             engine_settings: { windSpeed: TAGS, rainCount: BREAKOUT },
             custom_colors: { sunny_bg: TAGS, text_color: BREAKOUT },
+            readings: [{ type: 'sensor', entity: 'sensor.x', name: TAGS }, { type: 'humidity', entity: `sensor.h${BREAKOUT}` }],
         });
         document.body.appendChild(editor);
         await new Promise(resolve => setTimeout(resolve, 0));
@@ -97,6 +98,10 @@ describe('the visual editor', () => {
         // The values arrive whole, as the attribute's value
         expect(editor.querySelector('#entity')!.getAttribute('value')).toBe(`weather.home${BREAKOUT}`);
         expect(editor.querySelector('#sunny_bg')!.getAttribute('value')).toBe(TAGS);
+        // A reading's name and entity reach its line and its buttons' names as text
+        expect(editor.querySelector('.rd-t')!.textContent).toBe(TAGS);
+        expect(editor.querySelector('.rd-remove')!.getAttribute('aria-label')).toBe(`Remove ${TAGS}`);
+        expect(editor.querySelectorAll('.rd-s span')[1].textContent).toBe(`sensor.h${BREAKOUT}`);
         // An engine setting that isn't a number shows the default the card falls back to
         expect(editor.querySelector('#windSpeed')!.getAttribute('value')).toBe(String(DEFAULT_ENGINE_SETTINGS.windSpeed));
     });
