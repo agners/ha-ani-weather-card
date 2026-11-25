@@ -68,7 +68,10 @@ describe('the forecast card\'s editor', () => {
         expect(sent.at(-1)).not.toHaveProperty('compact');
         flip('#show_hours', false);
         expect(sent.at(-1)).toMatchObject({ show_hours: false });
-        expect(openRows()).not.toContain('forecast_metric');
+        // The days show the value too, so its row stays; the hours' own rows go
+        expect(openRows()).toContain('forecast_metric');
+        expect(openRows()).not.toContain('show_chips');
+        expect(openRows()).not.toContain('forecast_graph');
     });
 
     it('shows what the config has changed with the switch off, and keeps it while it\'s cleared', async () => {

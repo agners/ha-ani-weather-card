@@ -283,6 +283,10 @@ describe('the forecast on the weather card', () => {
         slider.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
         expect(slider.getAttribute('aria-valuenow')).not.toBe('0');
         slider.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        // The lead's room is kept for the hours alone: a card without them gives it back
+        const daysOnly = mount({ show_summary: false, show_hours: false }, undefined, 'animated-forecast-card');
+        await settle();
+        expect((daysOnly.querySelector('.fc-fcard') as HTMLElement).dataset.nolead).toBeUndefined();
         const usual = mount({}, undefined, 'animated-forecast-card');
         await settle();
         expect(usual.querySelector('.fc-lead .fc-now')).not.toBeNull();

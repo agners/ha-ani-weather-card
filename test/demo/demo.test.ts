@@ -508,6 +508,10 @@ describe('the demo\'s sample world', () => {
         const weather = source('src/types.ts');
         const yaml = dashboardYaml();
         const lines = yaml.trimEnd().split('\n');
+        // One column lists the sections as a phone shows them: Sydney after Home
+        const headings = (text: string) => text.split('\n').filter(line => line.includes('heading: ')).map(line => line.split('heading: ')[1]);
+        expect(headings(yaml)).toEqual(['Home', 'Today', 'Sydney']);
+        expect(headings(dashboardYaml({ columns: 1 }))).toEqual(['Home', 'Sydney', 'Today']);
         expect(lines[0]).toBe('views:');
         expect(lines).toContain('  - type: sections');
         expect(lines).toContain('        column_span: 2');

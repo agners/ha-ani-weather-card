@@ -397,7 +397,8 @@ function update() {
     for (const scene of document.querySelectorAll('.scene:not(.lab-scene)')) {
         // A screen or more away, a card's 3.2 s dissolve is work nobody sees, and a page of them drops frames:
         // it hears the news when it comes near
-        if (farAway(scene)) { waiting.add(scene); continue; }
+        // (never the hero's: the page's own tint is read from its sky)
+        if (!stage.contains(scene) && farAway(scene)) { waiting.add(scene); continue; }
         waiting.delete(scene);
         for (const card of scene.querySelectorAll('animated-weather-card, animated-forecast-card, animated-sun-tracker-card')) give(card, data);
     }
@@ -411,7 +412,7 @@ const farAway = (el) => {
     return box.bottom < -innerHeight || box.top > 2 * innerHeight;
 };
 let catching = 0;
-addEventListener('scroll', () => {
+function catchUp() {
     if (!waiting.size || catching) return;
     catching = requestAnimationFrame(() => {
         catching = 0;
@@ -423,8 +424,13 @@ addEventListener('scroll', () => {
             data ??= hass();
             for (const card of scene.querySelectorAll('animated-weather-card, animated-forecast-card, animated-sun-tracker-card')) give(card, data);
         }
+        // Their skies dissolve now: the light around them follows
+        if (data) watchSky();
     });
-}, { passive: true });
+}
+// A scene comes near on a scroll, and when the page above it changes height
+addEventListener('scroll', catchUp, { passive: true });
+addEventListener('resize', catchUp);
 
 // ── The room's light, cast by the screen ───────────────────────────────
 // The sky is the light source: the light lies over the weather card and
@@ -1326,10 +1332,12 @@ const dash = (() => {
         figure.dataset.layout = id;
         figure.style.setProperty('--device-w', id === 'desktop' ? 'var(--frame-w)' : `${deviceWidth(id)}px`);
         captionText(caption).textContent = captionFor(id, scene.layout);
+        // One column lists Sydney second, as the screen shows it
+        renderYaml();
         lightCard(light, scene.weather, stage);
     }
     function renderYaml() {
-        dashText = dashboardYaml({ colors: state.colors === 'sky' ? 'sky' : 'theme' });
+        dashText = dashboardYaml({ colors: state.colors === 'sky' ? 'sky' : 'theme', columns: view.current?.layout.columns ?? dashboardLayout(deviceWidth(view.device)).columns });
         renderDashYaml(dashText);
     }
 
@@ -1538,15 +1546,19 @@ const layouts = (() => {
      */
     function writeCaption(scene = view.current) {
         if (!scene) return;
+        // Written again on every change of time: a button that had the focus keeps it
+        const focused = caption.contains(document.activeElement) && document.activeElement.matches('.caption-action');
         caption.textContent = captionFor(scene);
         if (view.pick !== 'bedside') return;
-        const night = state.phase === 'night';
+        // The card's night is its bed time's, later than the sky's: only the Night stop's own time is surely in it
+        const night = state.minutes === minutesFor('night');
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'caption-action';
         button.dataset.phase = night ? 'day' : 'night';
         button.textContent = night ? 'Back to day' : 'See it at night';
         caption.append(' ', button);
+        if (focused) button.focus({ preventScroll: true });
     }
     caption.addEventListener('click', (event) => {
         const phase = event.target.closest('.caption-action')?.dataset.phase;
@@ -1593,6 +1605,8 @@ const layouts = (() => {
         if (old) old.el.inert = true;
         writeCaption(scene);
         if (!view.revealed) {
+            // Set up again before it was ever seen: it's the stage's one scene, in flow
+            scene.el.classList.remove('is-out');
             old?.el.remove();
             reveal();
             return;
@@ -1756,6 +1770,7 @@ const ahead = (() => {
             scene.el.inert = false;
             if (old) old.el.inert = true;
             if (!view.revealed) {
+                scene.el.classList.remove('is-out');
                 old?.el.remove();
                 return;
             }

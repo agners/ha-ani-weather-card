@@ -75,7 +75,9 @@ export function attachForecastCard(host: ForecastHost): ForecastExtras {
         const m = model;
         card.dataset.variant = strip ? 'strip' : wide() ? 'wide' : 'regular';
         const led = !strip && cfg().show_summary !== false;
-        if (strip || led) delete card.dataset.nolead; else card.dataset.nolead = '';
+        // Without the lead the hours keep its room, or they'd sit in the corner's light; with no hours there's nothing to keep it for
+        const rowDrawn = !!m.tl && cfg().show_hours !== false && m.hours.length > 0;
+        if (strip || led || !rowDrawn) delete card.dataset.nolead; else card.dataset.nolead = '';
         if (!m.tl && host.forecast().settled) {
             card.innerHTML = `<p class="fc-empty">${esc(W.no_forecast)}</p>`;
             return;

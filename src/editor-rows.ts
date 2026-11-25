@@ -279,7 +279,8 @@ export const FORECAST_TABLE: RowTable = {
         show_hours: { tier: 'all', keys: ['show_hours'], when: c => !strip(c) },
         forecast_days: { tier: 'all', keys: ['forecast_days'], when: c => !strip(c) },
         // What the hours show is the one thing most cards change, so it's a basic: two cards, one on rain, one on the temperature
-        forecast_metric: { tier: 'basic', keys: ['forecast_metric'], when: hoursShown },
+        // (the days show it too, so it stays while either is on)
+        forecast_metric: { tier: 'basic', keys: ['forecast_metric'], when: c => hoursShown(c) || (c.forecast_days ?? 7) > 0 },
         show_chips: { tier: 'all', keys: ['show_chips'], when: c => !strip(c) && hoursShown(c) },
         forecast_graph: { tier: 'all', keys: ['forecast_graph'], when: hoursShown },
         weather_effects: { tier: 'all', keys: ['weather_effects'] },

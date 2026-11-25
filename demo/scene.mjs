@@ -1012,7 +1012,7 @@ export function dashboardSections(columns) {
 }
 
 /** The dashboard as a sections view, with the cards it shows and a tile for the rest. */
-export function dashboardYaml({ colors = 'sky' } = {}) {
+export function dashboardYaml({ colors = 'sky', columns = 2 } = {}) {
     const theme = colors === 'theme' ? ['color_palette: theme'] : [];
     const list = (items, indent) => items.flatMap(lines => lines.map((line, i) => indent + (line.startsWith('#') ? '' : i === 0 ? '- ' : '  ') + line));
     const section = (heading, extra, cards) => [
@@ -1034,7 +1034,9 @@ export function dashboardYaml({ colors = 'sky' } = {}) {
         ['type: custom:animated-weather-card', 'entity: weather.sydney', `name: ${AWAY.name}`, ...place, 'compact: true', 'show_clock: true', 'show_sun: false', ...theme],
         ['type: custom:animated-sun-tracker-card', ...place, 'weather_entity: weather.sydney', 'compact: true', ...theme],
     ]);
-    return ['views:', ...list([['type: sections', 'sections:', ...list([home, today, away], '  ')]], '  ')].join('\n') + '\n';
+    // In the order the screen shows them: one column lays the sections out as they're listed
+    const sections = { home, today, away };
+    return ['views:', ...list([['type: sections', 'sections:', ...list(dashboardSections(columns).map(s => sections[s.id]).filter(Boolean), '  ')]], '  ')].join('\n') + '\n';
 }
 
 /** The height a sections view gives a card of so many rows: the rows and the gaps between them. */
