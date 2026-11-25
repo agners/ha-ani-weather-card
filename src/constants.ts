@@ -48,7 +48,7 @@ export const TIME_THRESHOLDS = {
     UPDATE_INTERVAL: 300000 // 5 minutes in milliseconds
 };
 
-export const CARD_VERSION = '1.3.2';
+export const CARD_VERSION = '1.4.0';
 
 // Day/Night color schemes for animations
 export const DAY_NIGHT_ANIMATION_COLORS = {

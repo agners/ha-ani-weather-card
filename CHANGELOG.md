@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-11-25
+
+Thank you to everyone who installed the card, put it on a dashboard and took the time to say what worked and what didn't, on GitHub and on Reddit. Most of this release started as one of your issues or comments: the moon in its real phase, the UV index, a weather station's rain, weather in another place, the week on the card, and a forecast card that shows one value.
+
 ### Added
 
 - Presets for the weather card: the editor opens on seven layouts to start from, each a small drawing and a few ordinary options written into the card's YAML. **Standard** is the card as it comes, **Simple** the sky, the temperature and the condition, **Forecast** the next hours, **Full info** the time and date, the hours and the week, **Strip** one line, **Bedside** the nightstand, and **Wall** the panel to read across the room. Picking one sets the options that make the layout and leaves the rest as you set them, and the card asks for the rows it needs; the one the card matches is picked. The Wall needs the card at least 640 × 540 px, so it takes the section's full width and ten rows, and the editor says to set the section's Width to Double, or use a panel view. The live demo shows each one, at its real size, with its YAML.
@@ -204,7 +208,8 @@ The first public release: two cards for Home Assistant, the Animated Weather Car
 - **Try it first.** A [live demo](https://alexsto1an.github.io/ha-ani-weather-card/) runs the real card in your browser, on sample data or your own weather, and a [setup guide](https://alexsto1an.github.io/ha-ani-weather-card/setup/) walks through every step.
 - **Developer mode.** `dev_mode: true` shows sample weather with a panel for every condition, time of day and layer, and a Fly a plane button. Only a card in dev mode logs to the console.
 
-[Unreleased]: https://github.com/alexsto1an/ha-ani-weather-card/compare/v1.3.2...HEAD
+[Unreleased]: https://github.com/alexsto1an/ha-ani-weather-card/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/alexsto1an/ha-ani-weather-card/compare/v1.3.2...v1.4.0
 [1.3.2]: https://github.com/alexsto1an/ha-ani-weather-card/compare/v1.3.1...v1.3.2
 [1.3.1]: https://github.com/alexsto1an/ha-ani-weather-card/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/alexsto1an/ha-ani-weather-card/compare/v1.2.0...v1.3.0
