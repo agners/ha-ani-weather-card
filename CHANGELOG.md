@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0-trains.3] - 2026-11-26
+
+### Added
+
+- Stationboard entries of the Swiss public transport integration work as rows too, and show where the next departure is headed after the row's name.
+
 ## [1.2.0-trains.2] - 2026-11-13
 
 ### Added

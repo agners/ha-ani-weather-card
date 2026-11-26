@@ -15,7 +15,7 @@ import { escapeHtml } from './utils';
 
 const INTEGRATION = 'swiss_public_transport';
 /** The integration's sensors, by their translation key */
-// transfers, platform, delay and line are read by those names
+// transfers, platform, delay, line and a stationboard's destination are read by those names
 const DEPARTURE_KEYS = ['departure0', 'departure1', 'departure2'];
 /** A train is still listed this long after its departure: the sensors refresh every 90 s */
 const DEPARTED_GRACE_MS = 30_000;
@@ -36,6 +36,8 @@ export interface TrainRoute {
     delayMin: number;
     /** Changes on the first departure's journey: its line is only the first leg's */
     transfers: number;
+    /** Where the first departure is headed: a stationboard's row, empty for a connection */
+    destination: string;
 }
 
 /** The connections the editor has pickers for; YAML can list more */
@@ -126,6 +128,7 @@ export function readTrainRoutes(hass: HomeAssistant | undefined, value: unknown,
             platform: firstLive ? stateOf(hass, others.platform) : '',
             delayMin: firstLive ? delayMin : 0,
             transfers: firstLive && Number.isFinite(transfers) && transfers > 0 ? Math.round(transfers) : 0,
+            destination: firstLive ? stateOf(hass, others.destination) : '',
         });
     }
     return routes;
@@ -151,7 +154,8 @@ export function trainRowsHtml(routes: TrainRoute[], now: number, hass: LocaleSou
             + `<span class="train-due">${escapeHtml(due)}</span>`
             + (route.line ? `<span class="train-line">${escapeHtml(route.line)}</span>` : '')
             + (route.line && route.transfers ? `<span class="train-transfers" aria-label="${escapeHtml(transfersLabel)}: ${route.transfers}">+${route.transfers}</span>` : '')
-            + `<span class="train-name">${escapeHtml(route.name)}</span>`
+            + `<span class="train-name">${escapeHtml(route.name)}${route.destination
+                ? `<span class="train-destination"> → ${escapeHtml(route.destination)}</span>` : ''}</span>`
             + (route.delayMin ? `<span class="train-delay">+${route.delayMin}′</span>` : '')
             + (route.platform ? `<span class="train-platform">${escapeHtml(platformLabel)} ${escapeHtml(route.platform)}</span>` : '')
             + (nextTime ? `<span class="train-time">${escapeHtml(nextTime)}</span>` : '')

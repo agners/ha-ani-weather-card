@@ -7,7 +7,7 @@ const NOW = Date.parse('2026-11-13T08:00:00Z');
 const at = (minutes: number) => new Date(NOW + minutes * 60_000).toISOString();
 
 const sensor = (key: string) => `sensor.zurich_bern_${key}`;
-const KEYS = ['departure0', 'departure1', 'departure2', 'platform', 'delay', 'line', 'transfers'];
+const KEYS = ['departure0', 'departure1', 'departure2', 'platform', 'delay', 'line', 'transfers', 'destination'];
 
 const makeHass = (states: Record<string, string>, registry = true): HomeAssistant => ({
     states: Object.fromEntries(Object.entries(states).map(([key, state]) => [sensor(key), {
@@ -38,7 +38,7 @@ describe('train departures', () => {
         expect(route).toEqual({
             entity: sensor('departure0'), name: 'Zürich HB Bern',
             departures: [NOW + 4 * 60_000, NOW + 34 * 60_000, NOW + 64 * 60_000],
-            line: 'IC 1', platform: '7', delayMin: 0, transfers: 0,
+            line: 'IC 1', platform: '7', delayMin: 0, transfers: 0, destination: '',
         });
     });
 
@@ -115,6 +115,16 @@ describe('train departures', () => {
         const html = trainRowsHtml(readTrainRoutes(hass, sensor('departure0'), NOW), NOW, hass, 'Pl.');
         expect(html).toContain(`<span class="train-due">${clock(90, hass)}</span>`);
         expect(html).not.toContain('train-time');
+    });
+
+    it('says where a stationboard\'s next departure is headed, after the row\'s name', () => {
+        const hass = makeHass({ ...full, line: 'B1', destination: 'Obernau <Dorf>' });
+        const [route] = readTrainRoutes(hass, sensor('departure0'), NOW);
+        expect(route).toMatchObject({ line: 'Bus 1', destination: 'Obernau <Dorf>', transfers: 0 });
+        expect(trainRowsHtml([route], NOW, hass, 'Pl.')).toContain(
+            '<span class="train-name">Zürich HB Bern<span class="train-destination"> → Obernau &lt;Dorf&gt;</span></span>');
+        const [second] = readTrainRoutes(hass, sensor('departure1'), NOW);
+        expect(second.destination).toBe('');
     });
 
     it('draws a connection with no departures as a dash', () => {
