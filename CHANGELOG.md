@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0-train.1] - 2026-11-26
+
+A fork of 1.4.0 with train departures.
+
+- Train departures under the weather: `train_entities` takes a Departure sensor from Home Assistant's Swiss public transport integration, a connection's or a stationboard's, or a list of them. Each is a row with the next departure's minutes, line, platform, delay and time, and the two departures after it. A bus or tram line reads "Bus 14" or "Tram 9", "+1" marks a journey with a change, and a stationboard's row is named after where its next departure is headed. Give it the second or third departure sensor and the row starts there. The editor has pickers for four rows, under Departures.
+
 ## [1.4.0] - 2026-11-25
 
 Thank you 🙏 to everyone who installed the card, put it on a dashboard and took the time to say what worked and what didn't, on GitHub and on Reddit. Your feedback is what makes the card flexible enough to fit setups I'd never have thought of, and that's the best part of building it in the open. Keep it coming!

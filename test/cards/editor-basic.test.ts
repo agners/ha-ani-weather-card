@@ -57,7 +57,7 @@ describe('the editor\'s basics', () => {
         expect(sent).toEqual([]);
         expect($('#entity')).toBe(entity);
         expect($('.card-config').hasAttribute('data-all')).toBe(true);
-        expect(openSections()).toEqual(['start', 'weather', 'look', 'forecast', 'note', 'readings', 'sky', 'colors', 'planes', 'interactions', 'dev']);
+        expect(openSections()).toEqual(['start', 'weather', 'look', 'forecast', 'note', 'readings', 'sky', 'colors', 'planes', 'trains', 'interactions', 'dev']);
         for (const id of ['layout', 'outdoor_sensor_entity', 'show_location', 'temperature_decimals', 'time_date', 'hero', 'animate', 'flights_entity', 'actions', 'dev_mode']) expect(shown(id), id).toBe(true);
         // The forecast's own rows wait for the forecast
         expect(shown('forecast_graph')).toBe(false);

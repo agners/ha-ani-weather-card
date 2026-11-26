@@ -191,6 +191,9 @@ export const ROWS: Readonly<Record<string, RowSpec>> = {
     plane_speed: { tier: 'all', keys: ['plane_speed'], when: c => !!c.flights_entity },
     planes_on_load: { tier: 'all', keys: ['planes_on_load'], when: c => !!c.flights_entity },
 
+    // Departures
+    train_entities: { tier: 'all', keys: ['train_entities'] },
+
     // Interactions
     actions: { tier: 'all', keys: ['tap_action', 'hold_action', 'double_tap_action'], changed: c => actionsChanged(c, tapDefault(c)) },
 
@@ -213,12 +216,13 @@ export const SECTIONS: Readonly<Record<string, readonly string[]>> = {
     sky: ['animate', 'spill_particles', 'lightning', 'auto_pause', 'sky_follows', 'day_hours', 'sun_entity', 'moon_entity', 'engine_mode', 'amounts'],
     colors: ['sky_colors', 'why_sky_colors_theme', 'ink_colors'],
     planes: ['flights_entity', 'plane_tags', 'plane_speed', 'planes_on_load'],
+    trains: ['train_entities'],
     interactions: ['actions'],
     dev: ['dev_mode'],
 };
 
 /** The sections that open and close */
-export const DRAWERS: readonly string[] = ['readings', 'sky', 'colors', 'planes', 'interactions'];
+export const DRAWERS: readonly string[] = ['readings', 'sky', 'colors', 'planes', 'trains', 'interactions'];
 
 /** A card's editor as a table: its rows, its sections in order, the ones that open and close, its options' defaults */
 export interface RowTable<C = Config> {

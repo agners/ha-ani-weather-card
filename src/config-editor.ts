@@ -22,6 +22,7 @@ import { PRESETS, PRESET_KEYS, WALL_MIN, presetById, presetOf, type PresetId } f
 import { PRESET_ART } from './preset-art';
 import { CHEVRON, INFO, allSaid, allSwitch, picker, raf, reveal, row, section, sectionIcon, seg as kitSeg, select, storeAll, storedAll, sw, syncRows, why, type SectionIcon } from './editor-kit';
 import { readingsOf } from './readings';
+import { TRAIN_EDITOR_SLOTS, trainEntityList } from './trains';
 
 type Config = AnimatedWeatherCardConfig;
 type Option = { value: string; label: string };
@@ -197,7 +198,7 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
         const swatch = ([key, label]: [string, string], ink: boolean) =>
             `<div class="swc"><span class="chip${ink ? ` ink ink-${key.replace('_color', '')}` : ''}"><input type="color" id="${key}" value="${escapeHtml(colors[key] || AnimatedWeatherCardEditor.DEFAULT_COLORS[key])}"></span>`
             + `<label for="${key}">${label}</label><button type="button" class="tb color-reset" data-target="${key}" aria-label="Reset ${label}"${colors[key] ? '' : ' data-off'}>Reset</button></div>`;
-        const DRAWER_ICONS: Record<string, SectionIcon> = { readings: 'readings', sky: 'motion', colors: 'colors', planes: 'planes', interactions: 'interactions' };
+        const DRAWER_ICONS: Record<string, SectionIcon> = { readings: 'readings', sky: 'motion', colors: 'colors', planes: 'planes', trains: 'trains', interactions: 'interactions' };
         const drawer = (key: string, title: string, body: string, i: number) =>
             `<section class="rv drw" data-sec="${key}" style="--i:${i}"><div class="rv-in"><div class="drw-b">`
             + `<h3 class="drw-h"><button type="button" class="drw-btn" data-drawer="${key}" aria-expanded="false" aria-controls="awc-${key}-${id}">`
@@ -303,7 +304,10 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
             row('plane_speed', select('plane_speed', 'Speed')),
             row('planes_on_load', sw('planes_on_load', 'Fly the planes already up', !!c.planes_on_load, 'When the dashboard opens, not only new arrivals')),
           ].join(''), 3)}
-          ${drawer('interactions', 'Interactions', row('actions', '<div id="actions-editor"></div>'), 4)}
+          ${drawer('trains', 'Departures', row('train_entities', Array.from({ length: TRAIN_EDITOR_SLOTS }, (_, i) =>
+            picker(`train_entities_${i}`, `Departure sensor${i ? ` ${i + 1}` : ''}`, trainEntityList(c.train_entities)[i],
+                i ? '' : 'A Swiss public transport Departure sensor, one per connection or stationboard. Each is a row of next departures under the weather')).join('')), 4)}
+          ${drawer('interactions', 'Interactions', row('actions', '<div id="actions-editor"></div>'), 5)}
         </div></div></div>
 
         ${section('dev', '', row('dev_mode', sw('dev_mode', 'Simulated weather', !!c.dev_mode, 'The dev card\'s weather, with no weather entity needed')))}
@@ -579,6 +583,16 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
             { value: '0.25', label: 'A quarter' },
             ...(['1', '0.5', '0.25'].includes(speed) ? [] : [{ value: speed, label: `${speed}× (set in YAML)` }]),
         ], speed, value => this._set({ plane_speed: value === '1' ? undefined : Number(value) }));
+        for (let i = 0; i < TRAIN_EDITOR_SLOTS; i++) {
+            on(`#train_entities_${i}`, 'value-changed', el => {
+                // The pickers are the first rows, in order; any more from YAML stay
+                const picked = Array.from({ length: TRAIN_EDITOR_SLOTS }, (_, slot) =>
+                    (this.querySelector(`#train_entities_${slot}`) as HTMLInputElement | null)?.value || '');
+                picked[i] = el.value || '';
+                const trains = [...picked, ...trainEntityList(this._config?.train_entities).slice(TRAIN_EDITOR_SLOTS)].filter(Boolean);
+                this._set({ train_entities: trains.length > 1 ? trains : trains[0] || undefined });
+            });
+        }
         on('#planes_on_load', 'change', el => this._set({ planes_on_load: el.checked || undefined }));
 
         // Interactions, and the developer's switch
@@ -670,6 +684,10 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
             return n ? `${n} ${n === 1 ? 'color' : 'colors'} set` : 'None set';
         }
         if (key === 'planes') return c.flights_entity || 'Needs a Flightradar24 sensor';
+        if (key === 'trains') {
+            const n = trainEntityList(c.train_entities).length;
+            return n ? `${n} ${n === 1 ? 'row' : 'rows'}` : 'Needs a Swiss public transport sensor';
+        }
         // Interactions: what a tap does, and whether a hold or a double tap does anything
         const tap = (c.tap_action as ActionConfig | undefined)?.action ?? tapDefault(c);
         const words: Record<string, string> = {
@@ -985,6 +1003,7 @@ export class AnimatedWeatherCardEditor extends HTMLElement implements LovelaceCa
             { id: '#sun_entity', domains: ['sun'] },
             { id: '#moon_entity', domains: ['sensor'] },
             { id: '#flights_entity', domains: ['sensor'] },
+            ...Array.from({ length: TRAIN_EDITOR_SLOTS }, (_, i) => ({ id: `#train_entities_${i}`, domains: ['sensor'] })),
             { id: '#alarm_entity', domains: ['sensor', 'input_datetime'] },
             { id: '#night_sensor', domains: ['sensor'] },
             { id: '#note_entity', domains: ['sensor', 'input_text'] },

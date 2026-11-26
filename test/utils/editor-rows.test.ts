@@ -121,7 +121,7 @@ describe('the editor\'s rows', () => {
         expect(sections).toEqual(['start', 'weather', 'look', 'forecast', 'note']);
         // All settings: every section but the nightstand's, and the layout among them
         const all = Object.keys(SECTIONS).filter(s => sectionShown(SECTIONS[s], fresh as never, { ...basic, all: true }, new Set()));
-        expect(all).toEqual(['start', 'weather', 'look', 'forecast', 'note', 'readings', 'sky', 'colors', 'planes', 'interactions', 'dev']);
+        expect(all).toEqual(['start', 'weather', 'look', 'forecast', 'note', 'readings', 'sky', 'colors', 'planes', 'trains', 'interactions', 'dev']);
         expect(rowShown('layout', fresh as never, { ...basic, all: true }, new Set())).toBe(true);
     });
 

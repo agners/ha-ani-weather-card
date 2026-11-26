@@ -58,6 +58,9 @@ export interface HomeAssistant {
         returnResponse?: boolean
     ): Promise<any>;
     callWS(message: Record<string, any>): Promise<any>;
+    /** The entity registry as the frontend holds it (Home Assistant 2022.11 and later) */
+    entities?: Record<string, { entity_id: string; device_id?: string; platform?: string; translation_key?: string }>;
+    devices?: Record<string, { name?: string | null; name_by_user?: string | null }>;
     connection: {
         subscribeEvents<T = any>(callback: (event: T) => void, eventType?: string): Promise<() => void>;
         subscribeMessage<T = any>(callback: (message: T) => void, subscribeMessage: Record<string, any>): Promise<() => void>;
@@ -249,6 +252,8 @@ export interface AnimatedWeatherCardConfig {
     rain_year_entity?: string;
     // Plane fly-overs: a Flightradar24 area sensor with a `flights` attribute
     flights_entity?: string;
+    /** Train departures under the metrics: one Swiss public transport departure sensor per connection, or a list */
+    train_entities?: string | string[];
     /** Write a note under the conditions with Home Assistant's AI Task, from the forecast */
     show_note?: boolean;
     /** The note's voice: snarky (default), calm, friendly or dry */

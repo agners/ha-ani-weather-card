@@ -4,7 +4,7 @@
 // They share the weather card's editor's CSS (styles/editor.ts) too, so the three look and move alike.
 
 import {
-    mdiAirplane, mdiBedOutline, mdiClockOutline, mdiEyeOutline, mdiEyedropperVariant, mdiGauge, mdiGestureTap, mdiMapMarkerOutline,
+    mdiAirplane, mdiTrain, mdiBedOutline, mdiClockOutline, mdiEyeOutline, mdiEyedropperVariant, mdiGauge, mdiGestureTap, mdiMapMarkerOutline,
     mdiMessageTextOutline, mdiPaletteOutline, mdiShapeOutline, mdiWeatherPartlyCloudy, mdiWeatherWindy, mdiWhiteBalanceSunny,
 } from '@mdi/js';
 import { escapeHtml } from './utils';
@@ -43,7 +43,7 @@ export const INFO = '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><pa
 const SECTION_ICONS = {
     start: mdiShapeOutline, weather: mdiWeatherPartlyCloudy, look: mdiPaletteOutline, nightstand: mdiBedOutline,
     clock: mdiClockOutline, note: mdiMessageTextOutline, readings: mdiGauge, motion: mdiWeatherWindy,
-    colors: mdiEyedropperVariant, planes: mdiAirplane, interactions: mdiGestureTap, shows: mdiEyeOutline,
+    colors: mdiEyedropperVariant, planes: mdiAirplane, trains: mdiTrain, interactions: mdiGestureTap, shows: mdiEyeOutline,
     place: mdiMapMarkerOutline, sun: mdiWhiteBalanceSunny,
 };
 export type SectionIcon = keyof typeof SECTION_ICONS;
