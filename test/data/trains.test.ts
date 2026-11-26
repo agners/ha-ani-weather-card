@@ -117,14 +117,16 @@ describe('train departures', () => {
         expect(html).not.toContain('train-time');
     });
 
-    it('says where a stationboard\'s next departure is headed, after the row\'s name', () => {
+    it('names a stationboard\'s row after where its next departure is headed', () => {
         const hass = makeHass({ ...full, line: 'B1', destination: 'Obernau <Dorf>' });
         const [route] = readTrainRoutes(hass, sensor('departure0'), NOW);
         expect(route).toMatchObject({ line: 'Bus 1', destination: 'Obernau <Dorf>', transfers: 0 });
         expect(trainRowsHtml([route], NOW, hass, 'Pl.')).toContain(
-            '<span class="train-name">Zürich HB Bern<span class="train-destination"> → Obernau &lt;Dorf&gt;</span></span>');
+            '<span class="train-name">Obernau &lt;Dorf&gt;</span>');
+        // Not known for a row that starts later: the row keeps its own name
         const [second] = readTrainRoutes(hass, sensor('departure1'), NOW);
         expect(second.destination).toBe('');
+        expect(trainRowsHtml([second], NOW, hass, 'Pl.')).toContain('<span class="train-name">Zürich HB Bern</span>');
     });
 
     it('draws a connection with no departures as a dash', () => {

@@ -636,7 +636,6 @@ ${iconBoxCss('animated-weather-card')}
           text-overflow: ellipsis;
           font-weight: 500;
         }
-        .train-destination { font-weight: 400; opacity: var(--awc-secondary); }
         .train-delay { flex: 0 0 auto; font-weight: 600; }
         .train-time { flex: 0 0 auto; font-weight: 500; }
         .train-platform,

@@ -154,8 +154,7 @@ export function trainRowsHtml(routes: TrainRoute[], now: number, hass: LocaleSou
             + `<span class="train-due">${escapeHtml(due)}</span>`
             + (route.line ? `<span class="train-line">${escapeHtml(route.line)}</span>` : '')
             + (route.line && route.transfers ? `<span class="train-transfers" aria-label="${escapeHtml(transfersLabel)}: ${route.transfers}">+${route.transfers}</span>` : '')
-            + `<span class="train-name">${escapeHtml(route.name)}${route.destination
-                ? `<span class="train-destination"> → ${escapeHtml(route.destination)}</span>` : ''}</span>`
+            + `<span class="train-name">${escapeHtml(route.destination || route.name)}</span>`
             + (route.delayMin ? `<span class="train-delay">+${route.delayMin}′</span>` : '')
             + (route.platform ? `<span class="train-platform">${escapeHtml(platformLabel)} ${escapeHtml(route.platform)}</span>` : '')
             + (nextTime ? `<span class="train-time">${escapeHtml(nextTime)}</span>` : '')

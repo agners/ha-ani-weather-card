@@ -311,7 +311,7 @@ flights_entity: sensor.flightradar24_current_in_area
 
 ### Train departures
 
-This needs the [Swiss public transport](https://www.home-assistant.io/integrations/swiss_public_transport/) integration, with one entry per row: a connection (from a station, to a station) or, in Home Assistant versions that have it, a stationboard (the departures from a station, optionally only those that stop at another). A stationboard's row also says where the next departure is headed, after the row's name. Give `train_entities` the connection's **Departure** sensor, or a list of them for several connections. The editor has pickers for four, under Entities. The card finds the connection's other sensors (the two later departures, line, platform and delay) on the same device, and names the row after the device, so rename the device to rename the row.
+This needs the [Swiss public transport](https://www.home-assistant.io/integrations/swiss_public_transport/) integration, with one entry per row: a connection (from a station, to a station) or, in Home Assistant versions that have it, a stationboard (the departures from a station, optionally only those that stop at another). A stationboard's row is named after where its next departure is headed, like a station's board, and after the device when that isn't known. Give `train_entities` the connection's **Departure** sensor, or a list of them for several connections. The editor has pickers for four, under Entities. The card finds the connection's other sensors (the two later departures, line, platform and delay) on the same device, and names the row after the device, so rename the device to rename the row.
 
 ```yaml
 type: custom:animated-weather-card
