@@ -105,6 +105,12 @@ const HERO_FADE_IN_MS = 220;
 const METRICS_ROW_SLACK_PX = 24;
 /** How often the departure board counts its minutes down */
 const TRAIN_TICK_MS = 15_000;
+/** The departure board's height on a phone: its padding, and each connection's line */
+const TRAIN_BOARD_PX = 26;
+const TRAIN_ROW_PX = 28;
+/** What the hourly forecast's eight rows leave unused on a phone (353 px wide), without a note and with one */
+const FORECAST_SPARE_PX = 40;
+const FORECAST_SPARE_NOTE_PX = 54;
 
 // The card's own GSAP, for every animation, here and in the planes bundle.
 // Never window.gsap: another card on the dashboard may bring a different
@@ -2154,15 +2160,19 @@ class AnimatedWeatherCard extends HTMLElement implements LovelaceCard, DevCard {
      * phone: four, a note one more; the forecast eight with an hourly
      * forecast (the row, its icons and its chips), five without one (the
      * turning line and the rail), and the days a row for every two (32 px each); the nightstand six. The clock asks
-     * for none. The departure board asks for a row for its first connection, then one for every two more.
+     * for none. The departure board asks for a row for its first connection, then one for every two more; under the forecast, only for what the forecast's rows don't already leave it.
      */
     gridRows(): number {
         const note = this.noteEnabled() ? 1 : 0;
         if (this.config?.layout === 'nightstand') return 6;
-        const trains = Math.ceil(this.trainRows() / 2);
+        const connections = this.trainRows();
+        const trains = Math.ceil(connections / 2);
         if (this.config?.show_forecast) {
             const hourly = forecastTypes(this.config.entity ? this._hass?.states[this.config.entity] : undefined).includes('hourly');
-            return (hourly ? 8 : 5) + this.dayRows() + note + trains;
+            // The forecast's rows leave room to spare on a phone, which the board takes before it asks for a row
+            const board = connections ? TRAIN_BOARD_PX + connections * TRAIN_ROW_PX : 0;
+            const spare = hourly ? (note ? FORECAST_SPARE_NOTE_PX : FORECAST_SPARE_PX) : 0;
+            return (hourly ? 8 : 5) + this.dayRows() + note + Math.ceil(Math.max(0, board - spare) / 64);
         }
         return 4 + note + trains;
     }

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0-train.2] - 2026-11-26
+
+- With the forecast on, the departure board uses the room the forecast's rows leave before it asks for rows of its own, so the card is a row shorter with a note and one or three connections.
+
 ## [1.4.0-train.1] - 2026-11-26
 
 A fork of 1.4.0 with train departures.
